@@ -1,15 +1,18 @@
+import bcrypt from 'bcryptjs';
 import {
   MOCK_USERS, MOCK_SUBSCRIPTIONS, MOCK_PAYMENTS, MOCK_POSTS, MOCK_ADMIN_LOGS,
   MOCK_COMMENTS, MOCK_MOCKTESTS, MOCK_USER_TEST_SCORES, MOCK_NOTEBOOKS,
   MOCK_VOCABULARY, MOCK_NOTEBOOK_VOCAB_ITEMS, MOCK_TIPS, MOCK_AI_LESSONS,
   MOCK_REPORTS, MOCK_TRANSLATION_HISTORY, MOCK_USER_USAGE, MOCK_NOTIFICATIONS,
-  MOCK_MEDIA, MOCK_REFRESH_TOKENS, MOCK_BADGE_LEVELS, mockUUID, mockTimestamp
+  MOCK_MEDIA, MOCK_REFRESH_TOKENS, MOCK_BADGE_LEVELS, mockUUID, mockTimestamp,
+  MOCK_TOKENS // Import MOCK_TOKENS
 } from './data';
 import type {
   User, Subscription, Payment, Post, AdminLog, Comment, MockTest, UserTestScore,
   Notebook, Vocabulary, NotebookVocabItem, Tip, AILesson, Report, TranslationHistory,
   UserUsage, Notification, Media, RefreshToken, BadgeLevel, 
 } from '../types/entities';
+import type { LoginPayload, LoginSuccessResponse, ForgotPasswordResponse } from '../features/auth/authApi';
 
 // Định nghĩa chung cho API Response có Phân trang (Pagination)
 export interface PaginatedResponse<T> {
@@ -55,22 +58,101 @@ const parseQueryParams = (queryString?: string) => {
   return result;
 };
 
+// Hàm giả lập kiểm tra mật khẩu (thực tế ở backend)
+const verifyPassword = (provided: string, actual: string): boolean => {
+    return bcrypt.compareSync(provided, actual);
+};
+
 // Logic xử lý chính cho các Endpoint Mock
 export const getMockResponse = <T>(
   endpoint: string,
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any
 ): T => {
   const [path, queryString] = endpoint.split('?');
   const pathSegments = path.split('/').filter(s => s);
-  const resource = pathSegments[0];
-  const id = pathSegments[1];
+  const resource = pathSegments[0]; // ex: users, auth
+  const id = pathSegments[1]; // ex: user_id, test_id
+  const action = pathSegments[2]; // ex: deactivate, reset-quota
   const queryParams = parseQueryParams(queryString);
 
   // Xử lý phân trang từ query parameters
   const page = parseInt(queryParams.page) || 1;
   const limit = parseInt(queryParams.limit) || 20;
+
+  // --- AUTHENTICATION ENDPOINTS ---
+  if (resource === 'auth') {
+      if (method === 'POST') {
+          if (id === 'login') {
+              const { username, password } = data as LoginPayload;
+              const identifier = username;
+
+              if (!identifier || !password) {
+                  throw new Error('Username and password are required.');
+              }
+
+              const user = MOCK_USERS.find(u =>
+                  (u.username === identifier) && (u.role === 'admin' || u.role === 'super admin')
+              );
+
+            if (!user || !user.password_hash || !bcrypt.compareSync(password, user.password_hash)) {
+            throw new Error('Tên đăng nhập hoặc mật khẩu không đúng.');
+            }
+
+              if (!user.is_active) {
+                  throw new Error('Tài khoản đã bị khóa hoặc không hoạt động.');
+              }
+              
+              const mockAccessToken = `mock_access_token_${user.id}_${mockTimestamp()}`;
+              const mockRefreshToken = `mock_refresh_token_${user.id}_${mockTimestamp()}`;
+
+              // Lưu token giả lập vào MOCK_TOKENS để có thể xác thực sau này (đơn giản)
+              MOCK_TOKENS[mockAccessToken] = { user_id: user.id, role: user.role };
+
+              return {
+                  token: mockAccessToken,
+                  refreshToken: mockRefreshToken,
+                  user: {
+                      id: user.id,
+                      username: user.username,
+                      email: user.email,
+                      name: user.name,
+                      role: user.role,
+                      avatar_url: user.avatar_url,
+                      level: user.level,
+                      badge_level: user.badge_level,
+                  }
+              } as unknown as T;
+          } else if (id === 'forgot-password') {
+                const { email } = data;
+                if (!email || !email.includes('@')) {
+                    throw new Error('Địa chỉ email không hợp lệ.');
+                }
+                const user = MOCK_USERS.find(u => u.email === email);
+                if (!user) {
+                    throw new Error('Email không được đăng ký trong hệ thống.');
+                }
+                // Giả lập gửi email reset
+                return { message: `Hướng dẫn đặt lại mật khẩu đã được gửi đến ${email}` } as unknown as T;
+            }
+      }
+      throw new Error(`[MOCK API] Auth endpoint not found or method not supported: ${method} ${endpoint}`);
+  }
+
+  // --- Các Endpoints Admin (Users, Subscriptions, etc.) ---
+  // Giả lập kiểm tra token. Trong thực tế, middleware sẽ làm việc này
+  const authToken = getAuthToken(); // Hàm này cần được định nghĩa hoặc truyền vào
+  if (!authToken || !MOCK_TOKENS[authToken]) {
+      // Đối với mock, tạm thời không ném lỗi authentication để các api mock khác vẫn hoạt động
+      // console.warn('MOCK API: No auth token or invalid token for admin endpoint.');
+      // throw new Error('Unauthorized: No valid auth token provided.');
+  } else {
+      const userRole = MOCK_TOKENS[authToken].role;
+      if (userRole !== 'admin' && userRole !== 'super admin') {
+          // console.warn(`MOCK API: User role '${userRole}' is not authorized for admin endpoint.`);
+          // throw new Error('Forbidden: Insufficient permissions.');
+      }
+  }
 
   // GET: Lấy danh sách hoặc chi tiết
   if (method === 'GET') {
@@ -78,14 +160,17 @@ export const getMockResponse = <T>(
       // Lấy chi tiết theo ID
       switch (resource) {
         case 'users': {
-          if (pathSegments[2] === 'deactivate' || pathSegments[2] === 'activate') {
+            if (action === 'details') { // /users/:id/details
+                const user = MOCK_USERS.find(u => u.id === id);
+                if (!user) throw new Error(`[MOCK API] User not found: ${id}`);
+                // Bổ sung UserUsage và Subscription history giả lập
+                const userUsage = MOCK_USER_USAGE.filter(uu => uu.user_id === user.id);
+                const userSubscription = user.subscription_id ? MOCK_SUBSCRIPTIONS.find(s => s.id === user.subscription_id) : undefined;
+                return { ...user, usage: userUsage, subscription_details: userSubscription } as unknown as T;
+            }
             const user = MOCK_USERS.find(u => u.id === id);
             if (!user) throw new Error(`[MOCK API] User not found: ${id}`);
-            return { ...user, is_active: pathSegments[2] === 'activate' } as unknown as T;
-          }
-          const user = MOCK_USERS.find(u => u.id === id);
-          if (!user) throw new Error(`[MOCK API] User not found: ${id}`);
-          return user as unknown as T;
+            return user as unknown as T;
         }
         case 'subscriptions': {
           const subscription = MOCK_SUBSCRIPTIONS.find(s => s.id === id);
@@ -183,7 +268,18 @@ export const getMockResponse = <T>(
           return badge as unknown as T;
         }
       }
-    } else {
+    } else if (resource === 'analytics') { // /analytics
+        // Giả lập dữ liệu analytics
+        return {
+            totalUsers: MOCK_USERS.length,
+            activeUsers: MOCK_USERS.filter(u => u.is_active).length,
+            newUsersToday: MOCK_USERS.filter(u => new Date(u.created_at).toDateString() === new Date().toDateString()).length,
+            pendingReports: MOCK_REPORTS.filter(r => r.status === 'pending').length,
+            activeSubscriptions: MOCK_USERS.filter(u => u.subscription_id && u.subscription_expiry && new Date(u.subscription_expiry) > new Date()).length,
+            // Thêm các metric khác
+        } as unknown as T;
+    }
+    else {
       // Lấy danh sách với phân trang
       switch (resource) {
         case 'users': {
@@ -317,7 +413,9 @@ export const getMockResponse = <T>(
     const created_at = mockTimestamp();
     switch (resource) {
       case 'users': {
-        return { ...data, id: newId, created_at, is_active: true } as unknown as T;
+        const newUser = { ...data, id: newId, created_at, is_active: true } as User;
+        // MOCK_USERS.push(newUser); // Để mock data persistent trong 1 phiên
+        return newUser as unknown as T;
       }
       case 'subscriptions': {
         return { ...data, id: newId, created_at, updated_at: created_at } as unknown as T;
@@ -381,16 +479,31 @@ export const getMockResponse = <T>(
 
   // PUT: Cập nhật
   if (method === 'PUT' && id) {
+    let userIndex = MOCK_USERS.findIndex(u => u.id === id); // Tìm index để cập nhật
     switch (resource) {
       case 'users': {
-        if (pathSegments[2] === 'deactivate' || pathSegments[2] === 'activate') {
-          const user = MOCK_USERS.find(u => u.id === id);
-          if (!user) throw new Error(`[MOCK API] User not found: ${id}`);
-          return { ...user, is_active: pathSegments[2] === 'activate', updated_at: mockTimestamp() } as unknown as T;
+        if (action === 'lock') { // /users/:id/lock
+            const user = MOCK_USERS[userIndex];
+            if (!user) throw new Error(`[MOCK API] User not found: ${id}`);
+            user.is_active = (data as { is_active: boolean }).is_active;
+            return user as unknown as T;
+        } else if (action === 'reset-quota') { // /users/:id/reset-quota
+            const user = MOCK_USERS[userIndex];
+            if (!user) throw new Error(`[MOCK API] User not found: ${id}`);
+            // Đặt lại daily_count của tất cả UserUsage của user về 0
+            MOCK_USER_USAGE.forEach(usage => {
+                if (usage.user_id === user.id) {
+                    usage.daily_count = 0;
+                    usage.last_reset = mockTimestamp();
+                }
+            });
+            return { message: `Quota for user ${id} reset successfully.` } as unknown as T;
         }
-        const user = MOCK_USERS.find(u => u.id === id);
-        if (!user) throw new Error(`[MOCK API] User not found: ${id}`);
-        return { ...user, ...data, updated_at: mockTimestamp() } as unknown as T;
+        
+        // Cập nhật thông tin user bình thường
+        if (userIndex === -1) throw new Error(`[MOCK API] User not found: ${id}`);
+        MOCK_USERS[userIndex] = { ...MOCK_USERS[userIndex], ...data, updated_at: mockTimestamp() };
+        return MOCK_USERS[userIndex] as unknown as T;
       }
       case 'subscriptions': {
         const subscription = MOCK_SUBSCRIPTIONS.find(s => s.id === id);
@@ -489,8 +602,9 @@ export const getMockResponse = <T>(
   if (method === 'DELETE' && id) {
     switch (resource) {
       case 'users': {
-        const user = MOCK_USERS.find(u => u.id === id);
-        if (!user) throw new Error(`[MOCK API] User not found: ${id}`);
+        const userIndex = MOCK_USERS.findIndex(u => u.id === id);
+        if (userIndex === -1) throw new Error(`[MOCK API] User not found: ${id}`);
+        MOCK_USERS.splice(userIndex, 1); // Xóa cứng user trong mock
         return { message: `User ${id} deleted` } as unknown as T;
       }
       case 'subscriptions': {
@@ -557,4 +671,12 @@ export const getMockResponse = <T>(
   }
 
   throw new Error(`[MOCK API] Endpoint not found or method not supported: ${method} ${endpoint}`);
+};
+
+// Hàm này cần được truy cập bởi apiClient
+// Hiện tại apiClient không truyền token vào wrapper, chúng ta sẽ giả lập nó
+// bằng cách đọc từ localStorage trực tiếp trong wrapper hoặc cải tiến apiClient.
+// Tạm thời, để mock hoạt động sẽ làm một phiên bản đơn giản hơn.
+const getAuthToken = (): string | null => {
+  return localStorage.getItem('admin_token') || null;
 };

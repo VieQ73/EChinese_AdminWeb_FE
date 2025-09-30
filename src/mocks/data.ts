@@ -5,15 +5,22 @@ import type {
   Tip, AILesson, Report, TranslationHistory, UserUsage,
   Notification, Media, RefreshToken, BadgeLevel
 } from '../types/entities';
+import bcrypt from 'bcryptjs'; // Import bcryptjs cho việc hash password
 
 export const mockUUID = (prefix: string): UUID => `${prefix}-${Math.random().toString(36).substring(2, 10)}`;
 export const mockTimestamp = (): Timestamp => new Date().toISOString();
 
+// Giả lập hash password (trong thực tế sẽ làm ở backend)
+const HASH_SALT_ROUNDS = 10;
+const hashPassword = (password: string): string => {
+  return bcrypt.hashSync(password, HASH_SALT_ROUNDS);
+};
+
 // --- MOCK USERS ---
 export const MOCK_USERS: User[] = [
   {
-    id: mockUUID('user'), username: 'admin_super', password_hash: 'hashed_password',
-    name: 'Super Admin', avatar_url: undefined,
+    id: mockUUID('user'), username: 'superadmin', password_hash: hashPassword('12345'), // Mật khẩu thật: 12345
+    name: 'Super Admin User', avatar_url: undefined,
     email: 'superadmin@example.com', provider: 'local', provider_id: undefined,
     role: 'super admin', is_active: true, isVerify: true, community_points: 5000,
     level: '7-9', badge_level: 4, language: 'Tiếng Việt',
@@ -21,8 +28,8 @@ export const MOCK_USERS: User[] = [
     achievements: []
   },
   {
-    id: mockUUID('user'), username: 'admin_content', password_hash: 'hashed_password',
-    name: 'Content Manager', avatar_url: undefined,
+    id: mockUUID('user'), username: 'admin', password_hash: hashPassword('12345'), // Mật khẩu thật: 12345
+    name: 'Content Manager Admin', avatar_url: undefined,
     email: 'admin@example.com', provider: 'local', provider_id: undefined,
     role: 'admin', is_active: true, isVerify: true, community_points: 1200,
     level: '5', badge_level: 2, language: 'Tiếng Anh',
@@ -30,9 +37,9 @@ export const MOCK_USERS: User[] = [
     achievements: [{ name: 'Moderator Badge', achieved_at: mockTimestamp(), criteria: 'moderate_10_posts' }]
   },
   {
-    id: mockUUID('user'), username: 'premium_user', name: 'Nguyễn Văn A',
+    id: mockUUID('user'), username: 'premium_user', name: 'Nguyễn Văn A', password_hash: hashPassword('12345'),
     avatar_url: 'https://placehold.co/150x150/2563eb/white?text=NVA',
-    email: 'user_premium@example.com', provider: 'google', provider_id: 'google_12345',
+    email: 'user_premium@example.com', provider: 'local', provider_id: undefined, 
     role: 'user', is_active: true, isVerify: true, community_points: 800,
     subscription_id: undefined, // Sẽ được gán sau khi MOCK_SUBSCRIPTIONS được định nghĩa
     subscription_expiry: undefined,
@@ -41,15 +48,25 @@ export const MOCK_USERS: User[] = [
     achievements: [{ name: '7 days streak', achieved_at: mockTimestamp(), criteria: 'login_7_days' }]
   },
   {
-    id: mockUUID('user'), username: 'standard_user', name: 'Trần Thị B',
+    id: mockUUID('user'), username: 'standard_user', password_hash: hashPassword('12345'), name: 'Trần Thị B',
     avatar_url: undefined, email: 'standard_user@example.com', provider: 'local', provider_id: undefined,
     role: 'user', is_active: true, isVerify: false, community_points: 200,
     subscription_id: undefined, subscription_expiry: undefined,
     level: '2', badge_level: 0, language: 'Tiếng Việt',
     created_at: '2024-06-15T09:00:00Z', last_login: mockTimestamp(),
     achievements: []
+  },
+    {
+    id: mockUUID('user'), username: 'inactive_user', password_hash: hashPassword('12345'), name: 'Nguyễn Văn C',
+    avatar_url: undefined, email: 'inactive@example.com', provider: 'local', provider_id: undefined,
+    role: 'user', is_active: false, isVerify: true, community_points: 50,
+    subscription_id: undefined, subscription_expiry: undefined,
+    level: '1', badge_level: 0, language: 'Tiếng Anh',
+    created_at: '2024-01-01T09:00:00Z', last_login: mockTimestamp(),
+    achievements: []
   }
 ];
+
 
 // --- MOCK SUBSCRIPTIONS ---
 export const MOCK_SUBSCRIPTIONS: Subscription[] = [
@@ -97,6 +114,11 @@ export const MOCK_POSTS: Post[] = [
     id: mockUUID('post'), user_id: MOCK_USERS[2].id, title: 'Tips học HSK4 hiệu quả',
     content: { text: 'Chia sẻ kinh nghiệm học HSK4', format: 'rich' }, topic: 'Học tiếng Trung',
     likes: 15, views: 100, created_at: '2024-04-01T10:00:00Z', is_approved: true, deleted_at: undefined
+  },
+    {
+    id: mockUUID('post'), user_id: MOCK_USERS[3].id, title: 'Khó khăn khi học HSKK',
+    content: { text: 'Ai có kinh nghiệm chia sẻ với mình nhé', format: 'rich' }, topic: 'Học tiếng Trung',
+    likes: 5, views: 50, created_at: '2024-04-05T10:00:00Z', is_approved: true, deleted_at: undefined
   }
 ];
 
@@ -106,6 +128,11 @@ export const MOCK_COMMENTS: Comment[] = [
     id: mockUUID('comment'), post_id: MOCK_POSTS[0].id, user_id: MOCK_USERS[3].id,
     content: { text: 'Cảm ơn bài chia sẻ!', format: 'rich' }, likes: 5, parent_comment_id: undefined,
     created_at: '2024-04-01T11:00:00Z', deleted_at: undefined
+  },
+    {
+    id: mockUUID('comment'), post_id: MOCK_POSTS[0].id, user_id: MOCK_USERS[0].id,
+    content: { text: 'Bài viết rất hữu ích!', format: 'rich' }, likes: 10, parent_comment_id: undefined,
+    created_at: '2024-04-01T11:30:00Z', deleted_at: undefined
   }
 ];
 
@@ -127,6 +154,12 @@ export const MOCK_MOCKTESTS: MockTest[] = [
       }
     ],
     instructions: undefined, is_active: true, created_by: MOCK_USERS[1].id, deleted_at: undefined
+  },
+    {
+    id: mockUUID('test'), type: 'HSK', level: 'HSK5',
+    title: 'HSK5 Reading Test 1', total_time_limit: 60, total_max_score: 100,
+    sections: [], // Giả lập để không quá phức tạp
+    instructions: 'Đọc kỹ và trả lời', is_active: true, created_by: MOCK_USERS[1].id, deleted_at: undefined
   }
 ];
 
@@ -214,8 +247,24 @@ export const MOCK_AI_LESSONS: AILesson[] = [
 // --- MOCK ADMIN LOGS ---
 export const MOCK_ADMIN_LOGS: AdminLog[] = [
   {
-    id: mockUUID('log'), admin_id: MOCK_USERS[1].id, action_type: 'delete_post',
-    target_id: undefined, description: undefined, created_at: '2024-04-02T14:00:00Z'
+    id: mockUUID('log'), admin_id: MOCK_USERS[1].id, action_type: 'create_mock_test',
+    target_id: MOCK_MOCKTESTS[0].id, description: 'Admin đã tạo Bài thi HSK4 mới.', created_at: '2024-06-25T14:00:00Z'
+  },
+  {
+    id: mockUUID('log'), admin_id: MOCK_USERS[0].id, action_type: 'delete_post_soft',
+    target_id: MOCK_POSTS[1].id, description: 'Super Admin gỡ bài viết vi phạm của user #1234.', created_at: '2024-06-25T13:00:00Z'
+  },
+  {
+    id: mockUUID('log'), admin_id: MOCK_USERS[1].id, action_type: 'update_subscription',
+    target_id: MOCK_SUBSCRIPTIONS[0].id, description: 'Admin cập nhật giá gói Platinum.', created_at: '2024-06-25T11:00:00Z'
+  },
+  {
+    id: mockUUID('log'), admin_id: MOCK_USERS[1].id, action_type: 'approve_posts',
+    target_id: undefined, description: 'Admin phê duyệt 5 bài viết cộng đồng.', created_at: '2024-06-24T10:00:00Z'
+  },
+  {
+    id: mockUUID('log'), admin_id: MOCK_USERS[1].id, action_type: 'upload_media',
+    target_id: undefined, description: 'Admin tải lên 10 file audio cho MockTest.', created_at: '2024-06-23T09:00:00Z'
   }
 ];
 
@@ -225,6 +274,11 @@ export const MOCK_REPORTS: Report[] = [
     id: mockUUID('report'), reporter_id: MOCK_USERS[3].id, target_type: 'post',
     target_id: MOCK_POSTS[0].id, reason: 'Inappropriate content', status: 'pending',
     resolved_by: undefined, created_at: '2024-04-01T12:00:00Z'
+  },
+    {
+    id: mockUUID('report'), reporter_id: MOCK_USERS[2].id, target_type: 'comment',
+    target_id: MOCK_COMMENTS[1].id, reason: 'Spam comment', status: 'pending',
+    resolved_by: undefined, created_at: '2024-04-02T12:00:00Z'
   }
 ];
 
@@ -242,6 +296,14 @@ export const MOCK_USER_USAGE: UserUsage[] = [
   {
     id: mockUUID('usage'), user_id: MOCK_USERS[2].id, feature: 'ai_lesson',
     daily_count: 3, last_reset: '2024-04-05T00:00:00Z'
+  },
+    {
+    id: mockUUID('usage'), user_id: MOCK_USERS[2].id, feature: 'translate',
+    daily_count: 5, last_reset: '2024-04-05T00:00:00Z'
+  },
+    {
+    id: mockUUID('usage'), user_id: MOCK_USERS[3].id, feature: 'ai_lesson',
+    daily_count: 1, last_reset: '2024-04-05T00:00:00Z'
   }
 ];
 
@@ -270,3 +332,6 @@ export const MOCK_REFRESH_TOKENS: RefreshToken[] = [
     created_at: '2024-04-01T08:00:00Z', expires_at: '2024-05-01T08:00:00Z'
   }
 ];
+
+// --- MOCK TOKEN Store (for login) ---
+export const MOCK_TOKENS: { [token: string]: { user_id: UUID, role: User['role'] } } = {};

@@ -1,109 +1,133 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
 import React, { useState, useEffect } from 'react';
+// Import `Outlet` từ `react-router-dom`
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
-// import UserManagementExample from './features/users/UserManagementExample'; // Tạm thời ẩn component này
-import { fetchAllUsers } from './features/users/userApi';
-import { type User } from './types/entities'; 
+import UsersManagementPage from './pages/UsersManagementPage';
 import MainLayout from './components/layout/MainLayout';
+import { type User } from './types/entities';
+import { apiClient } from './services/apiClient';
+import { LayoutDashboard, Users } from 'lucide-react';
 
-// Component để hiển thị ví dụ quản lý người dùng
-const UserManagementExample: React.FC = () => {
-  // Định nghĩa state với kiểu dữ liệu User[]
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+/**
+ * @fileoverview App component - Quản lý trạng thái xác thực và định tuyến chính của ứng dụng.
+ * @description Đây là component gốc của ứng dụng, chịu trách nhiệm kiểm tra trạng thái đăng nhập,
+ * hiển thị trang đăng nhập hoặc layout admin, và định tuyến giữa các trang.
+ */
+
+// Giả định một type cho thông tin user cần lưu sau khi đăng nhập
+export type AuthenticatedUser = Pick<
+  User,
+  'id' | 'username' | 'email' | 'name' | 'role' | 'avatar_url' | 'level' | 'badge_level'
+>;
+
+function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    // Kiểm tra token trong localStorage khi ứng dụng khởi tạo
+    return !!localStorage.getItem('admin_token');
+  });
+  const [currentUser, setCurrentUser] = useState<AuthenticatedUser | null>(() => {
+    // Cố gắng tải thông tin user từ localStorage nếu có
+    const userString = localStorage.getItem('admin_user');
+    return userString ? JSON.parse(userString) : null;
+  });
+  const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
-    const loadUsers = async () => {
-      setLoading(true);
-      setError(null);
+    // Trong môi trường thực, bạn sẽ kiểm tra tính hợp lệ của token ở đây,
+    // ví dụ bằng cách gọi một API /auth/me hoặc /auth/verify-token.
+    // Hiện tại, chúng ta chỉ kiểm tra sự tồn tại của token.
+    const token = localStorage.getItem('admin_token');
+    const user = localStorage.getItem('admin_user');
+
+    if (token && user) {
       try {
-        const response = await fetchAllUsers({ page: 1, limit: 10 }); 
-        setUsers(response.data);
-      } catch (err: any) {
-        console.error("Lỗi khi tải dữ liệu:", err);
-        setError(err.message || "Không thể tải dữ liệu người dùng.");
-      } finally {
-        setLoading(false);
+        setCurrentUser(JSON.parse(user));
+        setIsAuthenticated(true);
+      } catch (error) {
+        console.error("Lỗi khi parse thông tin người dùng từ localStorage:", error);
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_user');
+        setIsAuthenticated(false);
       }
-    };
-    loadUsers();
+    } else {
+      setIsAuthenticated(false);
+    }
+    setLoadingAuth(false);
   }, []);
 
-  if (loading) return (
-    <div className="flex justify-center items-center h-48">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal-500"></div>
-    </div>
-  );
-  if (error) return <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">Lỗi: {error}</div>;
+  const handleLoginSuccess = (token: string, user: AuthenticatedUser) => {
+    localStorage.setItem('admin_token', token);
+    localStorage.setItem('admin_user', JSON.stringify(user));
+    setIsAuthenticated(true);
+    setCurrentUser(user);
+    // Có thể redirect đến dashboard hoặc trang mặc định sau đăng nhập
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_user');
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    // Redirect về trang đăng nhập
+  };
+
+  if (loadingAuth) {
+    // Có thể render một loading spinner toàn màn hình ở đây
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="flex flex-col items-center">
+          <svg className="animate-spin h-8 w-8 text-teal-600 mb-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+          <p className="text-gray-700 font-medium">Đang tải...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-0">
-      <h1 className="text-3xl font-extrabold mb-2 text-gray-800">Quản lý Người dùng</h1>
-      <p className="mb-6 text-sm text-gray-500">
-        Hiển thị danh sách người dùng đầu tiên. Dữ liệu được lấy thông qua **API Client** trong môi trường **Mock Data**.
-      </p>
-      
-      {/* User List Display */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {users.map(user => (
-          <div key={user.id} className="p-4 border border-gray-200 rounded-xl shadow-md bg-white hover:shadow-lg transition duration-300">
-            <p className="font-bold text-lg text-gray-900 truncate">{user.name}</p>
-            <p className="text-sm text-gray-600">@{user.username || 'N/A'}</p>
-            <p className="text-xs mt-2">
-              <span className="font-medium text-blue-600 uppercase mr-2">{user.role}</span> | 
-              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ml-1 ${user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                {user.is_active ? 'Active' : 'Deactivated'}
-              </span>
-            </p>
-            <div className="mt-2 pt-2 border-t border-gray-100">
-                <p className="text-xs text-gray-500">Level: {user.level} (Điểm: {user.community_points})</p>
-            </div>
-          </div>
-        ))}
-      </div>
-      
-      {/* Mock Data Notice */}
-      <p className="mt-8 p-4 bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-lg text-sm">
-        **Lưu ý:** Ứng dụng đang chạy ở chế độ **Mock Data**. Kết quả hiển thị là dữ liệu giả lập.
-      </p>
-    </div>
+    <Router>
+      <Routes>
+        {/* Route cho trang đăng nhập */}
+        <Route
+          path="/auth"
+          element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <AuthPage onLoginSuccess={handleLoginSuccess} />}
+        />
+
+        {/* Các Route yêu cầu xác thực - sử dụng LayoutWrapper */}
+        {/* Khi dùng nested routes với layout, component cha (LayoutWrapper) cần render Outlet */}
+        <Route
+          path="/"
+          element={isAuthenticated ? <LayoutWrapper onLogout={handleLogout} /> : <Navigate to="/auth" replace />}
+        >
+          {/* Dashboard Page */}
+          <Route path="dashboard" element={<DashboardPage />} />
+          {/* User Management Page */}
+          <Route path="users" element={<UsersManagementPage />} />
+          {/* ... Các trang khác sẽ được thêm vào sau */}
+          
+          {/* Redirect mặc định nếu path "/" không khớp và đã đăng nhập */}
+          <Route index element={<Navigate to="/dashboard" replace />} /> {/* Thêm index route để redirect */}
+        </Route>
+
+        {/* Catch-all route cho 404 hoặc redirect */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </Router>
   );
-};
-
-
-const App: React.FC = () => {
-    // Sử dụng localStorage để giả lập việc lưu trữ token sau khi đăng nhập thành công
-    const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('admin_token'));
-
-    const handleLoginSuccess = (token: string) => {
-        // Trong ứng dụng thực tế: Lưu token vào Http-Only Cookie hoặc nơi an toàn khác
-        localStorage.setItem('admin_token', token); 
-        setIsAuthenticated(true);
-    };
-
-    // Hàm giả lập đăng xuất
-    const handleLogout = () => {
-        localStorage.removeItem('admin_token');
-        setIsAuthenticated(false);
-    }
-    
-    // Nếu chưa đăng nhập, hiển thị trang AuthPage
-    if (!isAuthenticated) {
-        return <AuthPage onLoginSuccess={handleLoginSuccess} />;
-    }
-    
-    // Nếu đã đăng nhập, hiển thị DashboardPage
-    return (
-        <DashboardPage /> 
-        // Hoặc nếu muốn quay lại User List (thay vì Dashboard):
-        // <MainLayout>
-        //    <UserManagementExample /> 
-        // </MainLayout>
-    );
 }
 
 export default App;
+
+// Component wrapper để truyền children (Outlet) vào MainLayout
+// và xử lý việc gọi hàm onLogout từ MainLayout
+interface LayoutWrapperProps {
+  onLogout: () => void;
+}
+const LayoutWrapper: React.FC<LayoutWrapperProps> = ({ onLogout }) => {
+  return (
+    <MainLayout onLogout={onLogout}> {/* Truyền onLogout xuống MainLayout */}
+      <Outlet /> {/* Đây là nơi các route con sẽ được render */}
+    </MainLayout>
+  );
+};
