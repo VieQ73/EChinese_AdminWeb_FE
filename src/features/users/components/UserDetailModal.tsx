@@ -9,20 +9,21 @@ import {
 } from '../../../components/ui/dialog';
 import  Input  from '../../../components/ui/Input';
 import { Button } from '../../../components/ui/button';
-import type { User, Subscription, Timestamp, UserUsage, UUID } from '../../../types/entities';
-import { updateUser, fetchUserById } from '../userApi'; // Import API
+import type { User, Subscription, Timestamp, UserUsage } from '../../../types/entities';
+import { updateUser, fetchUserById } from '../userApi';
 import { Loader2, Save, XCircle } from 'lucide-react';
 import { cn } from '../../../lib/utils';
-import { MOCK_SUBSCRIPTIONS, MOCK_BADGE_LEVELS } from '../../../mocks/data'; // Để lấy danh sách subscriptions và badge levels
+import { MOCK_SUBSCRIPTIONS, MOCK_BADGE_LEVELS } from '../../../mocks/data';
+import type { AuthenticatedUser } from '../../../App';
 
 /**
  * @fileoverview UserDetailModal component - Modal xem và chỉnh sửa chi tiết người dùng
  * @description Hiển thị thông tin chi tiết của người dùng, cho phép admin chỉnh sửa các trường như
  * vai trò, trạng thái hoạt động, cấp độ huy hiệu và thông tin gói đăng ký.
  * Bao gồm logic fetch chi tiết user và cập nhật user.
+ * Áp dụng phân quyền dựa trên vai trò và chế độ xem/chỉnh sửa.
  */
 
-// Định nghĩa kiểu dữ liệu cho user với các trường bổ sung từ API details
 interface UserDetail extends User {
     usage?: UserUsage[];
     subscription_details?: Subscription;
@@ -30,16 +31,47 @@ interface UserDetail extends User {
 
 interface UserDetailModalProps {
   isOpen: boolean;
-  onClose: () => void;
-  user: User | null; // Có thể null khi tạo mới user hoặc khi modal đang đóng
+  onClose: (refreshNeeded?: boolean) => void;
+  user: User | null;
+  mode: 'view' | 'edit';
+  currentUser: AuthenticatedUser | null;
 }
 
-const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user }) => {
+const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user, mode, currentUser }) => {
   const [editingUser, setEditingUser] = useState<Partial<UserDetail> | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const isViewMode = mode === 'view';
+  const isSelf = currentUser?.id === user?.id; // Người dùng hiện tại có phải là người đang chỉnh sửa không?
+
+  // Helper để kiểm tra quyền của currentUser
+  const isSuperAdmin = currentUser?.role === 'super admin';
+  const isAdmin = currentUser?.role === 'admin';
+
+  // --- Quyền cho các trường riêng lẻ ---
+
+  // Quyền chỉnh sửa Role
+  const canEditRoleField = (): boolean => {
+    if (!isSuperAdmin) return false; // Chỉ super admin mới có thể sửa role
+    if (user?.role === 'super admin' && !isSelf) return false; // Không sửa role của super admin khác
+    return true;
+  };
+
+  // Quyền chỉnh sửa các trường thông tin chung (name, email, is_active, badge_level, subscription...)
+  const canEditInfoFields = (): boolean => {
+    if (!currentUser) return false;
+    if (user?.role === 'super admin' && !isSelf) return false; // Không sửa thông tin của super admin khác
+    return isSuperAdmin || (isAdmin && user?.role === 'user'); // Super admin sửa tất cả, Admin sửa user thường
+  };
+
+  // Check nếu Super Admin đang cố gắng tự hạ cấp
+  const isSuperAdminAttemptingToDemoteSelf = (): boolean => {
+    return isSuperAdmin && isSelf && editingUser?.role !== 'super admin';
+  };
+
 
   // Load user details khi modal mở và user thay đổi
   useEffect(() => {
@@ -49,8 +81,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
       setSuccessMessage(null);
       const loadUserDetails = async () => {
         try {
-          // Fetch chi tiết user, bao gồm usage và subscription_details
-          const response = await fetchUserById(user.id + '/details'); // Endpoint /users/:id/details
+          const response = await fetchUserById(user.id + '/details');
           setEditingUser(response);
         } catch (err: any) {
           console.error("Lỗi khi tải chi tiết người dùng:", err);
@@ -62,25 +93,13 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
       };
       loadUserDetails();
     } else if (isOpen && !user) {
-        // Trường hợp tạo người dùng mới, khởi tạo form trống
-        setEditingUser({
-            name: '',
-            username: '',
-            email: '',
-            role: 'user',
-            is_active: true,
-            badge_level: 0,
-            level: '1',
-            language: 'Tiếng Việt',
-            community_points: 0,
-            isVerify: false,
-            // Các trường khác có thể để mặc định hoặc không hiển thị trong form tạo
-        });
-        setFetchLoading(false);
+        // Modal này không hỗ trợ tạo người dùng mới, chỉ xem/sửa user hiện có.
+        // Nếu user là null và modal mở, có nghĩa là có lỗi logic hoặc cố tình mở modal tạo mới.
+        // Trong trường hợp này, chúng ta đóng modal.
+        onClose(false);
     }
-  }, [isOpen, user]);
+  }, [isOpen, user, onClose]);
 
-  // Reset messages khi đóng modal
   useEffect(() => {
     if (!isOpen) {
         setError(null);
@@ -92,55 +111,97 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
     const { id, value, type, checked } = e.target as HTMLInputElement;
 
     if (editingUser) {
-        if (id === 'is_active') {
-            setEditingUser({ ...editingUser, [id]: checked });
+        let newValue: any = value;
+        if (type === 'checkbox') {
+            newValue = checked;
         } else if (id === 'badge_level' || id === 'community_points') {
-            setEditingUser({ ...editingUser, [id]: parseInt(value) });
+            newValue = parseInt(value);
         } else if (id === 'subscription_expiry') {
-           setEditingUser({ ...editingUser, [id]: value ? new Date(value).toISOString() : undefined });
-        } else {
-            setEditingUser({ ...editingUser, [id]: value });
+           newValue = value ? new Date(value).toISOString() : undefined;
         }
+        
+        // Kiểm tra quyền sửa role riêng
+        if (id === 'role' && !canEditRoleField()) {
+            alert('Bạn không có quyền chỉnh sửa vai trò này.');
+            return;
+        }
+        // Kiểm tra quyền sửa các trường thông tin chung
+        if (id !== 'role' && !canEditInfoFields()) {
+            alert('Bạn không có quyền chỉnh sửa thông tin này.');
+            return;
+        }
+
+        setEditingUser(prev => ({ ...prev, [id]: newValue } as Partial<UserDetail>));
     }
   };
 
   const handleSubscriptionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (!canEditInfoFields()) { // Kiểm tra quyền trước khi sửa
+        alert('Bạn không có quyền chỉnh sửa thông tin gói đăng ký.');
+        return;
+    }
     if (editingUser) {
         const subId = e.target.value === '' ? undefined : e.target.value;
         const selectedSub = MOCK_SUBSCRIPTIONS.find(s => s.id === subId);
-        setEditingUser({
-            ...editingUser,
+        setEditingUser(prev => ({
+            ...prev,
             subscription_id: subId,
-            // Cập nhật subscription_expiry dựa trên gói đã chọn (ví dụ: +1 tháng)
             subscription_expiry: selectedSub?.duration_months != null
             ? new Date(Date.now() + selectedSub.duration_months * 30 * 24 * 60 * 60 * 1000).toISOString()
-            : undefined,// undefined nếu là gói vĩnh viễn hoặc không chọn
-        });
+            : undefined,
+        } as Partial<UserDetail>));
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingUser) return;
+    if (!editingUser || !user?.id) return;
+
+    // Kiểm tra lại quyền trước khi gửi đi
+    if (!canEditInfoFields() && !canEditRoleField()) {
+        setError('Bạn không có quyền để lưu thay đổi này.');
+        return;
+    }
+    if (isSuperAdminAttemptingToDemoteSelf()) {
+        setError('Super Admin không thể tự hạ cấp vai trò của mình.');
+        return;
+    }
+
 
     setLoading(true);
     setError(null);
     setSuccessMessage(null);
 
     try {
-        if (user?.id) { // Chỉnh sửa user hiện có
-            await updateUser(user.id, editingUser);
-            setSuccessMessage("Cập nhật thông tin người dùng thành công!");
-        } else { // Tạo người dùng mới (chưa có API tạo trong spec, đây là giả lập)
-            // Trong thực tế, bạn sẽ có một API `createUser` riêng
-            // Ví dụ: await createUser(editingUser);
-            setSuccessMessage("Tạo người dùng mới thành công! (Mock)");
-            // Thêm user vào MOCK_USERS nếu cần mock persistent hơn
+        const payloadToUpdate: Partial<User> = {
+            name: editingUser.name,
+            email: editingUser.email,
+            is_active: editingUser.is_active,
+            role: editingUser.role,
+            badge_level: editingUser.badge_level,
+            subscription_id: editingUser.subscription_id,
+            subscription_expiry: editingUser.subscription_expiry,
+        };
+        // Lọc ra các trường mà current user không có quyền sửa
+        if (!canEditRoleField()) {
+            delete payloadToUpdate.role;
         }
+        if (!canEditInfoFields()) {
+            delete payloadToUpdate.name;
+            delete payloadToUpdate.email;
+            delete payloadToUpdate.is_active;
+            delete payloadToUpdate.badge_level;
+            delete payloadToUpdate.subscription_id;
+            delete payloadToUpdate.subscription_expiry;
+        }
+        // Luôn loại bỏ username khi update qua modal này
+        delete payloadToUpdate.username;
+
+        await updateUser(user.id, payloadToUpdate);
+        setSuccessMessage("Cập nhật thông tin người dùng thành công!");
         
-        // Tự động đóng modal sau khi thành công
         setTimeout(() => {
-            onClose();
+            onClose(true); // Yêu cầu refresh danh sách
         }, 1500);
 
     } catch (err: any) {
@@ -154,18 +215,18 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
   const formatDateForInput = (isoString?: Timestamp | null) => {
     if (!isoString) return '';
     const date = new Date(isoString);
-    // Format thành YYYY-MM-DDTHH:MM
     return date.toISOString().slice(0, 16);
   };
 
+  if (!isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(_open) => onClose(false)}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{user ? `Chỉnh sửa Người dùng: ${user.name || user.username}` : 'Tạo Người dùng mới'}</DialogTitle>
+          <DialogTitle>{mode === 'view' ? `Chi tiết Người dùng: ${user?.name || user?.username}` : `Chỉnh sửa Người dùng: ${user?.name || user?.username}`}</DialogTitle>
           <DialogDescription>
-            {user ? 'Cập nhật thông tin chi tiết của người dùng này.' : 'Nhập thông tin để tạo người dùng mới.'}
+            {mode === 'view' ? 'Xem thông tin chi tiết của người dùng.' : 'Cập nhật thông tin chi tiết của người dùng này.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -195,14 +256,15 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
               value={editingUser.name || ''}
               onChange={handleChange}
               placeholder="Nguyễn Văn A"
+              disabled={isViewMode || !canEditInfoFields()}
             />
             <Input
               id="username"
               label="Username"
               value={editingUser.username || ''}
-              onChange={handleChange}
+              // onChange={handleChange} // Không cho phép chỉnh sửa username
               placeholder="van_a"
-              disabled={!!user} // Không cho phép sửa username khi chỉnh sửa user đã tồn tại
+              disabled // Username luôn disabled
             />
             <Input
               id="email"
@@ -211,7 +273,15 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
               value={editingUser.email || ''}
               onChange={handleChange}
               placeholder="example@email.com"
-              disabled={!!user} // Không cho phép sửa email khi chỉnh sửa user đã tồn tại
+              disabled={isViewMode || !canEditInfoFields()}
+            />
+            <Input
+              id="community_points"
+              label="Điểm Cộng đồng"
+              type="number"
+              value={editingUser.community_points?.toString() || '0'}
+              onChange={handleChange}
+              disabled={isViewMode || !canEditInfoFields()}
             />
 
             {/* Role */}
@@ -222,11 +292,15 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
                     value={editingUser.role}
                     onChange={handleChange}
                     className="w-full p-2.5 border border-gray-300 rounded-lg shadow-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition duration-150"
+                    disabled={isViewMode || !canEditRoleField() || isSuperAdminAttemptingToDemoteSelf()} // Disabled nếu chỉ xem, không có quyền sửa role, hoặc cố gắng tự hạ cấp
                 >
                     <option value="user">Người dùng</option>
                     <option value="admin">Admin</option>
                     <option value="super admin">Super Admin</option>
                 </select>
+                {isSuperAdminAttemptingToDemoteSelf() && (
+                    <p className="mt-1 text-xs text-red-600 font-medium">Super Admin không thể tự hạ cấp vai trò của mình.</p>
+                )}
             </div>
 
             {/* Is Active */}
@@ -237,6 +311,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
                     checked={editingUser.is_active}
                     onChange={handleChange}
                     className="h-4 w-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                    disabled={isViewMode || !canEditInfoFields() || user?.role === 'super admin'} // Không cho phép khóa/mở khóa super admin
                 />
                 <label htmlFor="is_active" className="text-sm font-medium text-gray-900 cursor-pointer">Hoạt động</label>
             </div>
@@ -249,6 +324,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
                     value={editingUser.badge_level}
                     onChange={handleChange}
                     className="w-full p-2.5 border border-gray-300 rounded-lg shadow-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition duration-150"
+                    disabled={isViewMode || !canEditInfoFields()}
                 >
                     {MOCK_BADGE_LEVELS.map(badge => (
                         <option key={badge.level} value={badge.level}>{badge.name} (Level {badge.level})</option>
@@ -264,6 +340,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
                     value={editingUser.subscription_id || ''}
                     onChange={handleSubscriptionChange}
                     className="w-full p-2.5 border border-gray-300 rounded-lg shadow-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition duration-150"
+                    disabled={isViewMode || !canEditInfoFields()}
                 >
                     <option value="">Không có gói</option>
                     {MOCK_SUBSCRIPTIONS.map(sub => (
@@ -278,10 +355,10 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
                     type="datetime-local"
                     value={formatDateForInput(editingUser.subscription_expiry)}
                     onChange={handleChange}
+                    disabled={isViewMode || !canEditInfoFields()}
                 />
             )}
 
-            {/* Display UserUsage if available (only in view/edit mode for existing user) */}
             {user && editingUser.usage && editingUser.usage.length > 0 && (
                 <div className="mt-4 p-4 border rounded-lg bg-gray-50">
                     <h4 className="font-semibold text-gray-800 mb-2">Sử dụng AI gần đây:</h4>
@@ -293,7 +370,6 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
                 </div>
             )}
             
-            {/* Display Subscription Details if available */}
             {user && editingUser.subscription_details && (
                 <div className="mt-4 p-4 border rounded-lg bg-gray-50">
                     <h4 className="font-semibold text-gray-800 mb-2">Chi tiết gói đăng ký:</h4>
@@ -305,13 +381,15 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
             )}
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
-                Hủy
+              <Button type="button" variant="outline" onClick={() => onClose(false)} disabled={loading}>
+                {isViewMode ? 'Đóng' : 'Hủy'}
               </Button>
-              <Button type="submit" disabled={loading} className="min-w-[100px]">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                Lưu Thay đổi
-              </Button>
+              {!isViewMode && ( // Chỉ hiển thị nút Lưu khi không phải chế độ xem
+                <Button type="submit" disabled={loading} className="min-w-[100px]">
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                  Lưu Thay đổi
+                </Button>
+              )}
             </DialogFooter>
           </form>
         )}

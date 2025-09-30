@@ -8,10 +8,9 @@ import type { User } from '../../types/entities';
 
 /* -------------------- Kiểu dữ liệu -------------------- */
 
-// Payload gửi khi login
+// Payload gửi khi login - Chỉ dùng username
 export interface LoginPayload {
-  username?: string; // có thể dùng username
-  email?: string;    // hoặc email
+  username: string; 
   password: string;
 }
 

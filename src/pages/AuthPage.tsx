@@ -1,36 +1,39 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import React, { useState } from 'react';
 import Input from '../components/ui/Input';
-import { Button } from '../components/ui/button'; // Import Button component
-import { Loader2 } from 'lucide-react'; // Import spinner icon
-import { login, forgotPassword, type LoginPayload } from '../features/auth/authApi'; // Import API auth
-import { type User } from '../types/entities'; // Import User type
+import { Button } from '../components/ui/button';
+import { Loader2 } from 'lucide-react';
+import { login, forgotPassword } from '../features/auth/authApi'; // Import API auth
+import type { AuthenticatedUser } from '../App'; 
+
 
 /**
  * @fileoverview AuthPage component - Trang Đăng nhập và Quên mật khẩu cho Admin Panel
  * @description Xử lý logic và giao diện cho việc xác thực người dùng (admin/super admin).
  * Sử dụng API mock hoặc API thực để đăng nhập và gửi yêu cầu quên mật khẩu.
  * Khi đăng nhập thành công, token sẽ được lưu vào localStorage và callback onLoginSuccess được gọi.
+ * Chỉ chấp nhận đăng nhập bằng username.
  */
 
-// Định nghĩa props cho AuthPage: cần một hàm để thông báo cho App biết khi nào người dùng đã đăng nhập thành công
 interface AuthPageProps {
-  onLoginSuccess: (token: string, user: Pick<User, 'id' | 'username' | 'email' | 'name' | 'role' | 'avatar_url' | 'level' | 'badge_level'>) => void;
+  onLoginSuccess: (token: string, user: AuthenticatedUser) => void;
 }
 
 const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
   const [isLoginView, setIsLoginView] = useState(true); // true: Login, false: Forgot Password
-  const [identifier, setIdentifier] = useState(''); // username
+  const [username, setUsername] = useState(''); // CHỈ DÙNG USERNAME
   const [password, setPassword] = useState('');
   const [emailForReset, setEmailForReset] = useState('');
   const [authError, setAuthError] = useState('');
-  const [successMessage, setSuccessMessage] = useState(''); // Dùng để hiển thị tin nhắn thành công
+  const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Xóa các thông báo lỗi/thành công khi chuyển đổi view
+  // Xóa các thông báo lỗi/thành công và form fields khi chuyển đổi view
   const resetForm = () => {
     setAuthError('');
     setSuccessMessage('');
-    setIdentifier('');
+    setUsername('');
     setPassword('');
     setEmailForReset('');
   };
@@ -43,19 +46,14 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
     setSuccessMessage('');
     
     try {
-      // Chuẩn bị payload dựa trên thiết kế API
-      const payload: LoginPayload = {
-        username: identifier, 
-        password: password,
-      };
-
-      const response = await login(payload); // Gọi API đăng nhập từ authApi.ts
+      const response = await login({ username, password }); // Gọi API đăng nhập với username
       
-      // Giả sử API trả về token và thông tin user
-      localStorage.setItem('admin_token', response.token); // Lưu token vào localStorage
-      onLoginSuccess(response.token, response.user); // Thông báo cho App.tsx
+      localStorage.setItem('admin_token', response.token);
+      localStorage.setItem('admin_user', JSON.stringify(response.user));
+      onLoginSuccess(response.token, response.user);
     } catch (err: any) {
       console.error("Lỗi đăng nhập:", err);
+      // Giả lập lỗi từ mock API: err.message
       setAuthError(err.message || 'Đăng nhập không thành công. Vui lòng kiểm tra lại thông tin.');
     } finally {
       setLoading(false);
@@ -70,10 +68,9 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
     setSuccessMessage('');
     
     try {
-      const response = await forgotPassword(emailForReset); // Gọi API quên mật khẩu
+      const response = await forgotPassword(emailForReset);
       setSuccessMessage(response.message);
       
-      // Tự động quay lại màn hình đăng nhập sau vài giây
       setTimeout(() => {
           setIsLoginView(true);
           resetForm();
@@ -90,12 +87,12 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
   const renderLoginForm = () => (
     <form onSubmit={handleLogin} className="space-y-6">
       <Input
-        id="identifier"
+        id="username"
         label="Tên đăng nhập"
         type="text"
-        placeholder="superadmin"
-        value={identifier}
-        onChange={(e) => setIdentifier(e.target.value)}
+        placeholder="superadmin hoặc admin"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
         required
       />
       <Input

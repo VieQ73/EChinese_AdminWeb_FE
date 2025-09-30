@@ -1,11 +1,11 @@
-import bcrypt from 'bcryptjs';
+/* eslint-disable prefer-const */
 import {
   MOCK_USERS, MOCK_SUBSCRIPTIONS, MOCK_PAYMENTS, MOCK_POSTS, MOCK_ADMIN_LOGS,
   MOCK_COMMENTS, MOCK_MOCKTESTS, MOCK_USER_TEST_SCORES, MOCK_NOTEBOOKS,
   MOCK_VOCABULARY, MOCK_NOTEBOOK_VOCAB_ITEMS, MOCK_TIPS, MOCK_AI_LESSONS,
   MOCK_REPORTS, MOCK_TRANSLATION_HISTORY, MOCK_USER_USAGE, MOCK_NOTIFICATIONS,
   MOCK_MEDIA, MOCK_REFRESH_TOKENS, MOCK_BADGE_LEVELS, mockUUID, mockTimestamp,
-  MOCK_TOKENS // Import MOCK_TOKENS
+  MOCK_TOKENS //
 } from './data';
 import type {
   User, Subscription, Payment, Post, AdminLog, Comment, MockTest, UserTestScore,
@@ -13,6 +13,7 @@ import type {
   UserUsage, Notification, Media, RefreshToken, BadgeLevel, 
 } from '../types/entities';
 import type { LoginPayload, LoginSuccessResponse, ForgotPasswordResponse } from '../features/auth/authApi';
+import bcrypt from 'bcryptjs';
 
 // Định nghĩa chung cho API Response có Phân trang (Pagination)
 export interface PaginatedResponse<T> {
@@ -58,10 +59,38 @@ const parseQueryParams = (queryString?: string) => {
   return result;
 };
 
-// Hàm giả lập kiểm tra mật khẩu (thực tế ở backend)
-const verifyPassword = (provided: string, actual: string): boolean => {
-    return bcrypt.compareSync(provided, actual);
+// Hàm lấy token từ localStorage (sẽ được apiClient gọi trước khi gửi request)
+const getAuthToken = (): string | null => {
+  return localStorage.getItem('admin_token') || null;
 };
+
+// Hàm này sẽ giả lập việc xác thực token dựa trên localStorage và MOCK_USERS
+// Mục tiêu là làm cho mock token persistent qua các lần refresh trình duyệt
+const authenticateAndAuthorize = (): { currentUser: User; currentUserId: string; currentUserRole: User['role'] } => {
+    const authToken = getAuthToken();
+    if (!authToken) {
+        throw new Error('Unauthorized: Không có quyền truy cập. Vui lòng đăng nhập.');
+    }
+
+    // Giả lập token chứa user id, ví dụ: "mock_access_token_user-abcxyz_123456"
+    const userIdMatch = authToken.match(/user-([a-zA-Z0-9]+)_/);
+    if (!userIdMatch || !userIdMatch[0]) {
+        throw new Error('Unauthorized: Token không hợp lệ.');
+    }
+    const currentUserId = userIdMatch[0].replace('mock_access_token_', '').replace(/_.*$/, '');
+
+    const currentUser = MOCK_USERS.find(u => u.id.includes(currentUserId));
+    if (!currentUser) {
+        throw new Error('Unauthorized: Người dùng không tồn tại.');
+    }
+
+    if (currentUser.role !== 'admin' && currentUser.role !== 'super admin') {
+        throw new Error('Forbidden: Bạn không có đủ quyền để truy cập trang quản trị.');
+    }
+
+    return { currentUser, currentUserId, currentUserRole: currentUser.role };
+};
+
 
 // Logic xử lý chính cho các Endpoint Mock
 export const getMockResponse = <T>(
@@ -73,7 +102,8 @@ export const getMockResponse = <T>(
   const pathSegments = path.split('/').filter(s => s);
   const resource = pathSegments[0]; // ex: users, auth
   const id = pathSegments[1]; // ex: user_id, test_id
-  const action = pathSegments[2]; // ex: deactivate, reset-quota
+  const action = pathSegments[2]; // ex: details, lock, reset-quota
+
   const queryParams = parseQueryParams(queryString);
 
   // Xử lý phân trang từ query parameters
@@ -84,21 +114,21 @@ export const getMockResponse = <T>(
   if (resource === 'auth') {
       if (method === 'POST') {
           if (id === 'login') {
-              const { username, password } = data as LoginPayload;
-              const identifier = username;
-
-              if (!identifier || !password) {
+              const { username, password } = data as LoginPayload; // CHỈ DÙNG USERNAME
+              
+              if (!username || !password) {
                   throw new Error('Username and password are required.');
               }
 
-              const user = MOCK_USERS.find(u =>
-                  (u.username === identifier) && (u.role === 'admin' || u.role === 'super admin')
-              );
+              const user = MOCK_USERS.find(u => u.username === username);
 
-            if (!user || !user.password_hash || !bcrypt.compareSync(password, user.password_hash)) {
-            throw new Error('Tên đăng nhập hoặc mật khẩu không đúng.');
-            }
-
+              // Kiểm tra mật khẩu và vai trò (chỉ admin/super admin mới đăng nhập được)
+              if (!user || !user.password_hash || !bcrypt.compareSync(password, user.password_hash)) {
+                throw new Error('Tên đăng nhập hoặc mật khẩu không đúng.');
+              }
+              if (user.role !== 'admin' && user.role !== 'super admin') { // Ngăn user thường đăng nhập vào admin panel
+                  throw new Error('Bạn không có đủ quyền để đăng nhập vào hệ thống quản trị.');
+              }
               if (!user.is_active) {
                   throw new Error('Tài khoản đã bị khóa hoặc không hoạt động.');
               }
@@ -106,8 +136,7 @@ export const getMockResponse = <T>(
               const mockAccessToken = `mock_access_token_${user.id}_${mockTimestamp()}`;
               const mockRefreshToken = `mock_refresh_token_${user.id}_${mockTimestamp()}`;
 
-              // Lưu token giả lập vào MOCK_TOKENS để có thể xác thực sau này (đơn giản)
-              MOCK_TOKENS[mockAccessToken] = { user_id: user.id, role: user.role };
+              // MOCK_TOKENS[mockAccessToken] = { user_id: user.id, role: user.role }; // Không cần thiết nữa với authenticateAndAuthorize mới
 
               return {
                   token: mockAccessToken,
@@ -139,20 +168,8 @@ export const getMockResponse = <T>(
       throw new Error(`[MOCK API] Auth endpoint not found or method not supported: ${method} ${endpoint}`);
   }
 
-  // --- Các Endpoints Admin (Users, Subscriptions, etc.) ---
-  // Giả lập kiểm tra token. Trong thực tế, middleware sẽ làm việc này
-  const authToken = getAuthToken(); // Hàm này cần được định nghĩa hoặc truyền vào
-  if (!authToken || !MOCK_TOKENS[authToken]) {
-      // Đối với mock, tạm thời không ném lỗi authentication để các api mock khác vẫn hoạt động
-      // console.warn('MOCK API: No auth token or invalid token for admin endpoint.');
-      // throw new Error('Unauthorized: No valid auth token provided.');
-  } else {
-      const userRole = MOCK_TOKENS[authToken].role;
-      if (userRole !== 'admin' && userRole !== 'super admin') {
-          // console.warn(`MOCK API: User role '${userRole}' is not authorized for admin endpoint.`);
-          // throw new Error('Forbidden: Insufficient permissions.');
-      }
-  }
+  // --- Middleware xác thực và phân quyền cho các Endpoints Admin (Users, Subscriptions, etc.) ---
+  let { currentUser: currentUserInMock, currentUserId, currentUserRole } = authenticateAndAuthorize();
 
   // GET: Lấy danh sách hoặc chi tiết
   if (method === 'GET') {
@@ -409,14 +426,14 @@ export const getMockResponse = <T>(
 
   // POST: Tạo mới
   if (method === 'POST') {
+    // Loại bỏ hoàn toàn chức năng tạo user mới theo yêu cầu
+    if (resource === 'users') {
+        throw new Error('Chức năng tạo người dùng mới không được hỗ trợ.');
+    }
+    
     const newId = mockUUID(resource);
     const created_at = mockTimestamp();
     switch (resource) {
-      case 'users': {
-        const newUser = { ...data, id: newId, created_at, is_active: true } as User;
-        // MOCK_USERS.push(newUser); // Để mock data persistent trong 1 phiên
-        return newUser as unknown as T;
-      }
       case 'subscriptions': {
         return { ...data, id: newId, created_at, updated_at: created_at } as unknown as T;
       }
@@ -480,19 +497,46 @@ export const getMockResponse = <T>(
   // PUT: Cập nhật
   if (method === 'PUT' && id) {
     let userIndex = MOCK_USERS.findIndex(u => u.id === id); // Tìm index để cập nhật
+    if (userIndex === -1) throw new Error(`[MOCK API] User not found: ${id}`);
+    let targetUser = MOCK_USERS[userIndex]; // Dùng let để có thể gán lại
+
+    // --- Phân quyền sửa đối với Super Admin và Admin ---
+    // 1. Super Admin không thể sửa thông tin của Super Admin khác
+    if (targetUser.role === 'super admin' && currentUserInMock.id !== targetUser.id) {
+        throw new Error('Bạn không thể chỉnh sửa thông tin của Super Admin khác.');
+    }
+    // 2. Admin thường không thể sửa bất kỳ Admin nào khác hoặc Super Admin
+    if (currentUserRole === 'admin' && (targetUser.role === 'admin' || targetUser.role === 'super admin') && currentUserInMock.id !== targetUser.id) {
+        throw new Error('Admin không thể chỉnh sửa thông tin của Admin hoặc Super Admin khác.');
+    }
+
+    // 3. Kiểm tra quyền sửa role
+    if (data.role) { // Nếu có trường role trong dữ liệu cập nhật
+        if (currentUserRole === 'admin') { // Admin thường không được sửa role
+            throw new Error('Admin không có quyền chỉnh sửa vai trò của người dùng.');
+        }
+        if (currentUserRole === 'super admin' && currentUserInMock.id === targetUser.id && data.role !== 'super admin') {
+            // Super Admin không thể tự hạ cấp chính mình
+            throw new Error('Super Admin không thể tự hạ cấp vai trò của mình.');
+        }
+    }
+
+
     switch (resource) {
       case 'users': {
         if (action === 'lock') { // /users/:id/lock
-            const user = MOCK_USERS[userIndex];
-            if (!user) throw new Error(`[MOCK API] User not found: ${id}`);
-            user.is_active = (data as { is_active: boolean }).is_active;
-            return user as unknown as T;
+            if (targetUser.role === 'super admin') { // Không khóa/mở khóa Super Admin
+                throw new Error('Không thể khóa/mở khóa tài khoản Super Admin.');
+            }
+            if (targetUser.id === currentUserInMock.id) { // Không tự khóa/mở khóa chính mình
+                throw new Error('Không thể tự khóa/mở khóa tài khoản của mình.');
+            }
+            targetUser.is_active = (data as { is_active: boolean }).is_active;
+            return targetUser as unknown as T;
         } else if (action === 'reset-quota') { // /users/:id/reset-quota
-            const user = MOCK_USERS[userIndex];
-            if (!user) throw new Error(`[MOCK API] User not found: ${id}`);
             // Đặt lại daily_count của tất cả UserUsage của user về 0
             MOCK_USER_USAGE.forEach(usage => {
-                if (usage.user_id === user.id) {
+                if (usage.user_id === targetUser.id) {
                     usage.daily_count = 0;
                     usage.last_reset = mockTimestamp();
                 }
@@ -501,8 +545,11 @@ export const getMockResponse = <T>(
         }
         
         // Cập nhật thông tin user bình thường
-        if (userIndex === -1) throw new Error(`[MOCK API] User not found: ${id}`);
-        MOCK_USERS[userIndex] = { ...MOCK_USERS[userIndex], ...data, updated_at: mockTimestamp() };
+        let updatedData = { ...data };
+        if (updatedData.password_hash) {
+            delete updatedData.password_hash;
+        }
+        MOCK_USERS[userIndex] = { ...targetUser, ...updatedData, updated_at: mockTimestamp() };
         return MOCK_USERS[userIndex] as unknown as T;
       }
       case 'subscriptions': {
@@ -600,10 +647,26 @@ export const getMockResponse = <T>(
 
   // DELETE: Xóa mềm hoặc xóa cứng
   if (method === 'DELETE' && id) {
+    // Chỉ Super Admin mới có quyền xóa vĩnh viễn user
+    if (currentUserRole !== 'super admin') {
+        throw new Error('Bạn không có quyền xóa vĩnh viễn người dùng.');
+    }
+    const userIndex = MOCK_USERS.findIndex(u => u.id === id);
+    if (userIndex === -1) throw new Error(`[MOCK API] User not found: ${id}`);
+    const targetUser = MOCK_USERS[userIndex];
+
+    // Super Admin không thể xóa chính mình hoặc Super Admin khác
+    if (targetUser.role === 'super admin') {
+        throw new Error('Không thể xóa tài khoản Super Admin.');
+    }
+    // Admin không thể xóa Admin khác
+    const isAdmin = (role: User['role']) => role === 'admin';
+    if (isAdmin(targetUser.role) && isAdmin(currentUserInMock.role)) {
+      throw new Error('Admin không thể xóa Admin khác.');
+    }
+
     switch (resource) {
       case 'users': {
-        const userIndex = MOCK_USERS.findIndex(u => u.id === id);
-        if (userIndex === -1) throw new Error(`[MOCK API] User not found: ${id}`);
         MOCK_USERS.splice(userIndex, 1); // Xóa cứng user trong mock
         return { message: `User ${id} deleted` } as unknown as T;
       }
@@ -671,12 +734,4 @@ export const getMockResponse = <T>(
   }
 
   throw new Error(`[MOCK API] Endpoint not found or method not supported: ${method} ${endpoint}`);
-};
-
-// Hàm này cần được truy cập bởi apiClient
-// Hiện tại apiClient không truyền token vào wrapper, chúng ta sẽ giả lập nó
-// bằng cách đọc từ localStorage trực tiếp trong wrapper hoặc cải tiến apiClient.
-// Tạm thời, để mock hoạt động sẽ làm một phiên bản đơn giản hơn.
-const getAuthToken = (): string | null => {
-  return localStorage.getItem('admin_token') || null;
 };
