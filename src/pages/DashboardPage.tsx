@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import MainLayout from '../components/layout/MainLayout';
-import { Loader2, Users, CreditCard, UserPlus, AlertTriangle } from 'lucide-react'; // Import icons từ Lucide React
-import { apiClient } from '../services/apiClient'; // Import apiClient để gọi API chung
+import { Users, CreditCard, UserPlus, AlertTriangle } from 'lucide-react';
+import { fetchDashboardAnalytics } from '../features/dashboard/dashboardApi';
+import type { DashboardAnalytics } from '../features/dashboard/dashboardApi';
 
 /**
  * @fileoverview DashboardPage component - Trang tổng quan quản trị
@@ -11,15 +12,6 @@ import { apiClient } from '../services/apiClient'; // Import apiClient để g�
  * như tổng số người dùng, gói premium đang hoạt động, người dùng mới, và báo cáo chờ xử lý.
  * Dữ liệu được lấy từ mock API /analytics.
  */
-
-// Interface cho các số liệu thống kê trả về từ API /analytics
-interface DashboardStats {
-  totalUsers: number;
-  activeUsers: number;
-  newUsersToday: number;
-  pendingReports: number;
-  activeSubscriptions: number;
-}
 
 // Component thẻ thống kê
 interface StatCardProps {
@@ -48,7 +40,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, color, icon: IconComp
 
 
 const DashboardPage: React.FC = () => {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [stats, setStats] = useState<DashboardAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   
   // Tải dữ liệu thống kê từ API
@@ -56,12 +48,12 @@ const DashboardPage: React.FC = () => {
     const loadStats = async () => {
       setLoading(true);
       try {
-        const response = await apiClient<DashboardStats>('/analytics', 'GET'); // Gọi API /analytics
+        const response = await fetchDashboardAnalytics(); // Gọi hàm API chuyên dụng
         setStats(response);
       } catch (e) {
         console.error("Không thể tải Dashboard stats:", e);
         // Thiết lập giá trị mặc định khi lỗi
-        setStats({ totalUsers: 0, activeUsers: 0, newUsersToday: 0, pendingReports: 0, activeSubscriptions: 0 }); 
+        setStats({ totalUsers: 0, activeUsers: 0, newUsersToday: 0, pendingReports: 0, activeSubscriptions: 0 });
       } finally {
         setLoading(false);
       }

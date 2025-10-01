@@ -1,47 +1,23 @@
 import { useState, useEffect } from 'react';
-import type { AuthenticatedUser } from '../App'; 
+import type { User } from '../types/entities';
 
 /**
- * @fileoverview useAuth hook - Hook tùy chỉnh để lấy thông tin xác thực của người dùng
- * @description Cung cấp cách dễ dàng để truy cập trạng thái đăng nhập và thông tin người dùng hiện tại
- * từ bất kỳ component nào trong ứng dụng.
+ * Hook để lấy thông tin người dùng đang đăng nhập từ localStorage.
+ * @returns {User | null} - Thông tin người dùng hoặc null nếu chưa đăng nhập.
  */
-
-interface AuthContextType {
-  isAuthenticated: boolean;
-  currentUser: AuthenticatedUser | null;
-  // login: (token: string, user: AuthenticatedUser) => void; // Có thể thêm nếu muốn quản lý global state
-  // logout: () => void; // Có thể thêm nếu muốn quản lý global state
-}
-
-export const useAuth = (): AuthContextType => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [currentUser, setCurrentUser] = useState<AuthenticatedUser | null>(null);
+export const useAuth = (): User | null => {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('admin_token');
-    const userString = localStorage.getItem('admin_user');
-
-    if (token && userString) {
+    const userJson = localStorage.getItem('admin_user');
+    if (userJson) {
       try {
-        const user = JSON.parse(userString) as AuthenticatedUser;
-        setCurrentUser(user);
-        setIsAuthenticated(true);
+        setCurrentUser(JSON.parse(userJson));
       } catch (error) {
-        console.error("Lỗi khi parse thông tin người dùng từ localStorage:", error);
-        localStorage.removeItem('admin_token');
-        localStorage.removeItem('admin_user');
-        setIsAuthenticated(false);
-        setCurrentUser(null);
+        console.error('Lỗi khi parse thông tin người dùng từ localStorage:', error);
       }
-    } else {
-      setIsAuthenticated(false);
-      setCurrentUser(null);
     }
-    // Đây sẽ lắng nghe thay đổi của localStorage hoặc một Context API
-    // Trong môi trường này, nó chỉ chạy 1 lần khi component mount
-    // Hoặc khi có sự thay đổi từ App.tsx thông qua re-render
-  }, []); // [] đảm bảo chỉ chạy một lần khi component mount
+  }, []);
 
-  return { isAuthenticated, currentUser };
+  return currentUser;
 };

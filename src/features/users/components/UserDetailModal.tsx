@@ -9,11 +9,12 @@ import {
 } from '../../../components/ui/dialog';
 import  Input  from '../../../components/ui/Input';
 import { Button } from '../../../components/ui/button';
-import type { User, Subscription, Timestamp, UserUsage } from '../../../types/entities';
+import type { User, Subscription, Timestamp, UserUsage, BadgeLevel } from '../../../types/entities';
 import { updateUser, fetchUserById } from '../userApi';
+import { fetchAllSubscriptions, mockSubscriptions } from '../../subscriptions/subscriptionApi';
+import { fetchAllBadgeLevels, mockBadgeLevels } from '../../badges/badgeApi';
 import { Loader2, Save, XCircle } from 'lucide-react';
 import { cn } from '../../../lib/utils';
-import { MOCK_SUBSCRIPTIONS, MOCK_BADGE_LEVELS } from '../../../mocks/data';
 import type { AuthenticatedUser } from '../../../App';
 
 /**
@@ -42,6 +43,8 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [badgeLevels, setBadgeLevels] = useState<BadgeLevel[]>([]);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const isViewMode = mode === 'view';
@@ -81,7 +84,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
       setSuccessMessage(null);
       const loadUserDetails = async () => {
         try {
-          const response = await fetchUserById(user.id + '/details');
+          const response = await fetchUserById(user.id); // Sửa lại endpoint
           setEditingUser(response);
         } catch (err: any) {
           console.error("Lỗi khi tải chi tiết người dùng:", err);
@@ -91,7 +94,21 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
           setFetchLoading(false);
         }
       };
+      const loadDropdownData = async () => {
+        try {
+          // Sử dụng Promise.all để tải song song
+          const [subs, badges] = await Promise.all([
+            fetchAllSubscriptions(),
+            fetchAllBadgeLevels(),
+          ]);
+          setSubscriptions(subs);
+          setBadgeLevels(badges);
+        } catch (err) {
+          console.error("Lỗi khi tải dữ liệu cho form:", err);
+        }
+      };
       loadUserDetails();
+      loadDropdownData();
     } else if (isOpen && !user) {
         // Modal này không hỗ trợ tạo người dùng mới, chỉ xem/sửa user hiện có.
         // Nếu user là null và modal mở, có nghĩa là có lỗi logic hoặc cố tình mở modal tạo mới.
@@ -142,7 +159,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
     }
     if (editingUser) {
         const subId = e.target.value === '' ? undefined : e.target.value;
-        const selectedSub = MOCK_SUBSCRIPTIONS.find(s => s.id === subId);
+        const selectedSub = subscriptions.find(s => s.id === subId);
         setEditingUser(prev => ({
             ...prev,
             subscription_id: subId,
@@ -326,7 +343,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
                     className="w-full p-2.5 border border-gray-300 rounded-lg shadow-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition duration-150"
                     disabled={isViewMode || !canEditInfoFields()}
                 >
-                    {MOCK_BADGE_LEVELS.map(badge => (
+                    {badgeLevels.map(badge => (
                         <option key={badge.level} value={badge.level}>{badge.name} (Level {badge.level})</option>
                     ))}
                 </select>
@@ -343,7 +360,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
                     disabled={isViewMode || !canEditInfoFields()}
                 >
                     <option value="">Không có gói</option>
-                    {MOCK_SUBSCRIPTIONS.map(sub => (
+                    {subscriptions.map(sub => (
                         <option key={sub.id} value={sub.id}>{sub.name} ({sub.duration_months === null ? 'Vĩnh viễn' : `${sub.duration_months} tháng`})</option>
                     ))}
                 </select>

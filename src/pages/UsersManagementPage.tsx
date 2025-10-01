@@ -1,169 +1,125 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Button } from '../components/ui/button'; // Vẫn giữ import nếu dùng cho mục đích khác
-import { Loader2, PlusCircle } from 'lucide-react'; // Có thể loại bỏ PlusCircle nếu không dùng
-import { fetchAllUsers } from '../features/users/userApi';
+import { useState, useEffect } from 'react';
+import { fetchAllUsers, deactivateUser, activateUser, deleteUser } from '../features/users/userApi';
+import { useAuth } from '../hooks/useAuth';
 import type { User } from '../types/entities';
-import type { PaginatedResponse } from '../mocks/wrapper';
-import { UserListTable } from '../features/users/components/UserListTable';
-import { UserFilter } from '../features/users/components/UserFilter';
-import { Pagination } from '../components/ui/pagination';
-import { UserDetailModal } from '../features/users/components/UserDetailModal';
-import { useAuth } from '../hooks/useAuth'; // Sẽ tạo hook này để lấy thông tin user hiện tại
+import type { PaginatedResponse } from '../types/api';
 
-/**
- * @fileoverview UsersManagementPage component - Trang quản lý người dùng
- * @description Hiển thị danh sách người dùng, hỗ trợ lọc, tìm kiếm, phân trang và xem/chỉnh sửa chi tiết người dùng.
- * Tích hợp các components con: UserFilter, UserListTable, UserDetailModal.
- * Trang này KHÔNG TỰ RENDER MainLayout, mà sẽ được render BÊN TRONG MainLayout
- * thông qua React Router's Outlet.
- */
 
-const UsersManagementPage: React.FC = () => {
-  const { currentUser } = useAuth(); // Lấy thông tin user hiện tại để phân quyền
+const Table = ({ children }: { children: React.ReactNode }) => <table className="min-w-full divide-y divide-gray-200">{children}</table>;
+const TableHeader = ({ children }: { children: React.ReactNode }) => <thead className="bg-gray-50">{children}</thead>;
+const TableBody = ({ children }: { children: React.ReactNode }) => <tbody className="bg-white divide-y divide-gray-200">{children}</tbody>;
+const TableRow = ({ children }: { children: React.ReactNode }) => <tr>{children}</tr>;
+const TableHead = ({ children }: { children: React.ReactNode }) => <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{children}</th>;
+const TableCell = ({ children }: { children: React.ReactNode }) => <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{children}</td>;
+const Badge = ({ children, className }: { children: React.ReactNode, className?: string }) => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${className}`}>{children}</span>;
 
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
+import { UserActions } from '../features/users/components/UserActions';
+
+export const UsersManagementPage = () => {
+  const currentUser = useAuth();
+  const [usersResponse, setUsersResponse] = useState<PaginatedResponse<User> | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalUsersCount, setTotalUsersCount] = useState(0);
-  const [itemsPerPage, setItemsPerPage] = useState(10); // Có thể cho phép user thay đổi
 
-  const [filters, setFilters] = useState({
-    search: '',
-    role: '', // 'user', 'admin', 'super admin'
-    is_active: undefined as boolean | undefined, // true, false, undefined (all)
-  });
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [modalMode, setModalMode] = useState<'view' | 'edit'>('view'); // Thêm mode cho modal
-
-  // Callback để fetch users khi có thay đổi trang hoặc filter
-  const fetchUsers = useCallback(async () => {
+  const loadUsers = async () => {
     setLoading(true);
-    setError(null);
     try {
-      const response = await fetchAllUsers({
-        page: currentPage,
-        limit: itemsPerPage,
-        search: filters.search || undefined,
-        role: filters.role === '' ? undefined : (filters.role as 'user' | 'admin' | 'super admin'),
-        is_active: filters.is_active,
-      });
-      setUsers(response.data);
-      setTotalPages(response.meta.totalPages);
-      setTotalUsersCount(response.meta.total);
+      const response = await fetchAllUsers({ page: 1, limit: 10 });
+      setUsersResponse(response);
     } catch (err: any) {
-      console.error("Lỗi khi tải danh sách người dùng:", err);
-      setError(err.message || "Không thể tải danh sách người dùng.");
-      setUsers([]);
-      setTotalPages(1);
-      setTotalUsersCount(0);
+      setError(err.message || 'Không thể tải danh sách người dùng.');
     } finally {
       setLoading(false);
     }
-  }, [currentPage, itemsPerPage, filters]);
+  };
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    loadUsers();
+  }, []);
 
-  const handleFilterChange = (newFilters: typeof filters) => {
-    setFilters(newFilters);
-    setCurrentPage(1); // Reset về trang 1 khi thay đổi bộ lọc
-  };
+  const handleToggleActive = async (user: User) => {
+    if (!window.confirm(`Bạn có chắc muốn ${user.is_active ? 'khóa' : 'mở khóa'} tài khoản "${user.name}"?`)) return;
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const handleViewUser = (user: User) => {
-    setSelectedUser(user);
-    setModalMode('view'); // Chế độ xem
-    setIsModalOpen(true);
-  };
-
-  const handleEditUser = (user: User) => {
-    setSelectedUser(user);
-    setModalMode('edit'); // Chế độ chỉnh sửa
-    setIsModalOpen(true);
-  };
-
-  const handleModalClose = (refreshNeeded: boolean = false) => {
-    setIsModalOpen(false);
-    setSelectedUser(null);
-    if (refreshNeeded) {
-      fetchUsers(); // Chỉ refresh khi có thay đổi được lưu
+    try {
+      const action = user.is_active ? deactivateUser : activateUser;
+      await action(user.id);
+      // Tải lại danh sách để cập nhật UI
+      loadUsers();
+      alert(`Đã ${user.is_active ? 'khóa' : 'mở khóa'} tài khoản thành công!`);
+    } catch (err: any) {
+      alert(`Lỗi: ${err.message}`);
     }
   };
 
-  // Loại bỏ nút "Thêm Người dùng mới"
-  // const handleCreateUser = () => {
-  //   setSelectedUser(null);
-  //   setModalMode('edit'); // Khi tạo mới, luôn ở chế độ chỉnh sửa
-  //   setIsModalOpen(true);
-  // };
+  const handleDelete = async (userId: string) => {
+    if (!window.confirm('Hành động này không thể hoàn tác. Bạn có chắc muốn xóa vĩnh viễn người dùng này?')) return;
+
+    try {
+      await deleteUser(userId);
+      loadUsers();
+      alert('Đã xóa người dùng thành công!');
+    } catch (err: any) {
+      alert(`Lỗi: ${err.message}`);
+    }
+  };
+
+  const handleEdit = (user: User) => {
+    // TODO: Mở modal chỉnh sửa người dùng
+    alert(`Mở form chỉnh sửa cho người dùng: ${user.name}`);
+    console.log('Dữ liệu người dùng để sửa:', user);
+  };
+
+  if (loading) return <div>Đang tải dữ liệu...</div>;
+  if (error) return <div className="text-red-500">Lỗi: {error}</div>;
+  if (!currentUser) return <div>Đang xác thực...</div>;
 
   return (
-    <div className="p-0">
-      <h1 className="text-3xl font-extrabold mb-2 text-gray-800">Quản lý Người dùng</h1>
-      <p className="text-gray-500 mb-8">Danh sách tất cả người dùng trong hệ thống EChinese.</p>
-
-      <div className="flex justify-between items-center mb-6">
-        <UserFilter currentFilters={filters} onFilterChange={handleFilterChange} />
-        {/* Loại bỏ nút "Thêm Người dùng mới" */}
-        {/*
-        <Button onClick={handleCreateUser} className="flex items-center">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Thêm Người dùng mới
-        </Button>
-        */}
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Quản lý Người dùng</h1>
+      <div className="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Tên</TableHead>
+              <TableHead>Vai trò</TableHead>
+              <TableHead>Trạng thái</TableHead>
+              <TableHead>Ngày tạo</TableHead>
+              <TableHead>
+                <span className="sr-only">Hành động</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {usersResponse?.data.map((user) => (
+              <TableRow key={user.id}>
+                <TableCell>
+                  <div className="font-medium">{user.name}</div>
+                  <div className="text-gray-500">{user.email}</div>
+                </TableCell>
+                <TableCell>{user.role}</TableCell>
+                <TableCell>
+                  {user.is_active ? (
+                    <Badge className="bg-green-100 text-green-800">Hoạt động</Badge>
+                  ) : (
+                    <Badge className="bg-red-100 text-red-800">Đã khóa</Badge>
+                  )}
+                </TableCell>
+                <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  <UserActions
+                    user={user}
+                    currentUser={currentUser}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onToggleActive={handleToggleActive}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
-
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-          <strong className="font-bold">Lỗi:</strong>
-          <span className="block sm:inline ml-2">{error}</span>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
-          <span className="ml-3 text-lg text-gray-600">Đang tải dữ liệu người dùng...</span>
-        </div>
-      ) : (
-        <>
-          <UserListTable
-            users={users}
-            onViewUser={handleViewUser}
-            onEditUser={handleEditUser}
-            onRefresh={fetchUsers} // Vẫn truyền để các hành động khóa/mở khóa/xóa có thể gọi
-            currentUser={currentUser} // Truyền thông tin user hiện tại để phân quyền
-          />
-          {totalUsersCount > itemsPerPage && (
-              <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={handlePageChange}
-                  className="mt-6"
-              />
-          )}
-          <p className="text-sm text-gray-600 mt-4 text-right">Tổng cộng: {totalUsersCount} người dùng</p>
-        </>
-      )}
-
-      <UserDetailModal
-        isOpen={isModalOpen}
-        onClose={handleModalClose}
-        user={selectedUser}
-        mode={modalMode} // Truyền mode vào modal
-        currentUser={currentUser} // Truyền thông tin user hiện tại để phân quyền
-      />
+      {/* TODO: Thêm component phân trang ở đây */}
     </div>
   );
 };
-
-export default UsersManagementPage;

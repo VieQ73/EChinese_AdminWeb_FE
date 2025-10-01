@@ -1,80 +1,177 @@
-import type { PaginatedResponse } from '../../mocks/wrapper';
-import { apiClient, type PaginatedApiResponse } from '../../services/apiClient';
+import { apiClient } from '../../services/apiClient';
 import type { User } from '../../types/entities';
+import type { PaginatedResponse } from '../../types/api';
 
-// Định nghĩa tham số cho API GET List
+const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
+
+/** Mock data gốc */
+let mockUsers: User[] = [
+  {
+    id: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
+    username: 'superadmin',
+    name: 'Super Admin',
+    email: 'super@admin.com',
+    role: 'super admin',
+    is_active: true,
+    isVerify: true,
+    community_points: 9999,
+    level: '7-9',
+    badge_level: 5,
+    language: 'Tiếng Việt',
+    provider: 'local',
+    created_at: '2023-01-15T10:00:00Z',
+    last_login: new Date().toISOString(),
+    subscription_id: 'sub-permanent-001',
+    subscription_expiry: null,
+  },
+  {
+    id: 'b2c3d4e5-f6a7-8901-2345-67890abcdef0',
+    username: 'admin',
+    name: 'Admin',
+    email: 'admin@example.com',
+    role: 'admin',
+    is_active: true,
+    isVerify: true,
+    community_points: 1500,
+    level: '6',
+    badge_level: 4,
+    language: 'Tiếng Việt',
+    provider: 'local',
+    created_at: '2023-05-20T14:30:00Z',
+    last_login: new Date().toISOString(),
+    subscription_id: 'sub-free-001',
+    subscription_expiry: null,
+  },
+  {
+    id: 'c3d4e5f6-a7b8-9012-3456-7890abcdef01',
+    username: 'testuser1',
+    name: 'Nguyễn Văn A',
+    email: 'vana@gmail.com',
+    role: 'user',
+    is_active: true,
+    isVerify: true,
+    community_points: 250,
+    level: '3',
+    badge_level: 2,
+    language: 'Tiếng Việt',
+    provider: 'google',
+    created_at: '2024-06-10T08:00:00Z',
+    last_login: '2024-07-20T11:00:00Z',
+    subscription_id: 'sub-premium-001',
+    subscription_expiry: '2025-06-10T08:00:00Z',
+  },
+  {
+    id: 'd4e5f6a7-b8c9-0123-4567-890abcdef012',
+    username: 'testuser2',
+    name: 'Trần Thị B',
+    email: 'thib@gmail.com',
+    role: 'user',
+    is_active: false,
+    isVerify: false,
+    community_points: 50,
+    level: '1',
+    badge_level: 1,
+    language: 'Tiếng Anh',
+    provider: 'local',
+    created_at: '2024-07-01T18:45:00Z',
+    last_login: '2024-07-02T10:00:00Z',
+    subscription_id: 'sub-free-001',
+    subscription_expiry: null,
+  },
+];
+
 interface GetUsersParams {
   page?: number;
   limit?: number;
-  role?: 'user' | 'admin' | 'super admin';
-  search?: string; // tìm kiếm theo username/email/name
+  role?: string;
+  search?: string;
   is_active?: boolean;
 }
 
-/**
- * [GET] Lấy danh sách người dùng (Admin View)
- * Endpoint Backend dự kiến: GET /api/admin/users
- * Sử dụng apiClient để tự động chuyển sang Mock Data nếu cần
- */
-export const fetchAllUsers = (params: GetUsersParams = {}): PaginatedApiResponse<User> => {
-  // Xây dựng chuỗi query string từ params
-  const query = new URLSearchParams({
-    ...(params.page && { page: params.page.toString() }),
-    ...(params.limit && { limit: params.limit.toString() }),
-    ...(params.role && { role: params.role }),
-    ...(params.search && { search: params.search }),
-    ...(params.is_active !== undefined && { is_active: params.is_active.toString() }),
-  }).toString();
-  const endpoint = `/users?${query}`;
+/** [GET] Lấy danh sách người dùng có phân trang và bộ lọc. */
+export const fetchAllUsers = (params: GetUsersParams = {}): Promise<PaginatedResponse<User>> => {
+  if (USE_MOCK_API) {
+    console.warn('[MOCK] Lấy danh sách người dùng với params:', params);
+    let filteredUsers = [...mockUsers];
 
-  // Sử dụng PaginatedResponse<User> thay vì PaginatedApiResponse<User>
-  return apiClient<PaginatedResponse<User>>(endpoint, 'GET');
+    // Giả lập logic filter và search của backend
+    if (params.search) {
+      const searchTerm = params.search.toLowerCase();
+      filteredUsers = filteredUsers.filter(
+        u =>
+          u.name?.toLowerCase().includes(searchTerm) ||
+          u.email?.toLowerCase().includes(searchTerm) ||
+          u.username?.toLowerCase().includes(searchTerm)
+      );
+    }
+    if (params.role) {
+      filteredUsers = filteredUsers.filter(u => u.role === params.role);
+    }
+
+    const page = params.page || 1;
+    const limit = params.limit || 10;
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    const pagedUsers = filteredUsers.slice(start, end);
+
+    return new Promise(resolve =>
+      setTimeout(
+        () =>
+          resolve({
+            data: pagedUsers,
+            meta: { total: filteredUsers.length, page, limit, totalPages: Math.ceil(filteredUsers.length / limit) },
+          }),
+        500
+      )
+    );
+  }
+  return apiClient.get('/users', { params });
 };
 
-/**
- * [GET] Lấy chi tiết một người dùng
- * Endpoint Backend dự kiến: GET /api/admin/users/:id
- */
+/** [GET] Chi tiết người dùng */
 export const fetchUserById = (userId: string): Promise<User> => {
-  return apiClient<User>(`/users/${userId}`, 'GET');
+  if (USE_MOCK_API) {
+    const user = mockUsers.find(u => u.id === userId);
+    return new Promise(resolve => setTimeout(() => resolve(user || mockUsers[0]), 500));
+  }
+  return apiClient.get(`/users/${userId}`);
 };
 
-/**
- * [POST] Tạo người dùng mới
- * Endpoint Backend dự kiến: POST /api/admin/users
- */
-export const createUser = (data: Partial<User>): Promise<User> => {
-  return apiClient<User>('/users', 'POST', data);
-};
-
-/**
- * [PUT] Cập nhật thông tin người dùng
- * Endpoint Backend dự kiến: PUT /api/admin/users/:id
- */
+/** [PUT] Cập nhật người dùng */
 export const updateUser = (userId: string, data: Partial<User>): Promise<User> => {
-  return apiClient<User>(`/users/${userId}`, 'PUT', data);
+  if (USE_MOCK_API) {
+    mockUsers = mockUsers.map(u => (u.id === userId ? { ...u, ...data } : u));
+    const updated = mockUsers.find(u => u.id === userId)!;
+    return new Promise(resolve => setTimeout(() => resolve(updated), 500));
+  }
+  return apiClient.put(`/users/${userId}`, data);
 };
 
-/**
- * [DELETE] Xóa người dùng (xóa cứng)
- * Endpoint Backend dự kiến: DELETE /api/admin/users/:id
- */
+/** [DELETE] Xóa người dùng */
 export const deleteUser = (userId: string): Promise<{ message: string }> => {
-  return apiClient<{ message: string }>(`/users/${userId}`, 'DELETE');
+  if (USE_MOCK_API) {
+    mockUsers = mockUsers.filter(u => u.id !== userId);
+    return new Promise(resolve => setTimeout(() => resolve({ message: `Người dùng ${userId} đã được xóa.` }), 500));
+  }
+  return apiClient.delete(`/users/${userId}`);
 };
 
-/**
- * [PUT] Deactivate người dùng (cập nhật is_active = false)
- * Endpoint Backend dự kiến: PUT /api/admin/users/:id/deactivate
- */
+/** [PUT] Khóa tài khoản */
 export const deactivateUser = (userId: string): Promise<User> => {
-  return apiClient<User>(`/users/${userId}/deactivate`, 'PUT', { is_active: false });
+  if (USE_MOCK_API) {
+    mockUsers = mockUsers.map(u => (u.id === userId ? { ...u, is_active: false } : u));
+    const user = mockUsers.find(u => u.id === userId)!;
+    return new Promise(resolve => setTimeout(() => resolve(user), 500));
+  }
+  return apiClient.put(`/users/${userId}/lock`);
 };
 
-/**
- * [PUT] Activate người dùng (cập nhật is_active = true)
- * Endpoint Backend dự kiến: PUT /api/admin/users/:id/activate
- */
+/** [PUT] Mở khóa tài khoản */
 export const activateUser = (userId: string): Promise<User> => {
-  return apiClient<User>(`/users/${userId}/activate`, 'PUT', { is_active: true });
+  if (USE_MOCK_API) {
+    mockUsers = mockUsers.map(u => (u.id === userId ? { ...u, is_active: true } : u));
+    const user = mockUsers.find(u => u.id === userId)!;
+    return new Promise(resolve => setTimeout(() => resolve(user), 500));
+  }
+  return apiClient.put(`/users/${userId}/unlock`);
 };

@@ -4,7 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-
 
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
-import UsersManagementPage from './pages/UsersManagementPage';
+import {UsersManagementPage} from './pages/UsersManagementPage';
 import MainLayout from './components/layout/MainLayout';
 import { type User } from './types/entities';
 import { apiClient } from './services/apiClient';

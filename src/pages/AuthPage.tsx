@@ -68,7 +68,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
     setSuccessMessage('');
     
     try {
-      const response = await forgotPassword(emailForReset);
+      const response = await forgotPassword({ email: emailForReset });
       setSuccessMessage(response.message);
       
       setTimeout(() => {

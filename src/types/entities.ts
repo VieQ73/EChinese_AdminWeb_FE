@@ -10,26 +10,27 @@ export type Json = any; // Sử dụng 'any' cho các trường JSON/JSONB phứ
 // --- 1. Users ---
 export interface User {
   id: UUID;
-  username: string | null;
+  username: string; // Bắt buộc, không null
   password_hash?: string;
-  name: string;
-  avatar_url?: string;
-  email: string | null;
+  name?: string | null; // Có thể null theo DB Note
+  avatar_url?: string | null;
+  email?: string | null;
   provider?: 'google' | 'apple' | 'local';
   provider_id?: string;
   role: 'user' | 'admin' | 'super admin';
   is_active: boolean;
   isVerify: boolean;
   community_points: number;
-  subscription_id?: UUID;
-  subscription_expiry?: Timestamp;
-  level: string; // '1', '2', '3', '7-9'
+  subscription_id: UUID; // Bắt buộc, không null
+  subscription_expiry?: Timestamp | null;
+  level: '1' | '2' | '3' | '4' | '5' | '6' | '7-9';
   badge_level: number;
   language: 'Tiếng Việt' | 'Tiếng Anh';
   created_at: Timestamp;
-  last_login?: Timestamp;
+  last_login?: Timestamp | null;
   achievements?: Json; // Array of achievement objects
 }
+
 
 // --- 2. Subscriptions ---
 export interface Subscription {
