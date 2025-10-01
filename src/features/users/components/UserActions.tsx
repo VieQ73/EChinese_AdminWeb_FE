@@ -1,5 +1,5 @@
 import type { User } from '../../../types/entities';
-import { MoreHorizontal, Edit, Trash2, Lock, Unlock } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, Lock, Unlock, Eye } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 // Sửa lại đường dẫn import để trỏ đến component cục bộ
 import {
@@ -14,12 +14,13 @@ import {
 interface UserActionsProps {
   user: User;
   currentUser: User;
+  onView: (user: User) => void;
   onEdit: (user: User) => void;
   onDelete: (userId: string) => void;
   onToggleActive: (user: User) => void;
 }
 
-export const UserActions = ({ user, currentUser, onEdit, onDelete, onToggleActive }: UserActionsProps) => {
+export const UserActions = ({ user, currentUser, onView, onEdit, onDelete, onToggleActive }: UserActionsProps) => {
   // --- Logic Phân Quyền ---
 
   // 1. Quyền mở form chỉnh sửa. Logic chi tiết về trường nào được sửa sẽ nằm trong modal.
@@ -67,6 +68,9 @@ export const UserActions = ({ user, currentUser, onEdit, onDelete, onToggleActiv
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Hành động</DropdownMenuLabel>
+        <DropdownMenuItem onClick={() => onView(user)}>
+          <Eye className="mr-2 h-4 w-4" /> Xem chi tiết
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onEdit(user)} disabled={!canEdit}>
           <Edit className="mr-2 h-4 w-4" /> Chỉnh sửa
         </DropdownMenuItem>

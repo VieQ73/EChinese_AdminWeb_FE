@@ -1,19 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { fetchAllUsers, deactivateUser, activateUser, deleteUser } from '../features/users/userApi';
 import { useAuth } from '../hooks/useAuth';
 import type { User } from '../types/entities';
 import type { PaginatedResponse } from '../types/api';
+import { UserDetailModal } from '../features/users/components/UserDetailModal';
+import { Button } from '../components/ui/button';
+import { Loader2 } from 'lucide-react';
+import { UserFilter } from '../features/users/components/UserFilter';
+import { UserListTable } from '../features/users/components/UserListTable';
 
-
-const Table = ({ children }: { children: React.ReactNode }) => <table className="min-w-full divide-y divide-gray-200">{children}</table>;
-const TableHeader = ({ children }: { children: React.ReactNode }) => <thead className="bg-gray-50">{children}</thead>;
-const TableBody = ({ children }: { children: React.ReactNode }) => <tbody className="bg-white divide-y divide-gray-200">{children}</tbody>;
-const TableRow = ({ children }: { children: React.ReactNode }) => <tr>{children}</tr>;
-const TableHead = ({ children }: { children: React.ReactNode }) => <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{children}</th>;
-const TableCell = ({ children }: { children: React.ReactNode }) => <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{children}</td>;
-const Badge = ({ children, className }: { children: React.ReactNode, className?: string }) => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${className}`}>{children}</span>;
-
-import { UserActions } from '../features/users/components/UserActions';
+// Component phân trang
+const Pagination = ({ meta, onPageChange }: { meta: PaginatedResponse<any>['meta']; onPageChange: (page: number) => void }) => (
+  <div className="flex items-center justify-between mt-4">
+    <span className="text-sm text-gray-700">
+      Hiển thị {(meta.page - 1) * meta.limit + 1} - {Math.min(meta.page * meta.limit, meta.total)} trên {meta.total} kết quả
+    </span>
+    <div className="space-x-2">
+      <Button onClick={() => onPageChange(meta.page - 1)} disabled={meta.page <= 1}>Trước</Button>
+      <Button onClick={() => onPageChange(meta.page + 1)} disabled={meta.page >= meta.totalPages}>Sau</Button>
+    </div>
+  </div>
+);
 
 export const UsersManagementPage = () => {
   const currentUser = useAuth();
@@ -21,21 +28,38 @@ export const UsersManagementPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadUsers = async () => {
+  // State cho bộ lọc và tìm kiếm
+  const [filters, setFilters] = useState({ page: 1, limit: 10, search: '', role: '' });
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // State cho Modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [modalMode, setModalMode] = useState<'view' | 'edit'>('view');
+
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setFilters(prev => ({ ...prev, search: searchTerm, page: 1 }));
+    }, 500); // 500ms delay
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetchAllUsers({ page: 1, limit: 10 });
+      const response = await fetchAllUsers(filters);
       setUsersResponse(response);
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách người dùng.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [loadUsers]);
 
   const handleToggleActive = async (user: User) => {
     if (!window.confirm(`Bạn có chắc muốn ${user.is_active ? 'khóa' : 'mở khóa'} tài khoản "${user.name}"?`)) return;
@@ -63,10 +87,20 @@ export const UsersManagementPage = () => {
     }
   };
 
+  const handleView = (user: User) => {
+    setSelectedUser(user);
+    setModalMode('view');
+    setIsModalOpen(true);
+  };
+
   const handleEdit = (user: User) => {
-    // TODO: Mở modal chỉnh sửa người dùng
-    alert(`Mở form chỉnh sửa cho người dùng: ${user.name}`);
-    console.log('Dữ liệu người dùng để sửa:', user);
+    setSelectedUser(user);
+    setModalMode('edit');
+    setIsModalOpen(true);
+  };
+
+  const handlePageChange = (page: number) => {
+    setFilters(prev => ({ ...prev, page }));
   };
 
   if (loading) return <div>Đang tải dữ liệu...</div>;
@@ -74,52 +108,40 @@ export const UsersManagementPage = () => {
   if (!currentUser) return <div>Đang xác thực...</div>;
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Quản lý Người dùng</h1>
-      <div className="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Tên</TableHead>
-              <TableHead>Vai trò</TableHead>
-              <TableHead>Trạng thái</TableHead>
-              <TableHead>Ngày tạo</TableHead>
-              <TableHead>
-                <span className="sr-only">Hành động</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {usersResponse?.data.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>
-                  <div className="font-medium">{user.name}</div>
-                  <div className="text-gray-500">{user.email}</div>
-                </TableCell>
-                <TableCell>{user.role}</TableCell>
-                <TableCell>
-                  {user.is_active ? (
-                    <Badge className="bg-green-100 text-green-800">Hoạt động</Badge>
-                  ) : (
-                    <Badge className="bg-red-100 text-red-800">Đã khóa</Badge>
-                  )}
-                </TableCell>
-                <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
-                <TableCell>
-                  <UserActions
-                    user={user}
-                    currentUser={currentUser}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    onToggleActive={handleToggleActive}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+    <div className="p-0 space-y-6">
+      <div>
+        <h1 className="text-3xl font-extrabold text-gray-800">Quản lý Người dùng</h1>
+        <p className="text-gray-500 mt-1">Tìm kiếm, lọc và thực hiện các hành động trên tài khoản người dùng.</p>
       </div>
-      {/* TODO: Thêm component phân trang ở đây */}
+
+      <UserFilter
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        onRoleChange={(role) => setFilters(prev => ({ ...prev, role, page: 1 }))}
+      />
+
+      <UserListTable
+        users={usersResponse?.data || []}
+        currentUser={currentUser}
+        onView={handleView} onEdit={handleEdit} onDelete={handleDelete} onToggleActive={handleToggleActive}
+      />
+
+      {usersResponse && usersResponse.meta.total > 0 && (
+        <Pagination meta={usersResponse.meta} onPageChange={handlePageChange} />
+      )}
+
+      {isModalOpen && (
+        <UserDetailModal
+          isOpen={isModalOpen}
+          onClose={(refreshNeeded) => {
+            setIsModalOpen(false);
+            if (refreshNeeded) loadUsers();
+          }}
+          user={selectedUser}
+          mode={modalMode}
+          currentUser={currentUser}
+        />
+      )}
     </div>
   );
 };
