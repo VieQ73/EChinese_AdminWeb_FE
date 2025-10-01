@@ -12,6 +12,7 @@ import Input from '../../../components/ui/Input';
 import { Button } from '../../../components/ui/button';
 import type { User, Subscription, Timestamp, UserUsage, BadgeLevel } from '../../../types/entities';
 import { updateUser, fetchUserById } from '../userApi';
+import { fetchUserUsage, resetUserQuota } from '../userApi';
 import { fetchAllSubscriptions } from '../../subscriptions/subscriptionApi';
 import { fetchAllBadgeLevels } from '../../badges/badgeApi';
 import { Loader2, Save, User as UserIcon, Shield, Crown } from 'lucide-react';
@@ -38,6 +39,9 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [badgeLevels, setBadgeLevels] = useState<BadgeLevel[]>([]);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [usages, setUsages] = useState<UserUsage[] | null>(null);
+  const [usageLoading, setUsageLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const isViewMode = mode === 'view';
   const isSelf = currentUser?.id === user?.id;
@@ -55,7 +59,13 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
   const canEditInfoFields = (): boolean => {
     if (!currentUser) return false;
     if (user?.role === 'super admin' && !isSelf) return false;
-    return isSuperAdmin || (isAdmin && user?.role === 'user');
+    // Allow super admin to edit everything (except demote self handled elsewhere).
+    // Allow the user to edit their own info.
+    // Allow admin to edit themselves and regular users (but not other admins).
+    if (isSuperAdmin) return true;
+    if (isSelf) return true;
+    if (isAdmin && user?.role === 'user') return true;
+    return false;
   };
 
   // Chặn SuperAdmin tự hạ cấp vai trò của mình
@@ -74,6 +84,13 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
         try {
           const response = await fetchUserById(user.id);
           setEditingUser(response);
+          // fetch usages
+          setUsageLoading(true);
+          try {
+            const rows = await fetchUserUsage(user.id);
+            setUsages(rows as UserUsage[]);
+          } catch {}
+          setUsageLoading(false);
         } catch (err: any) {
           setError(err.message || 'Không thể tải chi tiết người dùng.');
           setEditingUser(null);
@@ -259,6 +276,55 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
                   />
                 </div>
               </div>
+            </section>
+
+            {/* AI Usage (only for users with subscription) */}
+            <section className="p-5 rounded-xl bg-gray-50 border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Shield className="w-5 h-5 text-purple-600" />
+                Quota AI & Lịch sử sử dụng
+              </h3>
+              {usageLoading ? (
+                <p className="text-sm text-gray-600">Đang tải thông tin sử dụng...</p>
+              ) : usages && usages.length > 0 ? (
+                <div className="space-y-3">
+                  {usages.map(u => (
+                    <div key={u.id} className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-2">
+                      <div>
+                        <div className="text-sm font-medium text-gray-800">{u.feature === 'ai_lesson' ? 'AI Lesson' : 'AI Translate'}</div>
+                        <div className="text-xs text-gray-500">Số lần trong ngày: {u.daily_count} — Last reset: {new Date(u.last_reset).toLocaleString()}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {/* Only super admin can reset; admin can view only */}
+                        <Button
+                          variant="outline"
+                          onClick={async () => {
+                            if (!editingUser?.id) return;
+                            if (!isSuperAdmin) return;
+                            setResetting(true);
+                            try {
+                              await resetUserQuota(editingUser.id, { feature: u.feature });
+                              // refresh usages
+                              const rows = await fetchUserUsage(editingUser.id);
+                              setUsages(rows as UserUsage[]);
+                              setSuccessMessage('Quota đã được reset.');
+                            } catch (err: any) {
+                              setError(err?.message || 'Không thể reset quota.');
+                            } finally {
+                              setResetting(false);
+                            }
+                          }}
+                          disabled={!isSuperAdmin || resetting}
+                        >
+                          Reset
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-600">Người dùng này chưa có dữ liệu sử dụng AI hoặc không có gói trả phí.</p>
+              )}
             </section>
 
             {/* Quyền & Trạng thái */}

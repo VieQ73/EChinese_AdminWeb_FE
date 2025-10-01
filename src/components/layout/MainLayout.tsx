@@ -24,11 +24,12 @@ interface NavItem {
 const navItems: NavItem[] = [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
     { id: 'users', name: 'Quản lý Người dùng', icon: Users, path: '/users' },
-    { id: 'vocabulary', name: 'Từ vựng & Bài học', icon: Book, path: '/vocabulary' }, // Path tạm
+    { id: 'vocabulary', name: 'Sổ tay và Từ vựng', icon: Book, path: '/notebooks' }, // Link tới notebooks
     { id: 'tests', name: 'Đề thi Mock Test', icon: FileText, path: '/tests' }, // Path tạm
     { id: 'posts', name: 'Nội dung Cộng đồng', icon: MessageSquare, path: '/posts' }, // Path tạm
     { id: 'reports', name: 'Báo cáo vi phạm', icon: AlertCircle, path: '/reports' }, // Path tạm
     { id: 'system', name: 'Hệ thống & Cấu hình', icon: Settings, path: '/system' }, // Path tạm
+    { id: 'change-password', name: 'Đổi mật khẩu', icon: Settings, path: '/change-password' },
 ];
 
 interface SidebarItemProps {

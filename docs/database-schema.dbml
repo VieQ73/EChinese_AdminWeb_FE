@@ -1,0 +1,524 @@
+// Enable UUID extension
+
+// Table Users
+Table Users {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  username varchar(50) [unique]
+  password_hash varchar(255)
+  name varchar(50) [not null]
+  avatar_url text
+  email varchar(255) [unique]
+  provider varchar(20) [note: "Enum: 'google', 'apple', 'local'"]
+  provider_id varchar(255)
+  role varchar(10) [default: 'user', note: "Enum: 'user', 'admin', 'super admin'"]
+  is_active boolean [default: true]
+  isVerify boolean [default: false]
+  community_points int [default: 0]
+  subscription_id uuid [note: "Allows NULL for Free and Permanent plans"]
+  subscription_expiry timestamptz
+  level varchar(3) [not null, note: "Enum: '1', '2', '3', '4', '5', '6', '7-9'"]
+  badge_level int [not null, default: 0]
+  language varchar(10) [not null, note: "Enum: 'Tiếng Việt', 'Tiếng Anh'"]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  last_login timestamptz
+  achievements json [note: "Array of {name: string, achieved_at: timestamp, criteria: string}"]
+  
+  Note: '''
+  - Bảng trung tâm cho hồ sơ người dùng, hỗ trợ đăng nhập qua username/password, goole, apple.
+  - Username/password_hash cho đăng nhập local (hash bcrypt), provider/provider_id cho OAuth (Google/Apple).
+  - Email và name có thể null.
+  - Thành tựu tính toán qua cron job (ví dụ, 7 ngày đăng nhập liên tục).
+  - Điểm cộng đồng tổng hợp từ Posts/Comments (likes*10, posts*20, comments_received*20), lưu trực tiếp để tối ưu query.
+  - isVerify hỗ trợ xác thực email, tăng bảo mật.
+  - subscription_id NULL: Áp dụng cho Free User hoặc gói Premium Vĩnh Viễn.
+  '''
+  
+  Indexes {
+    username [unique]
+    email [unique]
+    (provider, provider_id) [type: btree]
+    created_at [type: btree]
+    role [type: btree]
+    community_points [type: btree]
+  }
+}
+
+// Table Subscriptions
+Table Subscriptions {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  name varchar(100) [unique, not null]
+  daily_quota_ai_lesson int [default: 0]
+  daily_quota_translate int [default: 0]
+  price decimal(10,2) [default: 0]
+  duration_months int [note: "NULL for Permanent plans. Positive values for time-limited plans."]
+  is_active boolean [default: true]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  Note: '''
+  - duration_months: NULL biểu thị gói Vĩnh Viễn.
+  - Admin có thể tùy ý Tạo/Sửa/Xóa gói. Admin chỉnh sửa tên, thời hạn, quota (không hard-code).
+  - duration_months: 1 cho tháng, 3 cho ba tháng, null cho vĩnh viễn/miễn phí.
+  - quota cho AI (tạo bài học, dịch), reset hàng ngày qua cron job.
+  - price cho thanh toán, is_active để kích hoạt/gỡ gói.
+  '''
+  
+  Indexes {
+    name [unique]
+  }
+}
+
+// Table BadgeLevels
+Table BadgeLevels {
+  level int [unique, primary key]
+  name varchar(50) [not null]
+  
+  Note: '''
+  - Tên huy hiệu tùy chỉnh (admin chỉnh sửa).
+  - Công thức nâng cấp huy hiệu: 
+    - Level 1: >=100 điểm cộng đồng (tuần) hoặc >=50% HSK thấp.
+    - Level 2: >=500 (tháng) hoặc >=80% HSK trung.
+    - Level 3: >=2000 (năm) hoặc top 9 thi thử 3 lần.
+    - Level 4: Chỉ admin.
+  '''
+}
+
+// Table Payments
+Table Payments {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  subscription_id uuid [not null]
+  amount decimal(10,2) [not null]
+  currency varchar(3) [default: 'VND']
+  status varchar(20) [default: 'pending', note: "Enum: 'pending', 'successful', 'failed', 'refunded', 'manual_confirmed'"]
+  payment_method varchar(50) [not null, note: "Enum: 'visa/mastercard', 'bank_transfer', 'momo', 'zalopay', 'vnpay', etc.'"]
+  gateway_transaction_id varchar(255) [unique, not null]
+  transaction_date timestamptz [default: `CURRENT_TIMESTAMP`]
+  gateway_response json
+  processed_by_admin uuid [note: "Admin/Super Admin ID that processed this transaction (usually for refunds or manual confirmation)."]
+  notes text
+  
+  Note: '''
+  - Theo dõi chi tiết mọi giao dịch mua gói đăng ký.
+  - Gateway_transaction_id là ID duy nhất từ cổng thanh toán (ví dụ: VNPAY, Momo, Stripe).
+  - Processed_by_admin cho các trường hợp hoàn tiền hoặc xác nhận thủ công.
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+    status [type: btree]
+    transaction_date [type: btree]
+    payment_method [type: btree]
+  }
+}
+
+// Table Posts
+Table Posts {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  title varchar(100) [not null]
+  content json [not null, note: "Rich text JSON (bold, italic, underline, color, align, list)"]
+  topic varchar(50) [not null, note: "Enum: 'Cơ khí', 'Công nghệ thông tin', 'Dịch', 'Du học', 'Du lịch', 'Góc chia sẻ', 'Tìm bạn học chung', 'Học tiếng Trung', 'Tìm gia sư', 'Việc làm', 'Văn hóa', 'Thể thao', 'Xây dựng', 'Y tế', 'Khác'"]
+  likes int [default: 0]
+  views int [default: 0]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  is_approved boolean [default: true]
+  deleted_at timestamptz [note: "Soft-Delete: Allows Admin to temporarily remove (recoverable)."]
+  
+  Note: '''
+  - Xóa Vĩnh Viễn (Hard Delete) sẽ là thao tác riêng, thường là Cron Job hoặc Super Admin API.
+  - Bài đăng cộng đồng với văn bản phong phú.
+  - Thời gian tương đối (ví dụ, ''2 phút trước'') tính toán phía client.
+  - Yêu thích có thể lưu trong mảng JSONB nếu cần.
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+    created_at [type: btree]
+    topic [type: btree]
+  }
+}
+
+// Table Comments
+Table Comments {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  post_id uuid [not null]
+  user_id uuid [not null]
+  content json [not null, note: "Rich text JSON"]
+  likes int [default: 0]
+  parent_comment_id uuid
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  deleted_at timestamptz [note: "Soft-Delete: Allows Admin to temporarily remove (recoverable)."]
+  
+  Note: '''
+  - Xóa Vĩnh Viễn (Hard Delete) sẽ là thao tác riêng, thường là Cron Job hoặc Super Admin API.
+  - Hỗ trợ bình luận lồng nhau qua parent_comment_id.
+  - Góp phần vào điểm cộng đồng: likes*10, bình luận nhận được*20.
+  '''
+  
+  Indexes {
+    post_id [type: btree]
+    parent_comment_id [type: btree]
+    created_at [type: btree]
+  }
+}
+
+// Table MockTests
+Table MockTests {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  type varchar(10) [not null, note: "Enum: 'HSK', 'TOCFL', 'D4', 'HSKK'"]
+  level varchar(10) [not null, note: "Test level"]
+  title varchar(100) [not null]
+  total_time_limit int [not null]
+  total_max_score int [not null]
+  sections json [not null, note: "Array of sections: [{name: string ('Listening', 'Reading', 'Writing', 'Visual'), time_limit: int (minutes), max_score: int, total_questions: int, questions: [{id: uuid (local ID), type: string ('mcq', 'fill', 'write', 'repeat', 'describe', 'answer'), text: string (question content), options: array<string> (for MCQ, null otherwise), correct_answer: string (index for MCQ, text for others), explanation: string (detailed explanation with examples), media_url: string (S3 URL for audio/image, null if none), is_visual: boolean (true for picture-based questions)}]}]"]
+  instructions text
+  is_active boolean [default: true]
+  created_by uuid
+  deleted_at timestamptz [note: "Soft-Delete: Allows Admin to temporarily remove (recoverable)."]
+  
+  Note: '''
+  - Xóa Vĩnh Viễn (Hard Delete) sẽ là thao tác riêng, thường là Cron Job hoặc Super Admin API.
+  - Cấu trúc đề thi chi tiết được lưu trong JSON sections.
+  - Mô phỏng kỳ thi thực tế (HSK1: Listening+Visual; HSK6: Listening+Reading+Writing).
+  - HSKK: Chỉ nhiệm vụ (không có câu hỏi).
+  - Media qua URL S3 (audio cho Listening, image cho Visual).
+  - Trộn/sửa câu hỏi phía client.
+  '''
+  
+  Indexes {
+    (type, level) [type: btree]
+  }
+}
+
+// Table UserTestScores
+Table UserTestScores {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  test_id uuid [not null]
+  highest_total_score int [default: 0]
+  attempts json [note: "Array of attempts: [{attempt_id: uuid, started_at: timestamp, submitted_at: timestamp, total_score: int, section_scores: [{section_name: string, score: int, completed_questions: int, total_questions: int, percentage: float}], user_answers: [{question_local_id: uuid, selected_answer: string, is_correct: boolean, time_spent: int (seconds)}]}]"]
+  explanations_viewed json [note: "Track {attempt_id: {question_id: boolean}}"]
+  
+  Note: '''
+  - Theo dõi điểm cao nhất và chi tiết lần thử, bao gồm câu trả lời của người dùng.
+  - Section_scores cho phân tích (ví dụ, Listening: 80/100).
+  - Chế độ ôn tập liên kết với MockTests.sections.questions.
+  - Xếp hạng qua view (top 9 theo loại/cấp độ, loại trừ HSKK).
+  '''
+  
+  Indexes {
+    (user_id, test_id) [unique]
+    highest_total_score [type: btree]
+  }
+}
+
+// Table Notebooks
+Table Notebooks {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid
+  name varchar(100) [not null]
+  vocab_count int [default: 0]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  options json [not null, note: "{show_hanzi: bool, show_pinyin: bool, show_meaning: bool, sort_by: string}"]
+  is_premium boolean [default: false]
+  
+  Note: '''
+  - Sổ tay cá nhân hoặc sẵn có (user_id NULL cho sẵn có).
+  - Trigger cập nhật vocab_count từ NotebookVocabItems.
+  - Truy cập premium kiểm tra qua Users.subscription_id.
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+  }
+}
+
+Table Vocabulary {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  hanzi varchar(50) [not null]
+  pinyin varchar(50) [not null]
+  meaning text [not null]
+  notes text
+  level text[] [not null, note: "Một từ có thể thuộc nhiều HSK levels: HSK1, HSK2, ..., HSK7-9, HSKK"]
+  image_url text
+  deleted_at timestamptz [note: "Soft delete: Cho phép khôi phục trong thời gian ngắn"]
+
+  Note: '''
+  - Unique constraint (hanzi+pinyin) để tránh trùng lặp
+  - Hard delete chỉ cho Super Admin hoặc cron job
+  - Từ vựng có thể liên kết nhiều từ loại (WordType)
+  '''
+
+  Indexes {
+    (hanzi, pinyin) [unique]
+    level [type: gin]
+  }
+}
+
+Table WordType {
+  code varchar(50) [primary key, note: "Enum: Danh từ, Đại từ, Động từ, Tính từ, Trạng từ, Giới từ, Liên từ, Trợ từ, Thán từ, Số từ, Lượng từ, Thành phần câu, Cụm từ"]
+
+  Note: '''
+  - Một từ có thể có nhiều từ loại
+  '''
+}
+
+Table VocabularyWordType {
+  vocab_id uuid [not null]
+  word_type varchar(50) [not null]
+
+  Note: '''
+  - Bảng trung gian N:N giữa Vocabulary và WordType
+  - Cho phép một từ vựng có nhiều từ loại
+  '''
+
+  Indexes {
+    (vocab_id)
+    (word_type)
+  }
+
+  primary key (vocab_id, word_type)
+}
+
+// Table NotebookVocabItems
+Table NotebookVocabItems {
+  notebook_id uuid [not null]
+  vocab_id uuid [not null]
+  status varchar(20) [not null, note: "Enum: 'đã thuộc', 'chưa thuộc', 'yêu thích', 'không chắc'"]
+  added_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  Note: '''
+  - Bảng liên kết N:N cho Notebook-Vocabulary.
+  - Thống kê (ví dụ, số từ đã thuộc) qua COUNT GROUP BY status.
+  '''
+  
+  Indexes {
+    (notebook_id, vocab_id) [unique]
+  }
+}
+
+// Table Tips
+Table Tips {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  order int [not null]
+  topic varchar(50) [not null, note: "Enum: 'Tất cả', 'Văn hóa', 'Ngữ pháp', 'Từ vựng', 'Phát âm', 'Khẩu ngữ', 'Kỹ năng nghe', 'Kỹ năng đọc', 'Kỹ năng viết', 'Khác'"]
+  level varchar(10) [not null, note: "Enum: 'Sơ cấp', 'Trung cấp', 'Cao cấp'"]
+  content text [not null]
+  answer text
+  created_by uuid
+  
+  Note: '''
+  - Mẹo trang chủ với đáp án tùy chọn cho quiz.
+  - Tổng số tính toán động.
+  - Sử dụng cho mẹo bài học AI nếu lưu riêng.
+  '''
+  
+  Indexes {
+    topic [type: btree]
+    level [type: btree]
+  }
+}
+
+// Table AILessons
+Table AILessons {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  theme varchar(100) [not null]
+  level varchar(10) [not null, note: "Enum: 'Cơ bản', 'Trung cấp', 'Cao cấp'"]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  content json [not null, note: "Structure: {vocabularies: [{vocab_id: uuid (ref Vocabulary.id), audio_url: string (S3 URL, null if not generated)}], phrases: [{vocab_id: uuid (ref Vocabulary.id), audio_url: string (S3 URL, null if not generated)}], tips: [{tip_id: uuid (ref Tips.id, null if not stored separately), vietnamese: string, chinese: string}], dialogues: [{messages: [{text: string (simplified hanzi), pinyin: string, audio_url: string (S3 URL, null if not generated)}]}]}"]
+  
+  Note: '''
+  - Lưu bài học tạo bởi AI.
+  - content.vocabularies/phrases reference Vocabulary.id.
+  - Lưu bài học tạo bởi AI (chủ đề và mức độ người dùng chọn).
+  - content.vocabularies/phrases reference Vocabulary.id để tránh trùng lặp.
+  - content.tips có thể reference Tips.id hoặc lưu inline (vietnamese+chinese).
+  - content.dialogues lưu dưới dạng JSON (chat-like, với audio URL, chỉ hán tự giản thể).
+  - Audio tạo động (TTS API), URL lưu tạm thời.
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+    (theme, level) [type: btree]
+  }
+}
+
+// Table AdminLogs
+Table AdminLogs {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  admin_id uuid [not null]
+  action_type varchar(50) [not null]
+  target_id uuid
+  description text
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  Note: '''
+  - Theo dõi hành động admin (ví dụ, xóa post, khóa user) để kiểm toán.
+  '''
+  
+  Indexes {
+    admin_id [type: btree]
+    created_at [type: btree]
+  }
+}
+
+// Table Reports
+Table Reports {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  reporter_id uuid [not null]
+  target_type varchar(20) [not null, note: "Enum: 'post', 'comment'"]
+  target_id uuid [not null]
+  reason varchar(255) [not null]
+  status varchar(20) [default: 'pending', note: "Enum: 'pending', 'resolved', 'dismissed'"]
+  resolved_by uuid
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  Note: '''
+  - Báo cáo vi phạm từ user (post/comment), admin xử lý.
+  '''
+  
+  Indexes {
+    (target_type, target_id) [type: btree]
+    status [type: btree]
+  }
+}
+
+// Table TranslationHistory
+Table TranslationHistory {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  original_text text [not null]
+  original_lang varchar(10) [not null, note: "Enum: 'vi', 'zh'"]
+  translated_text text [not null]
+  translated_lang varchar(10) [not null, note: "Enum: 'vi', 'zh'"]
+  is_ai boolean [default: false]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  Note: '''
+  - Lưu lịch sử dịch (Trung-Việt/Việt-Trung), phân biệt dịch thường hoặc AI.
+  - Người dùng xóa qua API.
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+    created_at [type: btree]
+  }
+}
+
+// Table UserUsage
+Table UserUsage {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  feature varchar(50) [not null, note: "Enum: 'ai_lesson', 'ai_translate'"]
+  daily_count int [default: 0]
+  last_reset timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  Note: '''
+  - Quản lý quota sử dụng AI theo tính năng (tạo bài họ với ai, dịch với ai).
+  - daily_count reset hàng ngày qua cron job dựa trên subscription quotas.
+  - last_reset để kiểm tra reset quota (ví dụ, reset nếu >24h).
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+    feature [type: btree]
+  }
+}
+
+// Table Notifications
+Table Notifications {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  type varchar(50) [not null, note: "Enum: 'system', 'community', 'achievement', 'subscription'"]
+  title varchar(100) [not null]
+  content text [not null]
+  related_id uuid
+  is_read boolean [default: false]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  Note: '''
+  - Lưu thông báo cho người dùng (e.g., bình luận mới, thành tựu, subscription hết hạn).
+  - Trigger tự động tạo thông báo khi có sự kiện (e.g., new comment → type='community', related_id=post_id).
+  - Hỗ trợ push notification (FCM) cho mobile, email cho web.
+  - User xóa thông báo qua API (DELETE WHERE id=...).
+  - Giới hạn: Giữ 100 thông báo mới nhất/user để tránh bloat (cron job xóa cũ).
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+    created_at [type: btree]
+    is_read [type: btree]
+  }
+}
+
+// Table Media
+Table Media {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  original_name varchar(255) [not null]
+  display_name varchar(255) [note: "Display name set by Admin (e.g., 'HSK 5 Phần Nghe Bài 3')"]
+  s3_path varchar(255) [unique, not null]
+  mime_type varchar(50)
+  size_bytes int
+  uploaded_by uuid [note: "NULL if system-generated or auto-scraped file"]
+  usage_type varchar(50) [note: "Enum: 'mocktest_audio', 'vocab_image', 'user_avatar', 'system'"]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  Note: '''
+  - Quản lý tập trung các tài nguyên file (audio, image).
+  - Rất quan trọng cho file Vocabulary images (tự động cào) và MockTest Audios (cần tên rõ ràng).
+  '''
+  
+  Indexes {
+    s3_path [unique]
+    created_at [type: btree]
+  }
+}
+
+// Table RefreshTokens
+Table RefreshTokens {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  token text [unique, not null]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  expires_at timestamptz [not null]
+  
+  Note: '''
+  - Lưu trữ refresh token cho cơ chế xác thực, đảm bảo token là duy nhất.
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+    token [unique]
+  }
+}
+
+// Relationships
+Ref: Users.badge_level > BadgeLevels.level [delete: set default]
+Ref: Users.subscription_id > Subscriptions.id [delete: set null]
+Ref: Payments.user_id > Users.id [delete: restrict]
+Ref: Payments.subscription_id > Subscriptions.id [delete: restrict]
+Ref: Payments.processed_by_admin > Users.id [delete: set null]
+Ref: Posts.user_id > Users.id [delete: cascade]
+Ref: Comments.post_id > Posts.id [delete: cascade]
+Ref: Comments.user_id > Users.id [delete: cascade]
+Ref: Comments.parent_comment_id > Comments.id [delete: cascade]
+Ref: UserTestScores.user_id > Users.id [delete: cascade]
+Ref: UserTestScores.test_id > MockTests.id [delete: restrict]
+Ref: Notebooks.user_id > Users.id [delete: cascade]
+Ref: NotebookVocabItems.notebook_id > Notebooks.id [delete: cascade]
+Ref: NotebookVocabItems.vocab_id > Vocabulary.id [delete: restrict]
+Ref: AILessons.user_id > Users.id [delete: cascade]
+Ref: AdminLogs.admin_id > Users.id [delete: cascade]
+Ref: Reports.reporter_id > Users.id [delete: cascade]
+Ref: Reports.resolved_by > Users.id [delete: set null]
+Ref: MockTests.created_by > Users.id [delete: set null]
+Ref: Tips.created_by > Users.id [delete: set null]
+Ref: Media.uploaded_by > Users.id [delete: set null]
+Ref: TranslationHistory.user_id > Users.id [delete: cascade]
+Ref: UserUsage.user_id > Users.id [delete: cascade]
+Ref: Notifications.user_id > Users.id [delete: cascade]
+Ref: RefreshTokens.user_id > Users.id [delete: cascade]
+Ref: VocabularyWordType.vocab_id > Vocabulary.id [delete: cascade]
+Ref: VocabularyWordType.word_type > WordType.code [delete: cascade]

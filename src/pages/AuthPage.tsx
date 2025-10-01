@@ -5,6 +5,7 @@ import Input from '../components/ui/Input';
 import { Button } from '../components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { login, forgotPassword } from '../features/auth/authApi'; // Import API auth
+import { useToast } from '../components/ui/Toast';
 import type { AuthenticatedUser } from '../App'; 
 
 
@@ -38,6 +39,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
     setEmailForReset('');
   };
 
+  const toast = useToast();
+
   // Logic đăng nhập
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,13 +51,16 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
     try {
       const response = await login({ username, password }); // Gọi API đăng nhập với username
       
-      localStorage.setItem('admin_token', response.token);
-      localStorage.setItem('admin_user', JSON.stringify(response.user));
-      onLoginSuccess(response.token, response.user);
+  localStorage.setItem('admin_token', response.token);
+  if (response.refreshToken) localStorage.setItem('admin_refresh_token', response.refreshToken);
+  localStorage.setItem('admin_user', JSON.stringify(response.user));
+  onLoginSuccess(response.token, response.user);
+  toast.push('Đăng nhập thành công', 'success');
     } catch (err: any) {
-      console.error("Lỗi đăng nhập:", err);
-      // Giả lập lỗi từ mock API: err.message
-      setAuthError(err.message || 'Đăng nhập không thành công. Vui lòng kiểm tra lại thông tin.');
+  console.error("Lỗi đăng nhập:", err);
+  const msg = err?.message || 'Đăng nhập không thành công. Vui lòng kiểm tra lại thông tin.';
+  setAuthError(msg);
+  toast.push(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -69,7 +75,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
     
     try {
       const response = await forgotPassword({ email: emailForReset });
-      setSuccessMessage(response.message);
+  setSuccessMessage(response.message);
+  toast.push(response.message, 'success');
       
       setTimeout(() => {
           setIsLoginView(true);

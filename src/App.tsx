@@ -5,10 +5,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import {UsersManagementPage} from './pages/UsersManagementPage';
+import NotebooksPage from './pages/NotebooksPage';
+import NotebookDetail from './pages/NotebookDetail';
 import MainLayout from './components/layout/MainLayout';
+import ChangePasswordPage from './pages/ChangePassword';
+import { ToastProvider } from './components/ui/Toast';
 import { type User } from './types/entities';
-import { apiClient } from './services/apiClient';
-import { LayoutDashboard, Users } from 'lucide-react';
 
 /**
  * @fileoverview App component - Quản lý trạng thái xác thực và định tuyến chính của ứng dụng.
@@ -27,23 +29,19 @@ function App() {
     // Kiểm tra token trong localStorage khi ứng dụng khởi tạo
     return !!localStorage.getItem('admin_token');
   });
-  const [currentUser, setCurrentUser] = useState<AuthenticatedUser | null>(() => {
-    // Cố gắng tải thông tin user từ localStorage nếu có
-    const userString = localStorage.getItem('admin_user');
-    return userString ? JSON.parse(userString) : null;
-  });
+  // currentUser được lưu trong localStorage; nếu cần global access hãy dùng hook/useContext
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
-    // Trong môi trường thực, bạn sẽ kiểm tra tính hợp lệ của token ở đây,
+    // Trong môi trường thực, sẽ kiểm tra tính hợp lệ của token ở đây,
     // ví dụ bằng cách gọi một API /auth/me hoặc /auth/verify-token.
-    // Hiện tại, chúng ta chỉ kiểm tra sự tồn tại của token.
+    // Hiện tại chỉ kiểm tra sự tồn tại của token.
     const token = localStorage.getItem('admin_token');
     const user = localStorage.getItem('admin_user');
 
     if (token && user) {
       try {
-        setCurrentUser(JSON.parse(user));
+        // chỉ xác thực dựa trên tồn tại token/user
         setIsAuthenticated(true);
       } catch (error) {
         console.error("Lỗi khi parse thông tin người dùng từ localStorage:", error);
@@ -61,7 +59,6 @@ function App() {
     localStorage.setItem('admin_token', token);
     localStorage.setItem('admin_user', JSON.stringify(user));
     setIsAuthenticated(true);
-    setCurrentUser(user);
     // Có thể redirect đến dashboard hoặc trang mặc định sau đăng nhập
   };
 
@@ -69,7 +66,6 @@ function App() {
     localStorage.removeItem('admin_token');
     localStorage.removeItem('admin_user');
     setIsAuthenticated(false);
-    setCurrentUser(null);
     // Redirect về trang đăng nhập
   };
 
@@ -86,7 +82,8 @@ function App() {
   }
 
   return (
-    <Router>
+    <ToastProvider>
+      <Router>
       <Routes>
         {/* Route cho trang đăng nhập */}
         <Route
@@ -104,6 +101,9 @@ function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           {/* User Management Page */}
           <Route path="users" element={<UsersManagementPage />} />
+          <Route path="notebooks" element={<NotebooksPage />} />
+          <Route path="notebooks/:id" element={<NotebookDetail />} />
+          <Route path="change-password" element={<ChangePasswordPage />} />
           {/* ... Các trang khác sẽ được thêm vào sau */}
           
           {/* Redirect mặc định nếu path "/" không khớp và đã đăng nhập */}
@@ -113,7 +113,8 @@ function App() {
         {/* Catch-all route cho 404 hoặc redirect */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
-    </Router>
+      </Router>
+    </ToastProvider>
   );
 }
 

@@ -87,14 +87,23 @@ export interface UserTestScore {
 
 export interface Vocabulary {
   id: UUID;
-  word_type: string; // 'Danh từ', 'Động từ', ...
   hanzi: string;
   pinyin: string;
   meaning: string;
   notes?: string;
-  level: string; // 'HSK1', 'HSK2', 'HSK3', 'HSK7-9'
+  level: string[]; // ví dụ: ['HSK1', 'HSK2']
   image_url?: string;
   deleted_at?: Timestamp;
+  word_types: string[]; // ['Danh từ', 'Động từ']
+}
+
+export interface WordType {
+  code: string; // 'Danh từ', 'Động từ', ...
+}
+
+export interface VocabularyWordType {
+  vocab_id: UUID;
+  word_type: string; // tham chiếu WordType.code
 }
 
 export interface Notebook {
@@ -193,7 +202,7 @@ export interface TranslationHistory {
 export interface UserUsage {
     id: UUID;
     user_id: UUID;
-    feature: 'ai_lesson' | 'tts' | 'translate';
+    feature: 'ai_lesson' | 'ai_translate';
     daily_count: number;
     last_reset: Timestamp;
 }

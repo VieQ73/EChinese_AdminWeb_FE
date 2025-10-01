@@ -85,3 +85,27 @@ export const forgotPassword = (payload: ForgotPasswordPayload): Promise<{ messag
   // Kết nối API thật
   return apiClient.post('/auth/forgot-password', payload);
 };
+
+/**
+ * [POST] Đổi mật khẩu cho user đã đăng nhập
+ * @param payload - { currentPassword, newPassword }
+ */
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export const changePassword = (payload: ChangePasswordPayload): Promise<{ message: string }> => {
+  if (USE_MOCK_API) {
+    console.warn('[MOCK] Gọi API đổi mật khẩu...');
+    return new Promise((resolve, reject) => setTimeout(() => {
+      if (payload.currentPassword === '123456') {
+        resolve({ message: 'Đổi mật khẩu thành công.' });
+      } else {
+        reject(new Error('Mật khẩu hiện tại không đúng.'));
+      }
+    }, 500));
+  }
+
+  return apiClient.post('/auth/change-password', payload);
+};

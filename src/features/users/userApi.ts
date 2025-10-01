@@ -175,3 +175,48 @@ export const activateUser = (userId: string): Promise<User> => {
   }
   return apiClient.put(`/users/${userId}/unlock`);
 };
+
+/** Mock UserUsage data and helpers for AI quota management */
+interface ResetQuotaPayload {
+  feature?: 'ai_lesson' | 'ai_translate';
+}
+
+let mockUserUsages: Array<{
+  id: string;
+  user_id: string;
+  feature: 'ai_lesson' | 'ai_translate';
+  daily_count: number;
+  last_reset: string;
+}> = [
+  // Example usages for existing mock users
+  { id: 'uusage-1', user_id: 'c3d4e5f6-a7b8-9012-3456-7890abcdef01', feature: 'ai_lesson', daily_count: 5, last_reset: new Date().toISOString() },
+  { id: 'uusage-2', user_id: 'c3d4e5f6-a7b8-9012-3456-7890abcdef01', feature: 'ai_translate', daily_count: 2, last_reset: new Date().toISOString() },
+  { id: 'uusage-3', user_id: 'd4e5f6a7-b8c9-0123-4567-890abcdef012', feature: 'ai_lesson', daily_count: 0, last_reset: new Date().toISOString() },
+];
+
+/** [GET] Lấy UserUsage cho một user */
+export const fetchUserUsage = (userId: string): Promise<any[]> => {
+  if (USE_MOCK_API) {
+    const rows = mockUserUsages.filter(u => u.user_id === userId);
+    return new Promise(resolve => setTimeout(() => resolve(rows), 300));
+  }
+  return apiClient.get(`/admin/users/${userId}/usage`);
+};
+
+/** [POST] Reset quota cho user (admin only endpoint) */
+export const resetUserQuota = (userId: string, payload?: ResetQuotaPayload): Promise<{ message: string }> => {
+  if (USE_MOCK_API) {
+    // If feature provided, reset only that; otherwise reset all AI features
+    const now = new Date().toISOString();
+    mockUserUsages = mockUserUsages.map(u => {
+      if (u.user_id !== userId) return u;
+      if (!payload?.feature || payload.feature === u.feature) {
+        return { ...u, daily_count: 0, last_reset: now };
+      }
+      return u;
+    });
+    return new Promise(resolve => setTimeout(() => resolve({ message: 'Quota đã được reset (mock).' }), 300));
+  }
+  // Backend admin route as specified: POST /api/admin/users/:id/reset-quota
+  return apiClient.post(`/admin/users/${userId}/reset-quota`, payload || {});
+};
