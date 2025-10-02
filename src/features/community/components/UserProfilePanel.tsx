@@ -21,7 +21,12 @@ const UserProfilePanel: React.FC<{ userId?: string; onClose?: ()=>void }> = ({ u
     <div className="h-full bg-white p-4 rounded shadow overflow-auto">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center">{user?.name?.charAt(0)}</div>
+          <div className="relative">
+            <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center">{user?.name?.charAt(0)}</div>
+            {user && user.is_active === false && (
+              <div title="Tài khoản đã bị khóa!" className="absolute -bottom-0.5 -right-0.5 bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">!</div>
+            )}
+          </div>
           <div>
             <div className="font-semibold">{user?.name}</div>
             <div className="text-sm text-gray-500">{user?.email}</div>

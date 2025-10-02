@@ -144,13 +144,13 @@ export interface AILesson {
 
 // --- 5. Community ---
 export interface Post {
-  id: string;              // UUID
-  user_id: string;         // UUID
+  id: UUID;
+  user_id: UUID;
   title: string;
-  content: any;            // JSON rich text
-  topic: 
+  content: Json; // Rich text JSON
+  topic:
     | 'Cơ khí'
-    | 'Công nghệ thông tin'
+    | 'CNTT'
     | 'Dịch'
     | 'Du học'
     | 'Du lịch'
@@ -163,29 +163,46 @@ export interface Post {
     | 'Thể thao'
     | 'Xây dựng'
     | 'Y tế'
+    | 'Tâm sự'
     | 'Khác';
   likes: number;
   views: number;
-  created_at: string;      // Timestamp
+  created_at: Timestamp;
   is_approved: boolean;
-  deleted_at?: string;
-  deleted_reason?: string;
-  deleted_by?: string;     // UUID
+  is_pinned: boolean;
+  deleted_at?: Timestamp | null;
+  deleted_reason?: string | null;
+  deleted_by: UUID;
 }
 
 export interface Comment {
-  id: string;
-  post_id: string;
-  user_id: string;
-  content: any;            // JSON rich text
+  id: UUID;
+  post_id: UUID;
+  user_id: UUID;
+  content: Json; // Rich text JSON
   likes: number;
-  parent_comment_id?: string;
-  created_at: string;
-  deleted_at?: string;
-  deleted_reason?: string;
-  deleted_by?: string;
+  parent_comment_id?: UUID | null;
+  created_at: Timestamp;
+  deleted_at?: Timestamp | null;
+  deleted_reason?: string | null;
+  deleted_by: UUID;
 }
 
+// Interface: PostLikes
+export interface PostLike {
+  id: UUID;
+  post_id: UUID;
+  user_id: UUID;
+  created_at: Timestamp;
+}
+
+// Interface: PostViews
+export interface PostView {
+  id: UUID;
+  post_id: UUID;
+  user_id?: UUID | null; // NULL nếu khách
+  viewed_at: Timestamp;
+}
 export interface PostMediaMap {
   id: string;
   post_id: string;

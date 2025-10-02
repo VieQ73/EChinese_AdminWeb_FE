@@ -14,7 +14,7 @@ import {
   DropdownMenuLabel,
 } from '../../users/components/DropdownMenu';
 import { MoreVertical, Heart, MessageCircle } from 'lucide-react';
-import UserCommunityModal from './UserCommunityModal';
+import { useNavigate } from 'react-router-dom';
 
 // --- Small helper for relative time (unchanged) ---
 function timeAgo(iso?: string){
@@ -35,14 +35,50 @@ const ActionMenu: React.FC<{ post: Post; onRemove?: (p: Post)=>void; onEdit?: (p
   const isOwner = currentUser?.id === post.user_id;
   const isSuperAdmin = currentUser?.role === 'super admin';
   const isAdmin = currentUser?.role === 'admin' || isSuperAdmin;
-  // determine granular permissions per spec
   const postOwnerRole = (post as any).user_role || 'user';
-  const selfDeleted = (post as any).removed_kind === 'self' || false;
+  const removalKind = (post as any).removed_kind || null; // 'self' | 'admin' | 'hard' | null
+
+  // Edit: only owner can edit their non-deleted posts
   const canEdit = isOwner && !post.deleted_at;
-  const canRemove = (isOwner && !post.deleted_at) || (isAdmin && !isOwner && !post.deleted_at && postOwnerRole === 'user');
-  // admins cannot remove other admins' posts; superadmin can
-  const canRestore = isAdmin && !!post.deleted_at && !selfDeleted && !(postOwnerRole === 'admin' && !isSuperAdmin);
-  const canHardDelete = isSuperAdmin && !!post.deleted_at;
+
+  // Remove (soft):
+  // - owner can self-remove (soft)
+  // - admin can soft-remove posts by users or admins (but not superadmin)
+  // - superadmin can soft-remove anyone
+  const canSoftRemove = (()=>{
+    if(post.deleted_at) return false;
+    if(isOwner) return true; // owner can self-remove
+    if(isSuperAdmin) return true;
+    if(isAdmin){
+      // admin cannot remove superadmin content
+      if(postOwnerRole === 'super admin') return false;
+      return true; // can remove user and admin
+    }
+    return false;
+  })();
+
+  // Restore (soft restore): only allowed for soft-deleted items not self-deleted
+  // - admin can restore soft-deleted items (not self-deleted)
+  // - superadmin can restore soft-deleted items (not self-deleted)
+  const canRestore = (()=>{
+    if(!post.deleted_at) return false;
+    if(removalKind === 'self') return false;
+    if(isSuperAdmin) return true;
+    if(isAdmin) return true; // admin can restore admin-removed or others except self
+    return false;
+  })();
+
+  // Hard delete (permanent):
+  // - owner may permanently delete their own post (allowed)
+  // - superadmin may permanently delete anyone's post
+  // - admin cannot hard delete others (unless we allow admin self-delete via owner's path)
+  const canHardDelete = (()=>{
+    if(!post.deleted_at) return false; // only on deleted items
+    if(isOwner && removalKind !== 'self') return false; // owner cannot hard-delete others' deletions
+    if(isOwner && removalKind === 'self') return true; // owner can hard-delete their own
+    if(isSuperAdmin) return true;
+    return false;
+  })();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -59,7 +95,7 @@ const ActionMenu: React.FC<{ post: Post; onRemove?: (p: Post)=>void; onEdit?: (p
             <DropdownMenuItem onClick={()=>onEdit?.(post)} disabled={!canEdit}>
               Sửa
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={()=>onRemove?.(post)} disabled={!canRemove}>
+            <DropdownMenuItem onClick={()=>onRemove?.(post)} disabled={!canSoftRemove}>
               Gỡ bài
             </DropdownMenuItem>
           </>
@@ -81,7 +117,7 @@ const ActionMenu: React.FC<{ post: Post; onRemove?: (p: Post)=>void; onEdit?: (p
 
 // --- PostCard Component (Main UI changes here) ---
 const PostCard: React.FC<{ post: Post; onRemove?: (p: Post)=>void; onEdit?: (p: Post)=>void; onRestore?: (p: Post)=>void; onHardDelete?: (p: Post)=>void; comments?: any[]; repliesMap?: Record<string, any[]>; addReply?: (postId:string,parentId:string,payload:any)=>Promise<any>; likePost?: (postId:string)=>Promise<any>; onOpenProfile?: (userId:string)=>void; onToggleComments?: (postId:string)=>Promise<void>|void }>= ({ post, onRemove, onEdit, onRestore, onHardDelete, comments=[], repliesMap = {}, addReply, likePost, onOpenProfile, onToggleComments }) => {
-  const [userModalOpen, setUserModalOpen] = React.useState(false);
+  const navigate = useNavigate();
   const [showComments, setShowComments] = React.useState(false);
   const badgeMap = useBadgeLevels();
   const { user: postUser } = useUser(post.user_id);
@@ -94,7 +130,11 @@ const PostCard: React.FC<{ post: Post; onRemove?: (p: Post)=>void; onEdit?: (p: 
     try{ if(likePost) await likePost(post.id); } catch(e){ console.error(e); /* don't revert for simplicity */ }
   };
 
-  const openProfile = () => { if(onOpenProfile) onOpenProfile(post.user_id); else setUserModalOpen(true); };
+  const openProfile = () => { 
+    if(onOpenProfile) return onOpenProfile(post.user_id);
+    // navigate to the full user community page
+    navigate(`/users/${post.user_id}/community`);
+  };
 
   return (
     // Facebook-style card: large shadow, rounded corners, white background
@@ -103,13 +143,18 @@ const PostCard: React.FC<{ post: Post; onRemove?: (p: Post)=>void; onEdit?: (p: 
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-3">
           <button onClick={openProfile} className="flex items-center gap-2"> {/* Reduced gap for compact look */}
-            {/* Avatar placeholder with better styling */}
-            <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 text-lg font-bold border-2 border-white shadow-sm">
-              {(post.user_id||'U').toString().charAt(0).toUpperCase()}
+            {/* Avatar placeholder with locked indicator */}
+            <div className="relative">
+              <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 text-lg font-bold border-2 border-white shadow-sm">
+                {(post.user_id||'U').toString().charAt(0).toUpperCase()}
+              </div>
+              {postUser && postUser.is_active === false && (
+                <div title="Tài khoản đã bị khóa!" className="absolute -bottom-0.5 -right-0.5 bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">!</div>
+              )}
             </div>
             <div className="text-left">
               {/* User Name - Primary info, slightly larger */}
-              <div className="font-bold text-sm text-gray-900 hover:underline flex items-center gap-2">{(post as any).user_name || (post as any).user_display_name || post.user_id}
+              <div className="font-bold text-sm text-gray-900 hover:underline flex items-center gap-2">{postUser?.name || (post as any).user_name || (post as any).user_display_name || post.user_id}
                 <span className="ml-1 text-xs relative group">
                   <span className="select-none">{badgeMap[(postUser?.badge_level ?? (post as any).badge_level ?? (post as any).user_badge_level) || 0]}</span>
                   <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity">
@@ -204,8 +249,7 @@ const PostCard: React.FC<{ post: Post; onRemove?: (p: Post)=>void; onEdit?: (p: 
             }} />
           </div>
         ))}
-      </div>
-      <UserCommunityModal isOpen={userModalOpen} onClose={()=>setUserModalOpen(false)} userId={post.user_id} />
+  </div>
     </div>
   );
 };

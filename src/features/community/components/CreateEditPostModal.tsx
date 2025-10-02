@@ -5,12 +5,11 @@ import React, { useState, useEffect, useRef } from 'react';
 // import { Button } from '../../../components/ui/button';
 import { X, Image as ImageIcon, Bold, Italic, Underline, Link, List, ListOrdered, AlignLeft, AlignCenter, AlignRight, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 
-// Danh sách các Chủ đề
+// Danh sách các Chủ đề theo entities.ts
 const TOPICS = [
-  'Cơ khí', 'Công nghệ thông tin', 'Dịch', 'Du học Trung Quốc', 
-  'Du lịch Trung Quốc', 'Góc chia sẻ', 'Học tiếng Trung', 'Khác', 
-  'Tìm bạn học chung', 'Tìm gia sư tiếng Trung', 'Văn hóa Trung Quốc', 
-  'Việc làm tiếng Trung', 'Xây dựng', 'Y tế'
+  'Cơ khí', 'CNTT', 'Dịch', 'Du học', 'Du lịch', 'Góc chia sẻ', 
+  'Tìm bạn học chung', 'Học tiếng Trung', 'Tìm gia sư', 'Việc làm', 
+  'Văn hóa', 'Thể thao', 'Xây dựng', 'Y tế', 'Tâm sự', 'Khác'
 ];
 
 /**

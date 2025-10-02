@@ -84,7 +84,6 @@ export {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-  // Bổ sung export
   DropdownMenuLabel,
   DropdownMenuSeparator,
 };

@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import React, { useState } from 'react';
 import { useUser } from '../../users/useUserCache';
 import { useBadgeList } from '../../badges/useBadgeList';
@@ -19,10 +20,38 @@ const CommentItem: React.FC<{ comment: any; replies?: any[]; onReply?: (parentId
     try{ await onReply(comment.id, replyText); setReplyText(''); setShowReplies(true); }catch(e){ console.error(e); }finally{ setReplying(false); }
   };
 
+  function ReplyBlock({ r }: { r: any }){
+    const { user: replyUser } = useUser(r.user_id);
+    const level = (replyUser?.badge_level ?? r.badge_level) || 0;
+    return (
+      <div className="p-2 bg-gray-50 rounded flex items-start gap-3">
+        <div className="relative">
+          <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">{(r.user_name||r.user_id||'U').toString().charAt(0).toUpperCase()}</div>
+          {replyUser && replyUser.is_active === false && (
+            <div title="Tài khoản đã bị khóa!" className="absolute -bottom-0.5 -right-0.5 bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">!</div>
+          )}
+        </div>
+        <div className="flex-1">
+          <div className="text-xs font-medium flex items-center gap-2">
+            <span>{r.user_name || replyUser?.name || r.user_id}</span>
+            <span className="ml-1 text-xs">{badgeMap[level]}</span>
+          </div>
+          <div className="text-xs text-gray-500">{new Date(r.created_at).toLocaleString()}</div>
+          <div className="mt-1 text-sm" dangerouslySetInnerHTML={{ __html: (r.content?.ops?.map((o:any)=>o.insert).join('') || '') }} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-2 bg-white rounded shadow-sm">
       <div className="flex items-start gap-3">
-        <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">{(comment.user_id||'U').toString().charAt(0).toUpperCase()}</div>
+        <div className="relative">
+          <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">{(comment.user_id||'U').toString().charAt(0).toUpperCase()}</div>
+          {user && user.is_active === false && (
+            <div title="Tài khoản đã bị khóa!" className="absolute -bottom-0.5 -right-0.5 bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">!</div>
+          )}
+        </div>
         <div className="flex-1">
           <div className="text-sm font-medium flex items-center gap-2">
             <span>{comment.user_name || user?.name || comment.user_id}</span>
@@ -52,18 +81,8 @@ const CommentItem: React.FC<{ comment: any; replies?: any[]; onReply?: (parentId
 
           {showReplies && (
             <div className="mt-3 space-y-2 pl-4 border-l">
-              {replies.map(r=> (
-                <div key={r.id} className="p-2 bg-gray-50 rounded flex items-start gap-3">
-                  <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">{(r.user_name||r.user_id||'U').toString().charAt(0).toUpperCase()}</div>
-                  <div className="flex-1">
-                    <div className="text-xs font-medium flex items-center gap-2">
-                      <span>{r.user_name || r.user_id}</span>
-                      <span className="ml-1 text-xs">{badgeMap[(r.badge_level || 0)]}</span>
-                    </div>
-                    <div className="text-xs text-gray-500">{new Date(r.created_at).toLocaleString()}</div>
-                    <div className="mt-1 text-sm" dangerouslySetInnerHTML={{ __html: (r.content?.ops?.map((o:any)=>o.insert).join('') || '') }} />
-                  </div>
-                </div>
+              {replies.map(r => (
+                <ReplyBlock key={r.id} r={r} />
               ))}
             </div>
           )}

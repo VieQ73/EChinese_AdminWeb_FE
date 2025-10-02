@@ -119,26 +119,69 @@ Table Posts {
   user_id uuid [not null]
   title varchar(100) [not null]
   content json [not null, note: "Rich text JSON (bold, italic, underline, color, align, list, insert link)"]
-  topic varchar(50) [not null, note: "Enum: 'Cơ khí', 'Công nghệ thông tin', 'Dịch', 'Du học', 'Du lịch', 'Góc chia sẻ', 'Tìm bạn học chung', 'Học tiếng Trung', 'Tìm gia sư', 'Việc làm', 'Văn hóa', 'Thể thao', 'Xây dựng', 'Y tế', 'Khác'"]
+  topic varchar(50) [not null, note: "Enum: 'Cơ khí', 'CNTT', 'Dịch', 'Du học', 'Du lịch', 'Góc chia sẻ', 'Tìm bạn học chung', 'Học tiếng Trung', 'Tìm gia sư', 'Việc làm', 'Văn hóa', 'Thể thao', 'Xây dựng', 'Y tế', 'Tâm sự', 'Khác'"]
   likes int [default: 0]
   views int [default: 0]
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
   is_approved boolean [default: true]
-  deleted_at timestamptz [note: "Soft-Delete (gỡ, có thể khôi phục)."]
-  deleted_reason text [note: "Lý do gỡ/xóa bởi admin/superadmin. NULL nếu user tự gỡ."]
-  deleted_by uuid [note: "Ai gỡ/xóa: NULL nếu user tự gỡ, còn lại lưu id admin/superadmin."]
+  is_pinned boolean [default: false, note: "Admin/Superadmin có thể ghim bài viết quan trọng"]
+  deleted_at timestamptz [note: "Soft-delete: gỡ tạm thời, có thể khôi phục"]
+  deleted_reason text [note: "Lý do gỡ"]
+  deleted_by uuid [not null, note: "Ai gỡ"]
 
   Note: '''
-  - Một bài đăng có thể gắn tối đa 3 ảnh (liên kết qua bảng PostMediaMap).
+  - Một bài đăng có thể gắn tối đa 3 ảnh (PostMediaMap).
   - Không hỗ trợ video.
-  - Nếu user tự gỡ/xóa → admin/superadmin chỉ xem, không khôi phục.
-  - deleted_by + deleted_reason đảm bảo minh bạch thao tác.
+  - Likes và Views chỉ lưu số tổng. Chi tiết được quản lý ở PostLikes và PostViews.
+  - Soft-delete cho phép gỡ bài tạm thời, có thể khôi phục.
+  - is_pinned giúp admin ghim bài viết quan trọng lên đầu trang.
   '''
-  
+
   Indexes {
     user_id [type: btree]
     created_at [type: btree]
     topic [type: btree]
+    is_pinned [type: btree]
+  }
+}
+
+
+// Table PostLikes
+Table PostLikes {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  post_id uuid [not null]
+  user_id uuid [not null]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+
+  Note: '''
+  - Quản lý ai đã like bài viết.
+  - Cho phép hiển thị danh sách người like.
+  - Dùng để query các bài viết user đã like.
+  '''
+
+  Indexes {
+    (post_id, user_id) [unique] // 1 user chỉ được like 1 lần
+    post_id [type: btree]
+    user_id [type: btree]
+  }
+}
+
+// Table PostViews
+Table PostViews {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  post_id uuid [not null]
+  user_id uuid [note: "NULL nếu khách (chưa đăng nhập)"]
+  viewed_at timestamptz [default: `CURRENT_TIMESTAMP`]
+
+  Note: '''
+  - Quản lý chi tiết ai đã xem bài viết.
+  - Hỗ trợ tính năng "bài viết đã xem".
+  - Nếu chỉ cần số lượng view thì vẫn cập nhật vào Posts.views.
+  '''
+
+  Indexes {
+    post_id [type: btree]
+    user_id [type: btree]
   }
 }
 
@@ -582,6 +625,12 @@ Ref: PostMediaMap.post_id > Posts.id [delete: cascade]
 Ref: PostMediaMap.media_id > Media.id [delete: cascade]
 
 Ref: ModerationLogs.performed_by > Users.id
+
+Ref: PostLikes.post_id > Posts.id [delete: cascade]
+Ref: PostLikes.user_id > Users.id [delete: cascade]
+
+Ref: PostViews.post_id > Posts.id [delete: cascade]
+Ref: PostViews.user_id > Users.id [delete: set null]
 
 Ref: UserTestScores.user_id > Users.id [delete: cascade]
 Ref: UserTestScores.test_id > MockTests.id [delete: restrict]

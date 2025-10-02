@@ -78,6 +78,43 @@ let mockUsers: User[] = [
     subscription_id: 'sub-free-001',
     subscription_expiry: null,
   },
+  // additional mock users
+  {
+    id: 'e5f6a7b8-c9d0-1234-5678-90abcdef1234',
+    username: 'locked_user',
+    name: 'Người Khóa',
+    email: 'locked@example.com',
+    role: 'user',
+    is_active: false, // locked
+    isVerify: true,
+    community_points: 10,
+    level: '1',
+    badge_level: 1,
+    language: 'Tiếng Việt',
+    provider: 'local',
+    created_at: '2024-08-01T12:00:00Z',
+    last_login: '2024-09-01T09:00:00Z',
+  subscription_id: '',
+    subscription_expiry: null,
+  },
+  {
+    id: 'f6a7b8c9-d0e1-2345-6789-0abcdef12345',
+    username: 'user3',
+    name: 'Lê Văn C',
+    email: 'c@example.com',
+    role: 'user',
+    is_active: true,
+    isVerify: true,
+    community_points: 75,
+    level: '2',
+    badge_level: 0,
+    language: 'Tiếng Việt',
+    provider: 'local',
+    created_at: '2024-09-10T10:00:00Z',
+    last_login: '2024-09-11T08:00:00Z',
+  subscription_id: '',
+    subscription_expiry: null,
+  }
 ];
 
 interface GetUsersParams {
