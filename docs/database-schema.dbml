@@ -72,6 +72,7 @@ Table Subscriptions {
 Table BadgeLevels {
   level int [unique, primary key]
   name varchar(50) [not null]
+  icon TEXT 
   
   Note: '''
   - Tên huy hiệu tùy chỉnh (admin chỉnh sửa).
@@ -117,19 +118,21 @@ Table Posts {
   id uuid [primary key, default: `uuid_generate_v4()`]
   user_id uuid [not null]
   title varchar(100) [not null]
-  content json [not null, note: "Rich text JSON (bold, italic, underline, color, align, list)"]
+  content json [not null, note: "Rich text JSON (bold, italic, underline, color, align, list, insert link)"]
   topic varchar(50) [not null, note: "Enum: 'Cơ khí', 'Công nghệ thông tin', 'Dịch', 'Du học', 'Du lịch', 'Góc chia sẻ', 'Tìm bạn học chung', 'Học tiếng Trung', 'Tìm gia sư', 'Việc làm', 'Văn hóa', 'Thể thao', 'Xây dựng', 'Y tế', 'Khác'"]
   likes int [default: 0]
   views int [default: 0]
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
   is_approved boolean [default: true]
-  deleted_at timestamptz [note: "Soft-Delete: Allows Admin to temporarily remove (recoverable)."]
-  
+  deleted_at timestamptz [note: "Soft-Delete (gỡ, có thể khôi phục)."]
+  deleted_reason text [note: "Lý do gỡ/xóa bởi admin/superadmin. NULL nếu user tự gỡ."]
+  deleted_by uuid [note: "Ai gỡ/xóa: NULL nếu user tự gỡ, còn lại lưu id admin/superadmin."]
+
   Note: '''
-  - Xóa Vĩnh Viễn (Hard Delete) sẽ là thao tác riêng, thường là Cron Job hoặc Super Admin API.
-  - Bài đăng cộng đồng với văn bản phong phú.
-  - Thời gian tương đối (ví dụ, ''2 phút trước'') tính toán phía client.
-  - Yêu thích có thể lưu trong mảng JSONB nếu cần.
+  - Một bài đăng có thể gắn tối đa 3 ảnh (liên kết qua bảng PostMediaMap).
+  - Không hỗ trợ video.
+  - Nếu user tự gỡ/xóa → admin/superadmin chỉ xem, không khôi phục.
+  - deleted_by + deleted_reason đảm bảo minh bạch thao tác.
   '''
   
   Indexes {
@@ -148,18 +151,64 @@ Table Comments {
   likes int [default: 0]
   parent_comment_id uuid
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
-  deleted_at timestamptz [note: "Soft-Delete: Allows Admin to temporarily remove (recoverable)."]
-  
+  deleted_at timestamptz
+  deleted_reason text
+  deleted_by uuid
+
   Note: '''
-  - Xóa Vĩnh Viễn (Hard Delete) sẽ là thao tác riêng, thường là Cron Job hoặc Super Admin API.
-  - Hỗ trợ bình luận lồng nhau qua parent_comment_id.
-  - Góp phần vào điểm cộng đồng: likes*10, bình luận nhận được*20.
+  - Comment có thể bị gỡ/xóa. 
+  - Admin chỉ có quyền gỡ/khôi phục, superadmin có quyền xóa vĩnh viễn.
+  - parent_comment_id hỗ trợ comment lồng nhau.
+  - deleted_reason + deleted_by để tra cứu lý do và người thực hiện.
   '''
   
   Indexes {
     post_id [type: btree]
+    user_id [type: btree]
     parent_comment_id [type: btree]
     created_at [type: btree]
+  }
+}
+
+// Table PostMediaMap
+Table PostMediaMap {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  post_id uuid [not null]
+  media_id uuid [not null]
+  order_no int [default: 0, note: "Thứ tự hiển thị (0–2, tối đa 3 ảnh/post)."]
+
+  Note: '''
+  - Liên kết bài viết với ảnh trong bảng Media.
+  - Một bài viết có thể có 0–3 ảnh.
+  - enforce rule qua logic app hoặc constraint check.
+  '''
+  
+  Indexes {
+    post_id [type: btree]
+    media_id [type: btree]
+  }
+}
+
+// Table ModerationLogs
+Table ModerationLogs {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  target_type varchar(20) [not null, note: "Enum: 'post', 'comment'"]
+  target_id uuid [not null]
+  action varchar(30) [not null, note: "Enum: 'gỡ', 'khôi phục', 'xóa vĩnh viễn'"]
+  reason text
+  performed_by uuid [not null]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+
+  Note: '''
+  - Lưu lại toàn bộ lịch sử thao tác quản trị.
+  - Phục vụ kiểm toán/audit trail, minh bạch quản trị.
+  - Khác với deleted_by/deleted_reason trong Posts/Comments (chỉ lưu trạng thái cuối).
+  '''
+  
+  Indexes {
+    target_type [type: btree]
+    target_id [type: btree]
+    performed_by [type: btree]
   }
 }
 
@@ -348,40 +397,52 @@ Table AILessons {
 // Table AdminLogs
 Table AdminLogs {
   id uuid [primary key, default: `uuid_generate_v4()`]
-  admin_id uuid [not null]
-  action_type varchar(50) [not null]
-  target_id uuid
+  user_id uuid [not null, note: "Tham chiếu Users.id, chỉ lưu user có role admin/super_admin"]
+  action_type varchar(50) [not null, note: "Enum: CREATE, UPDATE, DELETE, BAN_USER, ..."]
+  target_id uuid [note: "Đối tượng bị tác động, có thể là user_id, post_id, ..."]
   description text
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
   
   Note: '''
   - Theo dõi hành động admin (ví dụ, xóa post, khóa user) để kiểm toán.
+  - user_id tham chiếu tới bảng Users, nhưng chỉ cho phép role admin/super_admin.
   '''
   
   Indexes {
-    admin_id [type: btree]
+    user_id [type: btree]
     created_at [type: btree]
   }
 }
+
 
 // Table Reports
 Table Reports {
   id uuid [primary key, default: `uuid_generate_v4()`]
   reporter_id uuid [not null]
-  target_type varchar(20) [not null, note: "Enum: 'post', 'comment'"]
-  target_id uuid [not null]
+  target_type varchar(20) [not null, note: "Enum: 'post', 'comment', 'user', 'bug', 'other'"]
+  target_id uuid
   reason varchar(255) [not null]
-  status varchar(20) [default: 'pending', note: "Enum: 'pending', 'resolved', 'dismissed'"]
+  details text [note: "Chi tiết/khiếu nại (nếu có)"]
+  attachments jsonb [note: "Array of {url:string, mime:string, name?:string}"]
+  status varchar(20) [default: 'pending', note: "Enum: 'pending','resolved','dismissed'"]
+  assigned_to uuid [note: "Admin id được gán xử lý (optional)"]
   resolved_by uuid
+  resolved_at timestamptz
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
-  
+  updated_at timestamptz
+
   Note: '''
-  - Báo cáo vi phạm từ user (post/comment), admin xử lý.
+  - Lưu báo cáo (report) do user tạo: post/comment/user/bug/other.
+  - Nếu target_type in ('post','comment','user') => target_id tham chiếu resource tương ứng.
+  - Nếu target_type = 'bug' => details + attachments chứa nội dung khiếu nại/bug report.
+  - assigned_to: tiện cho luồng phân công handle.
   '''
-  
+
   Indexes {
     (target_type, target_id) [type: btree]
+    reporter_id [type: btree]
     status [type: btree]
+    created_at [type: btree]
   }
 }
 
@@ -416,7 +477,7 @@ Table UserUsage {
   last_reset timestamptz [default: `CURRENT_TIMESTAMP`]
   
   Note: '''
-  - Quản lý quota sử dụng AI theo tính năng (tạo bài họ với ai, dịch với ai).
+  - Quản lý quota sử dụng AI theo tính năng (tạo bài học, dịch, TTS).
   - daily_count reset hàng ngày qua cron job dựa trên subscription quotas.
   - last_reset để kiểm tra reset quota (ví dụ, reset nếu >24h).
   '''
@@ -430,26 +491,32 @@ Table UserUsage {
 // Table Notifications
 Table Notifications {
   id uuid [primary key, default: `uuid_generate_v4()`]
-  user_id uuid [not null]
-  type varchar(50) [not null, note: "Enum: 'system', 'community', 'achievement', 'subscription'"]
-  title varchar(100) [not null]
+  recipient_id uuid [note: "NULL cho broadcast; nếu không NULL => notification chỉ cho user này"]
+  audience varchar(20) [not null, note: "Enum: 'user','admin','all' - dùng để lọc broadcast target"]
+  type varchar(50) [not null, note: "Enum examples: 'system','report','subscription','community','achievement','reminder','feedback'"]
+  title varchar(200) [not null]
   content text [not null]
+  related_type varchar(50) [note: "Loại đối tượng liên quan: 'post','comment','vocabulary','report',..."]
   related_id uuid
-  is_read boolean [default: false]
+  data jsonb [note: "Extra payload (e.g. { report_id: '...', post_id: '...' })"]
+  redirect_url text [note: "Frontend route or deep-link; NULL nếu không cần redirect"]
+  read_at timestamptz [note: "Thời gian đọc (NULL = chưa đọc)"]
+  is_push_sent boolean [default: false]
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
-  
+  expires_at timestamptz [note: "Optional: tự xóa sau thời hạn"]
+
   Note: '''
-  - Lưu thông báo cho người dùng (e.g., bình luận mới, thành tựu, subscription hết hạn).
-  - Trigger tự động tạo thông báo khi có sự kiện (e.g., new comment → type='community', related_id=post_id).
-  - Hỗ trợ push notification (FCM) cho mobile, email cho web.
-  - User xóa thông báo qua API (DELETE WHERE id=...).
-  - Giới hạn: Giữ 100 thông báo mới nhất/user để tránh bloat (cron job xóa cũ).
+  - Notifications lưu message gửi đến người dùng hoặc admin.
+  - recipient_id NULL + audience='all' hoặc 'admin' -> broadcast; nếu recipient_id not NULL -> private notification.
+  - data: dùng để chứa JSON payload giúp frontend điều hướng hoặc render chi tiết.
   '''
-  
+
   Indexes {
-    user_id [type: btree]
+    recipient_id [type: btree]
+    audience [type: btree]
     created_at [type: btree]
-    is_read [type: btree]
+    read_at [type: btree]
+    (related_type, related_id) [type: btree]
   }
 }
 
@@ -497,28 +564,49 @@ Table RefreshTokens {
 // Relationships
 Ref: Users.badge_level > BadgeLevels.level [delete: set default]
 Ref: Users.subscription_id > Subscriptions.id [delete: set null]
+
 Ref: Payments.user_id > Users.id [delete: restrict]
 Ref: Payments.subscription_id > Subscriptions.id [delete: restrict]
 Ref: Payments.processed_by_admin > Users.id [delete: set null]
-Ref: Posts.user_id > Users.id [delete: cascade]
+
+Ref: Posts.user_id > Users.id
+Ref: Posts.deleted_by > Users.id
+
 Ref: Comments.post_id > Posts.id [delete: cascade]
-Ref: Comments.user_id > Users.id [delete: cascade]
+Ref: Comments.user_id > Users.id
+
 Ref: Comments.parent_comment_id > Comments.id [delete: cascade]
+Ref: Comments.deleted_by > Users.id
+
+Ref: PostMediaMap.post_id > Posts.id [delete: cascade]
+Ref: PostMediaMap.media_id > Media.id [delete: cascade]
+
+Ref: ModerationLogs.performed_by > Users.id
+
 Ref: UserTestScores.user_id > Users.id [delete: cascade]
 Ref: UserTestScores.test_id > MockTests.id [delete: restrict]
+
 Ref: Notebooks.user_id > Users.id [delete: cascade]
 Ref: NotebookVocabItems.notebook_id > Notebooks.id [delete: cascade]
 Ref: NotebookVocabItems.vocab_id > Vocabulary.id [delete: restrict]
+
 Ref: AILessons.user_id > Users.id [delete: cascade]
-Ref: AdminLogs.admin_id > Users.id [delete: cascade]
-Ref: Reports.reporter_id > Users.id [delete: cascade]
+
+Ref: AdminLogs.user_id > Users.id [delete: set null]
+
+Ref: Reports.reporter_id > Users.id [delete: set null]
+
+Ref: Reports.assigned_to > Users.id [delete: set null]
 Ref: Reports.resolved_by > Users.id [delete: set null]
+
 Ref: MockTests.created_by > Users.id [delete: set null]
 Ref: Tips.created_by > Users.id [delete: set null]
 Ref: Media.uploaded_by > Users.id [delete: set null]
 Ref: TranslationHistory.user_id > Users.id [delete: cascade]
 Ref: UserUsage.user_id > Users.id [delete: cascade]
-Ref: Notifications.user_id > Users.id [delete: cascade]
+
+Ref: Notifications.recipient_id > Users.id [delete: set null]
+
 Ref: RefreshTokens.user_id > Users.id [delete: cascade]
 Ref: VocabularyWordType.vocab_id > Vocabulary.id [delete: cascade]
 Ref: VocabularyWordType.word_type > WordType.code [delete: cascade]

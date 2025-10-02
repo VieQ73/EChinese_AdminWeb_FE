@@ -25,12 +25,16 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {children}
       <div aria-live="polite" className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
         {toasts.map(t => (
-          <div key={t.id} className={`max-w-sm w-full px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${
-            t.type === 'success' ? 'bg-green-50 text-green-800 border border-green-100' :
-            t.type === 'error' ? 'bg-red-50 text-red-800 border border-red-100' :
-            t.type === 'warning' ? 'bg-yellow-50 text-yellow-800 border border-yellow-100' :
-            'bg-white text-gray-900 border border-gray-100'
-          }`}>
+          <div 
+            key={t.id} 
+            // Bo góc lớn hơn, bóng đổ rõ ràng và border nhẹ 
+            className={`max-w-sm w-full px-4 py-3 rounded-xl shadow-xl text-sm font-semibold transition-opacity duration-300 border ${
+              t.type === 'success' ? 'bg-green-600 text-white border-green-700' :
+              t.type === 'error' ? 'bg-red-600 text-white border-red-700' :
+              t.type === 'warning' ? 'bg-yellow-500 text-white border-yellow-600' :
+              'bg-blue-600 text-white border-blue-700'
+            }`}
+          >
             {t.message}
           </div>
         ))}

@@ -88,7 +88,8 @@ const Pagination: React.FC<PaginationProps> = ({
           size="sm"
           onClick={() => handlePageClick(pageNumber)}
           disabled={pageNumber === currentPage}
-          className={cn(pageNumber === currentPage ? 'bg-teal-600 text-white hover:bg-teal-700' : 'text-gray-700 hover:bg-gray-50')}
+          // Thay đổi màu focus và active page
+          className={cn(pageNumber === currentPage ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg' : 'text-gray-700 hover:bg-gray-100')}
         >
           {pageNumber}
         </Button>

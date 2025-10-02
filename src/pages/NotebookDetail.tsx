@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getNotebookById, addItemsToNotebook, removeItemsFromNotebook } from '../features/notebooks/notebookApi';
-import { fetchVocabularies, fetchVocabulariesIncludingDeleted, softDeleteVocabulary, restoreVocabulary, hardDeleteVocabulary, createVocabulary, updateVocabulary } from '../features/vocabularies/vocabApi';
+import { fetchVocabularies, softDeleteVocabulary, hardDeleteVocabulary, createVocabulary, updateVocabulary } from '../features/vocabularies/vocabApi';
 import NotebookCard from '../components/notebooks/NotebookCard';
 import VocabularyCard from '../components/vocab/VocabularyCard';
 import AddVocabularyModal from '../components/vocab/AddVocabularyModal';
@@ -9,6 +9,7 @@ import ImportPreviewModal from '../components/vocab/ImportPreviewModal';
 import VocabularyDetailModal from '../components/vocab/VocabularyDetailModal';
 import { useToast } from '../components/ui/Toast';
 import { useAuth } from '../hooks/useAuth';
+import { FolderOpen } from "lucide-react"
 
 const NotebookDetail: React.FC = ()=>{
   const { id } = useParams<{id:string}>();
@@ -27,9 +28,7 @@ const NotebookDetail: React.FC = ()=>{
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 24;
   // paging not used per UI spec (scrollable card), keep placeholders removed
-  const [showDeletedTab, setShowDeletedTab] = useState(false);
-  const [deletedList, setDeletedList] = useState<any[]>([]);
-  const [deletedSelected, setDeletedSelected] = useState<Record<string, boolean>>({});
+  // Trash moved to its own page: /notebooks/:id/trash
   const [importPreviewOpen, setImportPreviewOpen] = useState(false);
   const [importItems, setImportItems] = useState<any[]>([]);
   const [importDuplicates, setImportDuplicates] = useState<any[]>([]);
@@ -46,47 +45,6 @@ const NotebookDetail: React.FC = ()=>{
   };
 
   // (handleAdd removed — onAdd is handled inline when opening AddVocabularyModal)
-
-  // load deleted items when deleted tab opened
-  useEffect(()=>{
-    const loadDeleted = async ()=>{
-      if(!showDeletedTab) return;
-      const list = await fetchVocabulariesIncludingDeleted({ includeDeleted: true, search: '' });
-      setDeletedList(list.filter(v=>v.deleted_at));
-    };
-    loadDeleted();
-  },[showDeletedTab]);
-
-  const toggleDeletedSelect = (id:string)=> setDeletedSelected(s=>({...s, [id]: !s[id]}));
-  const deletedSelectedIds = Object.keys(deletedSelected).filter(k=>deletedSelected[k]);
-
-  const handleBulkRestoreDeleted = async ()=>{
-    if(deletedSelectedIds.length===0) return toast.push('Chưa chọn mục nào', 'warning');
-    setBulkLoading(true);
-    try{
-      await Promise.all(deletedSelectedIds.map(id=> restoreVocabulary(id)));
-      setDeletedSelected({});
-      const list = await fetchVocabulariesIncludingDeleted({ includeDeleted: true });
-      setDeletedList(list.filter(v=>v.deleted_at));
-      await loadNotebookAndVocab();
-      toast.push('Đã phục hồi các mục đã chọn', 'success');
-    }catch(_e){ toast.push('Phục hồi thất bại','error'); }
-    finally{ setBulkLoading(false); }
-  };
-
-  const handleBulkHardDeleteDeleted = async ()=>{
-    if(deletedSelectedIds.length===0) return toast.push('Chưa chọn mục nào', 'warning');
-    if(currentUser?.role !== 'super admin') return toast.push('Không có quyền', 'error');
-    setBulkLoading(true);
-    try{
-      await Promise.all(deletedSelectedIds.map(id=> hardDeleteVocabulary(id)));
-      setDeletedSelected({});
-      const list = await fetchVocabulariesIncludingDeleted({ includeDeleted: true });
-      setDeletedList(list.filter(v=>v.deleted_at));
-      toast.push('Đã xóa vĩnh viễn các mục đã chọn', 'success');
-    }catch(_e){ toast.push('Xóa thất bại','error'); }
-    finally{ setBulkLoading(false); }
-  };
 
   // debounce search input so filtering waits for typing to pause
   useEffect(()=>{
@@ -144,16 +102,7 @@ const NotebookDetail: React.FC = ()=>{
     finally{ setBulkLoading(false); }
   };
 
-  const handleRestore = async (vid:string)=>{
-    setBulkLoading(true);
-    try { await restoreVocabulary(vid); toast.push('Đã phục hồi', 'success'); setDeletedList(prev=>prev.filter(v=>v.id!==vid)); await loadNotebookAndVocab(); } catch (_e) { toast.push('Phục hồi thất bại','error'); } finally { setBulkLoading(false); }
-  };
-
-  const handleHardDelete = async (vid:string)=>{
-    if(currentUser?.role !== 'super admin') return toast.push('Không có quyền', 'error');
-    setBulkLoading(true);
-    try { await hardDeleteVocabulary(vid); toast.push('Đã xoá vĩnh viễn', 'success'); setDeletedList(prev=>prev.filter(v=>v.id!==vid)); await loadNotebookAndVocab(); } catch (_e) { toast.push('Xoá thất bại','error'); } finally { setBulkLoading(false); }
-  };
+  // Trash actions have been moved to a dedicated full-page view: /notebooks/:id/trash
 
   return (
     <div className="p-4">
@@ -283,53 +232,17 @@ const NotebookDetail: React.FC = ()=>{
                 </button>
               </div>
             </div>
-
             <div>
-              <label className="block text-sm font-medium mb-1">Thùng rác</label>
+              <label className="block text-sm font-medium mb-2 text-gray-700">Thùng rác</label>
               <div className="flex gap-2">
-                <button className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-yellow-50 border" onClick={()=>setShowDeletedTab(s=>!s)}>🗑️ Thùng rác</button>
+                <button
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-colors"
+                  onClick={() => navigate(`/notebooks/${id}/trash`)}
+                >
+                  <FolderOpen className="w-4 h-4" />
+                  Mở Thùng rác
+                </button>
               </div>
-              {showDeletedTab && (
-                <div className="mt-3 space-y-2">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex gap-2">
-                      <button className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-white border" onClick={()=>{ const all: Record<string, boolean> = {}; deletedList.forEach(d=> all[d.id]=true); setDeletedSelected(all); }}>{'Chọn tất cả'}</button>
-                      <button className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-white border" onClick={()=>setDeletedSelected({})}>{'Bỏ chọn'}</button>
-                    </div>
-                    <div className="flex gap-2">
-                      <button className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-emerald-600 text-white" onClick={handleBulkRestoreDeleted} disabled={bulkLoading || deletedSelectedIds.length===0}>🔁 Phục hồi</button>
-                          <button
-                            className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-red-600 text-white disabled:opacity-50"
-                            onClick={handleBulkHardDeleteDeleted}
-                            disabled={bulkLoading || deletedSelectedIds.length===0 || currentUser?.role!=='super admin'}
-                            title={currentUser?.role !== 'super admin' ? 'Chỉ Super Admin mới được xóa vĩnh viễn' : 'Xóa vĩnh viễn'}
-                          >🗡️ Xóa vĩnh viễn</button>
-                    </div>
-                  </div>
-                  <div className="max-h-48 overflow-y-auto space-y-2">
-                    {deletedList.length===0 ? <div className="text-sm text-gray-500">Không có mục đã xóa</div> : deletedList.map(v=> (
-                      <div key={v.id} className="p-2 bg-white rounded flex items-center justify-between opacity-90">
-                        <div className="flex items-center gap-3">
-                          <input type="checkbox" checked={!!deletedSelected[v.id]} onChange={()=>toggleDeletedSelect(v.id)} />
-                          <div className="text-sm">
-                            <div className="font-semibold">{v.hanzi} · {v.pinyin}</div>
-                            <div className="text-xs text-gray-500">{v.meaning}</div>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-white border" onClick={()=>handleRestore(v.id)} disabled={bulkLoading}>🔁 Phục hồi</button>
-                          <button
-                            className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-red-600 text-white disabled:opacity-50"
-                            onClick={()=>handleHardDelete(v.id)}
-                            disabled={bulkLoading || currentUser?.role!=='super admin'}
-                            title={currentUser?.role !== 'super admin' ? 'Chỉ Super Admin mới được xóa vĩnh viễn' : 'Xóa vĩnh viễn'}
-                          >{currentUser?.role==='super admin' ? '🗡️ Xóa vĩnh viễn' : 'Không'}</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>

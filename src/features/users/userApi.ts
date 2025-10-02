@@ -70,7 +70,7 @@ let mockUsers: User[] = [
     isVerify: false,
     community_points: 50,
     level: '1',
-    badge_level: 1,
+    badge_level: 5,
     language: 'Tiếng Anh',
     provider: 'local',
     created_at: '2024-07-01T18:45:00Z',

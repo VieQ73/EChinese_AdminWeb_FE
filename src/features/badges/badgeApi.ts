@@ -4,12 +4,12 @@ import type { BadgeLevel } from '../../types/entities';
 const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
 export const mockBadgeLevels: BadgeLevel[] = [
-  { level: 0, name: 'Chưa có huy hiệu' },
-  { level: 1, name: 'Tân Binh' },
-  { level: 2, name: 'Học Giả' },
-  { level: 3, name: 'Thông Thái' },
-  { level: 4, name: 'Bậc Thầy' },
-  { level: 5, name: 'Huyền Thoại' },
+  { level: 0, name: 'Chưa có huy hiệu', icon: '⚪' },         
+  { level: 1, name: 'Tân Binh', icon: '🥉' },
+  { level: 2, name: 'Học Giả', icon: '📘' },
+  { level: 3, name: 'Thông Thái', icon: '🧠' },
+  { level: 4, name: 'Bậc Thầy', icon: '👑' },
+  { level: 5, name: 'Huyền Thoại', icon: '🌟' },
 ];
 
 export const fetchAllBadgeLevels = (): Promise<BadgeLevel[]> => {

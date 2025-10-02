@@ -144,44 +144,97 @@ export interface AILesson {
 
 // --- 5. Community ---
 export interface Post {
-  id: UUID;
-  user_id: UUID;
+  id: string;              // UUID
+  user_id: string;         // UUID
   title: string;
-  content: Json; // Rich text JSON
-  topic: string;
+  content: any;            // JSON rich text
+  topic: 
+    | 'Cơ khí'
+    | 'Công nghệ thông tin'
+    | 'Dịch'
+    | 'Du học'
+    | 'Du lịch'
+    | 'Góc chia sẻ'
+    | 'Tìm bạn học chung'
+    | 'Học tiếng Trung'
+    | 'Tìm gia sư'
+    | 'Việc làm'
+    | 'Văn hóa'
+    | 'Thể thao'
+    | 'Xây dựng'
+    | 'Y tế'
+    | 'Khác';
   likes: number;
   views: number;
-  created_at: Timestamp;
+  created_at: string;      // Timestamp
   is_approved: boolean;
-  deleted_at?: Timestamp;
+  deleted_at?: string;
+  deleted_reason?: string;
+  deleted_by?: string;     // UUID
 }
 
 export interface Comment {
-    id: UUID;
-    post_id: UUID;
-    user_id: UUID;
-    content: Json; // Rich text JSON
-    likes: number;
-    parent_comment_id?: UUID;
-    created_at: Timestamp;
-    deleted_at?: Timestamp;
+  id: string;
+  post_id: string;
+  user_id: string;
+  content: any;            // JSON rich text
+  likes: number;
+  parent_comment_id?: string;
+  created_at: string;
+  deleted_at?: string;
+  deleted_reason?: string;
+  deleted_by?: string;
+}
+
+export interface PostMediaMap {
+  id: string;
+  post_id: string;
+  media_id: string;
+  order_no: number;        // 0,1,2 (thứ tự ảnh)
+}
+
+// ModerationLogs
+export interface ModerationLog {
+  id: string;
+  target_type: 'post' | 'comment';
+  target_id: string;
+  action: 'gỡ' | 'khôi phục' | 'xóa vĩnh viễn';
+  reason?: string;
+  performed_by: string;    // UUID
+  created_at: string;
 }
 
 export interface Report {
-  id: UUID;
-  reporter_id: UUID;
-  target_type: 'post' | 'comment';
-  target_id: UUID;
+  id: string; // UUID
+  reporter_id: string; // UUID
+
+  // Enum inline
+  target_type: 'post' | 'comment' | 'user' | 'bug' | 'notebook' | 'vocab'|'other';
+  target_id?: string; // UUID, optional nếu là bug/other
+
   reason: string;
+  details?: string;
+
+  // Attachment list
+  attachments?: {
+    url: string;
+    mime?: string;
+    name?: string;
+  }[];
+
   status: 'pending' | 'resolved' | 'dismissed';
-  resolved_by?: UUID;
-  created_at: Timestamp;
+  assigned_to?: string;   // admin id
+  resolved_by?: string;   // admin id
+  resolved_at?: string;   // ISO timestamp
+  created_at: string;     // ISO timestamp
+  updated_at?: string;
 }
+
 
 // --- 6. System & Usage ---
 export interface AdminLog {
   id: UUID;
-  admin_id: UUID;
+  user_id: UUID; 
   action_type: string;
   target_id?: UUID;
   description?: string;
@@ -208,15 +261,28 @@ export interface UserUsage {
 }
 
 export interface Notification {
-    id: UUID;
-    user_id: UUID;
-    type: 'system' | 'community' | 'achievement' | 'subscription';
-    title: string;
-    content: string;
-    related_id?: UUID;
-    is_read: boolean;
-    created_at: Timestamp;
+  id: string; // UUID
+  recipient_id?: string | null; // null => broadcast
+  audience: 'user' | 'admin' | 'all';
+
+  type: 'system' | 'report' | 'subscription' | 'community' | 'achievement' | 'reminder' | 'feedback';
+
+  title: string;
+  content: string;
+
+  related_type?: 'post' | 'comment' | 'report' | 'subscription' | 'notebook' | string | null;
+  related_id?: string | null;
+
+  data?: Record<string, any> | null;
+  redirect_url?: string | null;
+
+  read_at?: string | null;    // ISO timestamp
+  is_push_sent?: boolean;
+
+  created_at: string;         // ISO timestamp
+  expires_at?: string | null;
 }
+
 
 export interface Media {
     id: UUID;
@@ -239,6 +305,8 @@ export interface RefreshToken {
 }
 
 export interface BadgeLevel {
-    level: number;
-    name: string;
+  level: number;
+  name: string;
+  /** Optional icon (emoji or URL) to display next to user names */
+  icon?: string;
 }

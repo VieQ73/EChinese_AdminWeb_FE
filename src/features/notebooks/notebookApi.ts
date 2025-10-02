@@ -103,4 +103,27 @@ export const removeItemsFromNotebook = (notebookId: string, vocabIds: UUID[]): P
   return apiClient.delete(`/notebooks/${notebookId}/items`, { data: { vocab_ids: vocabIds } });
 };
 
+/** [POST] Publish notebooks to mobile clients (admin action) */
+export const publishNotebooks = (notebookIds: string[]): Promise<{ message: string }> => {
+  if (USE_MOCK_API) {
+    // In mock mode we simply pretend to mark them as published and return success
+    return new Promise(resolve => setTimeout(() => resolve({ message: `Published ${notebookIds.length} notebooks (mock)` }), 400));
+  }
+  return apiClient.post('/admin/notebooks/publish', { notebook_ids: notebookIds });
+};
+
+/** [DELETE] Hard-delete notebooks (admin can delete): accept array of ids */
+export const hardDeleteNotebooks = (notebookIds: string[]): Promise<{ message: string }> => {
+  if (USE_MOCK_API) {
+    // Remove from mock store and notebookItems
+    notebookIds.forEach(id => {
+      const idx = mockNotebooks.findIndex(n => n.id === id);
+      if (idx >= 0) mockNotebooks.splice(idx, 1);
+      delete notebookItems[id];
+    });
+    return new Promise(resolve => setTimeout(() => resolve({ message: `Deleted ${notebookIds.length} notebooks (mock)` }), 400));
+  }
+  return apiClient.delete('/admin/notebooks', { data: { notebook_ids: notebookIds } });
+};
+
 export default {};
