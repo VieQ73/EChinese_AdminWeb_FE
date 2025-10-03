@@ -1,255 +1,292 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Heart, MessageCircle, Eye, Pin, MoreVertical } from 'lucide-react';
 import type { Post } from '../../../types/entities';
-import CommentItem from './CommentItem';
-import { useBadgeLevels } from '../../badges/useBadgeLevels';
-import { useUser } from '../../users/useUserCache';
-import { useBadgeList } from '../../badges/useBadgeList';
 import { useAuth } from '../../../hooks/useAuth';
-import { Button } from '../../../components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-} from '../../users/components/DropdownMenu';
-import { MoreVertical, Heart, MessageCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { mockUsers, mockBadgeLevels } from '../../../mock';
 
-// --- Small helper for relative time (unchanged) ---
-function timeAgo(iso?: string){
-  if(!iso) return '';
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff/60000);
-  if(mins < 1) return 'vừa xong';
-  if(mins < 60) return `${mins} phút trước`;
-  const hrs = Math.floor(mins/60);
-  if(hrs < 24) return `${hrs} giờ trước`;
-  const days = Math.floor(hrs/24);
-  return `${days} ngày trước`;
+interface PostCardProps {
+  post: Post;
+  onToggleLike: (postId: string, isLiked: boolean) => void;
+  onToggleView: (postId: string, isViewed: boolean) => void;
+  onComment: () => void;
+  onPin?: () => void;
+  onUnpin?: () => void;
+  onEdit?: () => void;
+  onRemove?: () => void;
 }
 
-// --- ActionMenu component (minimal styling changes for consistency) ---
-const ActionMenu: React.FC<{ post: Post; onRemove?: (p: Post)=>void; onEdit?: (p: Post)=>void; onRestore?: (p: Post)=>void; onHardDelete?: (p: Post)=>void }> = ({ post, onRemove, onEdit, onRestore, onHardDelete }) => {
-  const currentUser = useAuth();
-  const isOwner = currentUser?.id === post.user_id;
-  const isSuperAdmin = currentUser?.role === 'super admin';
-  const isAdmin = currentUser?.role === 'admin' || isSuperAdmin;
-  const postOwnerRole = (post as any).user_role || 'user';
-  const removalKind = (post as any).removed_kind || null; // 'self' | 'admin' | 'hard' | null
-
-  // Edit: only owner can edit their non-deleted posts
-  const canEdit = isOwner && !post.deleted_at;
-
-  // Remove (soft):
-  // - owner can self-remove (soft)
-  // - admin can soft-remove posts by users or admins (but not superadmin)
-  // - superadmin can soft-remove anyone
-  const canSoftRemove = (()=>{
-    if(post.deleted_at) return false;
-    if(isOwner) return true; // owner can self-remove
-    if(isSuperAdmin) return true;
-    if(isAdmin){
-      // admin cannot remove superadmin content
-      if(postOwnerRole === 'super admin') return false;
-      return true; // can remove user and admin
-    }
-    return false;
-  })();
-
-  // Restore (soft restore): only allowed for soft-deleted items not self-deleted
-  // - admin can restore soft-deleted items (not self-deleted)
-  // - superadmin can restore soft-deleted items (not self-deleted)
-  const canRestore = (()=>{
-    if(!post.deleted_at) return false;
-    if(removalKind === 'self') return false;
-    if(isSuperAdmin) return true;
-    if(isAdmin) return true; // admin can restore admin-removed or others except self
-    return false;
-  })();
-
-  // Hard delete (permanent):
-  // - owner may permanently delete their own post (allowed)
-  // - superadmin may permanently delete anyone's post
-  // - admin cannot hard delete others (unless we allow admin self-delete via owner's path)
-  const canHardDelete = (()=>{
-    if(!post.deleted_at) return false; // only on deleted items
-    if(isOwner && removalKind !== 'self') return false; // owner cannot hard-delete others' deletions
-    if(isOwner && removalKind === 'self') return true; // owner can hard-delete their own
-    if(isSuperAdmin) return true;
-    return false;
-  })();
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        {/* Adjusted button style to match Facebook's small, subtle action menu */}
-        <Button variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-gray-100 transition-colors">
-          <span className="sr-only">Mở menu</span>
-          <MoreVertical className="h-5 w-5 text-gray-500" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Hành động</DropdownMenuLabel>
-        {!post.deleted_at ? (
-          <>
-            <DropdownMenuItem onClick={()=>onEdit?.(post)} disabled={!canEdit}>
-              Sửa
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={()=>onRemove?.(post)} disabled={!canSoftRemove}>
-              Gỡ bài
-            </DropdownMenuItem>
-          </>
-        ) : (
-          <>
-            <DropdownMenuItem onClick={()=>onRestore?.(post)} disabled={!canRestore}>
-              Phục hồi
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={()=>onHardDelete?.(post)} disabled={!canHardDelete} className="text-red-600">
-              Xóa vĩnh viễn
-            </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+// Helper function để format thời gian
+const formatTimeAgo = (dateString: string): string => {
+  const now = new Date();
+  const past = new Date(dateString);
+  const diff = now.getTime() - past.getTime();
+  
+  const minutes = Math.floor(diff / (1000 * 60));
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  
+  if (minutes < 1) return 'Vừa xong';
+  if (minutes < 60) return `${minutes} phút trước`;
+  if (hours < 24) return `${hours} giờ trước`;
+  return `${days} ngày trước`;
 };
 
+// Component chính PostCard theo design từ AdminCommunityInstruction.md
+const PostCard: React.FC<PostCardProps> = ({
+  post,
+  onToggleLike,
+  onToggleView, 
+  onComment,
+  onPin,
+  onUnpin,
+  onEdit,
+  onRemove
+}) => {
+  const currentUser = useAuth();
+  
+  // State cho các tương tác
+  const [liked, setLiked] = useState(false);
+  const [viewed, setViewed] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  // State cho overflow detection
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  
+  const MAX_HEIGHT_PX = 150; // Giới hạn chiều cao như yêu cầu
+  
+  // Kiểm tra nội dung có bị overflow không
+  useEffect(() => {
+    if (contentRef.current) {
+      const isContentOverflowing = contentRef.current.scrollHeight > MAX_HEIGHT_PX;
+      setIsOverflowing(isContentOverflowing);
+    }
+  }, [post.content]);
 
-// --- PostCard Component (Main UI changes here) ---
-const PostCard: React.FC<{ post: Post; onRemove?: (p: Post)=>void; onEdit?: (p: Post)=>void; onRestore?: (p: Post)=>void; onHardDelete?: (p: Post)=>void; comments?: any[]; repliesMap?: Record<string, any[]>; addReply?: (postId:string,parentId:string,payload:any)=>Promise<any>; likePost?: (postId:string)=>Promise<any>; onOpenProfile?: (userId:string)=>void; onToggleComments?: (postId:string)=>Promise<void>|void }>= ({ post, onRemove, onEdit, onRestore, onHardDelete, comments=[], repliesMap = {}, addReply, likePost, onOpenProfile, onToggleComments }) => {
-  const navigate = useNavigate();
-  const [showComments, setShowComments] = React.useState(false);
-  const badgeMap = useBadgeLevels();
-  const { user: postUser } = useUser(post.user_id);
-  const badgeList = useBadgeList() || [];
-  const [optimisticLikes, setOptimisticLikes] = React.useState<number|undefined>(undefined);
-  const [optimisticComments, setOptimisticComments] = React.useState<number|undefined>(undefined);
-  const handleLike = async ()=>{ 
-    // optimistic
-    setOptimisticLikes((prev)=> (typeof prev === 'number' ? prev + 1 : (post.likes||0) + 1));
-    try{ if(likePost) await likePost(post.id); } catch(e){ console.error(e); /* don't revert for simplicity */ }
+  // Helper functions để lấy thông tin user và badge
+  const getUserById = (userId: string) => {
+    return mockUsers.find(u => u.id === userId) || mockUsers[0];
   };
 
-  const openProfile = () => { 
-    if(onOpenProfile) return onOpenProfile(post.user_id);
-    // navigate to the full user community page
-    navigate(`/users/${post.user_id}/community`);
+  const getBadgeByLevel = (level: number) => {
+    return mockBadgeLevels.find(b => b.level === level) || mockBadgeLevels[0];
+  };
+
+  const user = getUserById(post.user_id);
+  const badge = getBadgeByLevel(user.badge_level);
+
+  const isOwner = currentUser?.id === post.user_id;
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super admin';
+  const isDeleted = !!post.deleted_at;
+
+  // Handler functions
+  const handleToggleLike = () => {
+    const newLikedState = !liked;
+    setLiked(newLikedState);
+    onToggleLike(post.id, newLikedState);
+  };
+
+  const handleToggleView = () => {
+    const newViewedState = !viewed;
+    setViewed(newViewedState);
+    onToggleView(post.id, newViewedState);
   };
 
   return (
-    // Facebook-style card: large shadow, rounded corners, white background
-    <div className={`p-4 shadow-md rounded-lg ${post.deleted_at ? 'opacity-60 bg-gray-50' : 'bg-white'}`}>
-      {/* Header: avatar + name + topic/time */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-start gap-3">
-          <button onClick={openProfile} className="flex items-center gap-2"> {/* Reduced gap for compact look */}
-            {/* Avatar placeholder with locked indicator */}
+    <div className={`bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden ${isDeleted ? 'opacity-60' : ''}`}>
+      {/* Header - Thông tin người đăng */}
+      <div className="p-4 border-b border-gray-100">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            {/* Avatar */}
             <div className="relative">
-              <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 text-lg font-bold border-2 border-white shadow-sm">
-                {(post.user_id||'U').toString().charAt(0).toUpperCase()}
+              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">
+                {user.name?.charAt(0).toUpperCase() || 'U'}
               </div>
-              {postUser && postUser.is_active === false && (
-                <div title="Tài khoản đã bị khóa!" className="absolute -bottom-0.5 -right-0.5 bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">!</div>
+              {!user.is_active && (
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs">!</span>
+                </div>
               )}
             </div>
-            <div className="text-left">
-              {/* User Name - Primary info, slightly larger */}
-              <div className="font-bold text-sm text-gray-900 hover:underline flex items-center gap-2">{postUser?.name || (post as any).user_name || (post as any).user_display_name || post.user_id}
-                <span className="ml-1 text-xs relative group">
-                  <span className="select-none">{badgeMap[(postUser?.badge_level ?? (post as any).badge_level ?? (post as any).user_badge_level) || 0]}</span>
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="bg-white border shadow-md rounded p-2 w-40 text-xs">
-                      <div className="font-semibold mb-1">Huy hiệu</div>
-                      {badgeList.map(b=> (
-                        <div key={b.level} className="flex items-center gap-2 py-0.5">
-                          <div className="w-6 text-center">{b.icon}</div>
-                          <div>{b.name}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+            
+            {/* Tên và thông tin */}
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-gray-900 hover:underline cursor-pointer">
+                  {user.name}
+                </span>
+                <span className="text-lg" title={badge.name}>
+                  {badge.icon}
                 </span>
               </div>
-              {/* Topic and Time - Secondary info, subtle text */}
-              <div className="text-xs text-gray-500">
-                {post.topic && <span className="font-medium">{post.topic}</span>}
-                {post.topic && ' · '}
-                {timeAgo(post.created_at)}
+              <div className="flex items-center gap-1 text-sm text-gray-500">
+                <span className="font-medium text-blue-600">{post.topic}</span>
+                <span>•</span>
+                <span>{formatTimeAgo(post.created_at)}</span>
               </div>
             </div>
-          </button>
-        </div>
-        <div>
-          <ActionMenu post={post} onRemove={onRemove} onEdit={onEdit} onRestore={onRestore} onHardDelete={onHardDelete} />
+          </div>
+          
+          {/* Trạng thái ghim và menu */}
+          <div className="flex items-center gap-2">
+            {post.is_pinned && (
+              <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
+                <Pin className="w-3 h-3" />
+                <span>Đã ghim</span>
+              </div>
+            )}
+            
+            {(isOwner || isAdmin) && (
+              <div className="relative group">
+                <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                  <MoreVertical className="w-4 h-4 text-gray-500" />
+                </button>
+                
+                {/* Dropdown menu */}
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                  {isAdmin && !isDeleted && (
+                    <>
+                      {post.is_pinned ? (
+                        <button onClick={onUnpin} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
+                          <Pin className="w-4 h-4" />
+                          Bỏ ghim
+                        </button>
+                      ) : (
+                        <button onClick={onPin} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
+                          <Pin className="w-4 h-4" />
+                          Ghim bài viết
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {isOwner && !isDeleted && (
+                    <button onClick={onEdit} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">
+                      Chỉnh sửa
+                    </button>
+                  )}
+                  {(isOwner || isAdmin) && !isDeleted && (
+                    <button onClick={onRemove} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-red-600">
+                      Gỡ bài viết
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-
-      {/* Title (if present, usually Facebook posts don't have titles, but keeping it for completeness) */}
-      {post.title && <h2 className="mt-3 text-base font-semibold text-gray-900">{post.title}</h2>}
-
-      {/* Content */}
-      {/* Adjusted spacing and text size for content */}
-      <div className="mt-3 text-base text-gray-800" dangerouslySetInnerHTML={{ __html: (post.content?.ops?.map((o:any)=>o.insert).join('') || '') }} />
-
-      {/* Images grid */}
-      {(post as any).images && (post as any).images.length>0 && (
-        // Adjusted gap and added slight border-radius to images
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-          {(post as any).images.map((src:string, idx:number) => (
-            <img key={idx} src={src} alt={`img-${idx}`} className="w-full h-56 object-cover rounded-md" />
-          ))}
+      
+      {/* Nội dung chính */}
+      <div className="p-4">
+        {/* Tiêu đề */}
+        <h3 className="text-xl font-bold text-gray-900 mb-2">
+          {post.title}
+        </h3>
+        
+        {/* Nội dung với tính năng "Xem thêm" */}
+        <div className="relative">
+          <div 
+            ref={contentRef}
+            className={`text-gray-700 prose prose-sm max-w-none leading-relaxed transition-all duration-500 overflow-hidden ${
+              isExpanded ? 'max-h-full' : ''
+            }`}
+            style={{ 
+              maxHeight: !isExpanded ? `${MAX_HEIGHT_PX}px` : 'none'
+            }}
+            dangerouslySetInnerHTML={{ __html: post.content?.html || '' }}
+          />
+          
+          {/* Hiệu ứng mờ dần và nút "Xem thêm" */}
+          {isOverflowing && !isExpanded && (
+            <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white to-transparent flex items-end justify-center pb-2">
+              <button 
+                onClick={() => setIsExpanded(true)}
+                className="px-4 py-1 bg-blue-600 text-white text-sm font-medium rounded-full hover:bg-blue-700 transition-colors shadow-md"
+              >
+                Xem thêm...
+              </button>
+            </div>
+          )}
+          
+          {isExpanded && isOverflowing && (
+            <div className="mt-2 text-center">
+              <button 
+                onClick={() => setIsExpanded(false)}
+                className="px-4 py-1 bg-gray-600 text-white text-sm font-medium rounded-full hover:bg-gray-700 transition-colors"
+              >
+                Thu gọn
+              </button>
+            </div>
+          )}
         </div>
-      )}
-
-      {/* Stats bar (Above interaction bar) - Lighter text for secondary info */}
-      <div className="mt-3 flex justify-between items-center text-xs text-gray-500 pb-2 border-b border-gray-200">
-        {(optimisticLikes ?? post.likes) > 0 && (
-          <div className="flex items-center gap-1">
-            <Heart className="h-3 w-3 text-red-500 fill-red-500" />
-            <span>{optimisticLikes ?? post.likes} lượt thích</span>
+        
+        {isDeleted && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-300 rounded-lg shadow-inner">
+            <p className="text-red-700 text-sm font-medium">
+              Bài viết đã bị gỡ: {post.deleted_reason}
+            </p>
           </div>
         )}
-        <div className="flex-1 text-right">
-        {(((optimisticComments ?? (post as any).comments_count) as number) > 0 || post.views > 0) && (
-          <span>{(optimisticComments ?? (post as any).comments_count) || 0} bình luận · {post.views || 0} lượt xem</span>
-            )}
-        </div>
       </div>
-
-
-      {/* Bottom bar: Action buttons (Like, Comment) */}
-      <div className="mt-2 pt-1">
-        <div className="flex items-center text-sm text-gray-600 -mx-1">
-          {/* Like Button - Facebook style, wider click area */}
-          <button onClick={handleLike} className="flex-1 flex justify-center items-center gap-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-            <Heart className="h-5 w-5 text-gray-500" /> 
-            <span className="font-semibold">Thích</span>
-          </button>
-          {/* Comment Button - Facebook style, wider click area */}
-          <button onClick={async ()=>{ if(onToggleComments) await onToggleComments(post.id); setShowComments(s=>!s); }} className="flex-1 flex justify-center items-center gap-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-            <MessageCircle className="h-5 w-5 text-gray-500" /> 
-            <span className="font-semibold">Bình luận</span>
-          </button>
-          {/* View/Share placeholder (keeping the structure but modifying) */}
-          <div className="flex-1 text-center invisible">
-            <div className="inline-flex items-center gap-2"></div>
+      
+      {/* Thanh tương tác */}
+      {!isDeleted && (
+        <>
+          {/* Stats */}
+          <div className="px-4 py-2 border-t border-gray-100 flex justify-between items-center text-sm text-gray-500">
+            <div className="flex items-center gap-4">
+              {post.likes > 0 && (
+                <span className="flex items-center gap-1">
+                  <Heart className="w-4 h-4 fill-red-500 text-red-500" />
+                  {post.likes}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-4">
+              <span>{post.views} lượt xem</span>
+            </div>
           </div>
-        </div>
-      </div>
-
-      <div className={`mt-3 border-t pt-3 overflow-hidden transition-[max-height] duration-300 ease-in-out`} style={{ maxHeight: showComments ? (comments.length * 220) + 120 : 0 }}>
-        {/* slide down container - maxHeight tuned roughly per comment height */}
-        {comments.map(c=> (
-          <div key={c.id} className="mb-3">
-            <CommentItem comment={c} replies={repliesMap[c.id] || []} onReply={async (parentId:string, text:string)=>{ 
-              if(!addReply) return; 
-              // optimistic increment comment count
-              setOptimisticComments((prev)=> (typeof prev==='number' ? prev + 1 : ((post as any).comments_count||0) + 1));
-              await addReply(post.id, parentId, { user_id: 'current-mock', content: { ops: [{ insert: text }] } });
-            }} />
+          
+          {/* Actions - Thanh Tương tác Nhanh theo yêu cầu */}
+          <div className="px-4 py-3 border-t border-gray-100 grid grid-cols-3 gap-2">
+            {/* Nút Thích/Bỏ thích */}
+            <button
+              onClick={handleToggleLike}
+              className={`flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-medium transition-colors transform hover:scale-[1.02] active:scale-[0.98] ${
+                liked 
+                  ? 'text-red-600 bg-red-100 hover:bg-red-200 shadow-sm' 
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <Heart className={`w-5 h-5 ${liked ? 'fill-current' : ''}`} />
+              <span className="font-medium">{liked ? 'Bỏ thích' : 'Thích'}</span>
+            </button>
+            
+            {/* Nút Bình luận - Mở giao diện chi tiết */}
+            <button
+              onClick={onComment}
+              className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-medium transition-colors text-gray-600 hover:bg-gray-100 transform hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <MessageCircle className="w-5 h-5" />
+              <span className="font-medium">Bình luận</span>
+            </button>
+            
+            {/* Nút Xem/Đã xem */}
+            <button
+              onClick={handleToggleView}
+              className={`flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-medium transition-colors transform hover:scale-[1.02] active:scale-[0.98] ${
+                viewed 
+                  ? 'text-blue-600 bg-blue-100 hover:bg-blue-200 shadow-sm' 
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <Eye className={`w-5 h-5 ${viewed ? 'fill-current' : ''}`} />
+              <span className="font-medium">{viewed ? 'Đã xem' : 'Xem'}</span>
+            </button>
           </div>
-        ))}
-  </div>
+        </>
+      )}
     </div>
   );
 };

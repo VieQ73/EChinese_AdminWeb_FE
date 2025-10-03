@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 // Đã loại bỏ các import lỗi và thay thế bằng cấu trúc HTML/Tailwind nội tuyến
 // import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../../components/ui/dialog';
 // import { Button } from '../../../components/ui/button';
-import { X, Image as ImageIcon, Bold, Italic, Underline, Link, List, ListOrdered, AlignLeft, AlignCenter, AlignRight, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Image as ImageIcon, Bold, Italic, Underline, Link, List, ListOrdered, AlignLeft, AlignCenter, AlignRight, Trash2, ChevronLeft, ChevronRight, Sparkles, Loader2 } from 'lucide-react';
 
 // Danh sách các Chủ đề theo entities.ts
 const TOPICS = [
@@ -11,6 +11,66 @@ const TOPICS = [
   'Tìm bạn học chung', 'Học tiếng Trung', 'Tìm gia sư', 'Việc làm', 
   'Văn hóa', 'Thể thao', 'Xây dựng', 'Y tế', 'Tâm sự', 'Khác'
 ];
+
+// Khai báo API Key cho Gemini (trong production nên lưu trong env)
+const API_KEY = ""; // Thêm API key thực tế
+const GEMINI_MODEL = "gemini-2.5-flash-preview-05-20";
+const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`;
+
+// API utility functions cho Gemini
+const fetchWithBackoff = async (payload: any, retries = 3): Promise<any> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        return response.json();
+      } else if (response.status === 429 && i < retries - 1) {
+        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        throw new Error(`API call failed with status: ${response.status}`);
+      }
+    } catch (error) {
+      if (i === retries - 1) throw error;
+    }
+  }
+};
+
+const analyzePost = async (title: string, contentHtml: string): Promise<string> => {
+  const prompt = `Phân tích bài viết sau.
+  Tiêu đề: ${title}
+  Nội dung (HTML đã được lọc): ${contentHtml.replace(/<[^>]*>/g, ' ')}
+  
+  Hãy đưa ra một bản tóm tắt ngắn gọn (tối đa 30 từ) và đề xuất 3 chủ đề liên quan (phân cách bằng dấu phẩy) mà bài viết có thể thuộc về.
+  Định dạng phản hồi phải là:
+  Tóm tắt: [Tóm tắt ở đây]
+  Chủ đề đề xuất: [Chủ đề 1, Chủ đề 2, Chủ đề 3]
+  `;
+
+  const payload = {
+    contents: [{ parts: [{ text: prompt }] }],
+    systemInstruction: {
+      parts: [{ text: "Act as a helpful and professional community content analyst. Respond strictly in Vietnamese." }]
+    },
+  };
+
+  try {
+    if (!API_KEY) {
+      return "Vui lòng cấu hình API Key để sử dụng tính năng phân tích Gemini.";
+    }
+    const result = await fetchWithBackoff(payload);
+    const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+    return text || "Không thể phân tích nội dung bài viết.";
+  } catch (error) {
+    console.error("Gemini API Error for Analysis:", error);
+    return "Lỗi kết nối hoặc xử lý API Gemini.";
+  }
+};
 
 /**
  * Component icon đơn giản cho Editor (Rich Text Controls)
@@ -47,14 +107,31 @@ const CreateEditPostModal: React.FC<{
   const [saving, setSaving] = useState(false);
   const editorRef = useRef<HTMLDivElement|null>(null);
   
+  // State cho tính năng Gemini Analysis
+  const [analysisResult, setAnalysisResult] = useState<string>('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
   useEffect(() => {
-    if (initial) {
-      setTitle(initial.title || '');
-      setSelectedTopic(initial.topic || '');
-      const rawContent = initial.content?.html || initial.content?.ops?.map((o: any) => o.insert).join('') || '';
+    if (isOpen) {
+      setTitle(initial?.title || '');
+      setSelectedTopic(initial?.topic || '');
+      const rawContent = initial?.content?.html || initial?.content?.ops?.map((o: any) => o.insert).join('') || '';
       setContent(rawContent);
+      setAnalysisResult('');
     }
-  }, [initial]);
+  }, [isOpen, initial]);
+
+  const handleAnalyze = async () => {
+    if (!title.trim() && !content.trim()) {
+      setAnalysisResult('Vui lòng nhập tiêu đề và nội dung để phân tích.');
+      return;
+    }
+    setIsAnalyzing(true);
+    setAnalysisResult('');
+    const result = await analyzePost(title, content);
+    setAnalysisResult(result);
+    setIsAnalyzing(false);
+  };
   
   const handleSave = async () => {
     // Ràng buộc: Tiêu đề và Chủ đề là bắt buộc
@@ -275,6 +352,40 @@ const CreateEditPostModal: React.FC<{
             <div className="text-xs text-gray-500 mt-2 p-2 border-l-4 border-yellow-500 bg-yellow-50">
               **RÀNG BUỘC:** Chỉ chấp nhận tối đa **3 ảnh** (JPG/PNG/WEBP). Kích thước tối đa mỗi ảnh: **5 MB**. Chức năng **Chọn bố cục ảnh** chỉ khả dụng khi bạn tải lên **2 ảnh trở lên**.
             </div>
+          </div>
+
+          {/* Tính năng Gemini Analysis */}
+          <div className="p-4 border border-blue-200 bg-gradient-to-r from-blue-50 to-teal-50 rounded-lg">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-blue-600" />
+                <span className="font-semibold text-blue-800">Phân tích thông minh với AI</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleAnalyze}
+                disabled={isAnalyzing || (!title.trim() && !content.trim())}
+                className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors flex items-center gap-2"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Đang phân tích...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    Phân tích
+                  </>
+                )}
+              </button>
+            </div>
+            
+            {analysisResult && (
+              <div className="p-3 bg-white rounded-lg border border-blue-200 text-sm">
+                <pre className="whitespace-pre-wrap text-gray-700">{analysisResult}</pre>
+              </div>
+            )}
           </div>
 
           {/* Khu vực Chủ đề câu hỏi (Giống giao diện Dark Mode cũ, nhưng đổi màu Light) */}
