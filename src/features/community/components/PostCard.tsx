@@ -3,6 +3,7 @@ import { Heart, MessageCircle, Eye, Pin, MoreVertical } from 'lucide-react';
 import type { Post } from '../../../types/entities';
 import { useAuth } from '../../../hooks/useAuth';
 import { mockUsers, mockBadgeLevels } from '../../../mock';
+import { getPostCommentsCount } from '../../../mock/comments';
 
 interface PostCardProps {
   post: Post;
@@ -15,6 +16,7 @@ interface PostCardProps {
   onUnpin?: () => void;
   onEdit?: () => void;
   onRemove?: () => void;
+  onUserClick?: (userId: string) => void;
 }
 
 // Helper function để format thời gian
@@ -44,7 +46,8 @@ const PostCard: React.FC<PostCardProps> = ({
   onPin,
   onUnpin,
   onEdit,
-  onRemove
+  onRemove,
+  onUserClick
 }) => {
   const currentUser = useAuth();
   
@@ -76,6 +79,7 @@ const PostCard: React.FC<PostCardProps> = ({
 
   const user = getUserById(post.user_id);
   const badge = getBadgeByLevel(user.badge_level);
+  const commentsCount = getPostCommentsCount(post.id);
 
   const isOwner = currentUser?.id === post.user_id;
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super admin';
@@ -99,7 +103,10 @@ const PostCard: React.FC<PostCardProps> = ({
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             {/* Avatar */}
-            <div className="relative">
+            <div 
+              className="relative cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => onUserClick?.(post.user_id)}
+            >
               <img 
                 src={user.avatar_url || '/default-avatar.png'} 
                 alt={user.name || 'User'}
@@ -115,7 +122,10 @@ const PostCard: React.FC<PostCardProps> = ({
             {/* Tên và thông tin */}
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-gray-900 hover:underline cursor-pointer">
+                <span 
+                  className="font-semibold text-gray-900 hover:underline cursor-pointer"
+                  onClick={() => onUserClick?.(post.user_id)}
+                >
                   {user.name}
                 </span>
                 <span className="text-lg" title={badge.name}>
@@ -196,8 +206,25 @@ const PostCard: React.FC<PostCardProps> = ({
             style={{ 
               maxHeight: !isExpanded ? `${MAX_HEIGHT_PX}px` : 'none'
             }}
-            dangerouslySetInnerHTML={{ __html: post.content?.html || '' }}
+            dangerouslySetInnerHTML={{ 
+              __html: post.content?.html || 
+                      (post.content?.text ? `<p>${post.content.text.replace(/\n/g, '<br>')}</p>` : '') 
+            }}
           />
+          
+          {/* Hiển thị hình ảnh khi expanded - giống PostDetailModal */}
+          {isExpanded && post.content?.images && post.content.images.length > 0 && (
+            <div className="mt-4 grid grid-cols-1 gap-3">
+              {post.content.images.map((image: string, index: number) => (
+                <img
+                  key={index}
+                  src={image}
+                  alt={`Hình ảnh ${index + 1}`}
+                  className="w-full h-auto rounded-lg object-cover max-h-96"
+                />
+              ))}
+            </div>
+          )}
           
           {/* Hiệu ứng mờ dần và nút "Xem thêm" */}
           {isOverflowing && !isExpanded && (
@@ -235,22 +262,7 @@ const PostCard: React.FC<PostCardProps> = ({
       {/* Thanh tương tác */}
       {!isDeleted && (
         <>
-          {/* Stats */}
-          <div className="px-4 py-2 border-t border-gray-100 flex justify-between items-center text-sm text-gray-500">
-            <div className="flex items-center gap-4">
-              {post.likes > 0 && (
-                <span className="flex items-center gap-1">
-                  <Heart className="w-4 h-4 fill-red-500 text-red-500" />
-                  {post.likes}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-4">
-              <span>{post.views} lượt xem</span>
-            </div>
-          </div>
-          
-          {/* Actions - Thanh Tương tác Nhanh theo yêu cầu */}
+          {/* Actions - Thanh Tương tác Nhanh với số lượt tương tác */}
           <div className="px-4 py-3 border-t border-gray-100 grid grid-cols-3 gap-2">
             {/* Nút Thích/Bỏ thích */}
             <button
@@ -262,7 +274,7 @@ const PostCard: React.FC<PostCardProps> = ({
               }`}
             >
               <Heart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
-              <span className="font-medium">{isLiked ? 'Bỏ thích' : 'Thích'}</span>
+              <span className="font-medium">{isLiked ? 'Bỏ thích' : 'Thích'} {post.likes > 0 ? `(${post.likes})` : ''}</span>
             </button>
             
             {/* Nút Bình luận - Mở giao diện chi tiết */}
@@ -271,7 +283,7 @@ const PostCard: React.FC<PostCardProps> = ({
               className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-medium transition-colors text-gray-600 hover:bg-gray-100 transform hover:scale-[1.02] active:scale-[0.98]"
             >
               <MessageCircle className="w-5 h-5" />
-              <span className="font-medium">Bình luận</span>
+              <span className="font-medium">Bình luận {commentsCount > 0 ? `(${commentsCount})` : ''}</span>
             </button>
             
             {/* Nút Xem/Đã xem */}
@@ -284,7 +296,7 @@ const PostCard: React.FC<PostCardProps> = ({
               }`}
             >
               <Eye className={`w-5 h-5 ${isViewed ? 'fill-current' : ''}`} />
-              <span className="font-medium">{isViewed ? 'Đã xem' : 'Xem'}</span>
+              <span className="font-medium">{isViewed ? 'Đã xem' : 'Xem'} {post.views > 0 ? `(${post.views})` : ''}</span>
             </button>
           </div>
         </>

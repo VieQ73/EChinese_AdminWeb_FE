@@ -1,5 +1,6 @@
 import React from 'react';
 import { Search, Filter, BarChart3 } from 'lucide-react';
+import { getAllPostsWithStats } from '../../../mock/posts';
 
 interface CommunitySidebarProps {
   className?: string;
@@ -64,10 +65,21 @@ const TopicFilter: React.FC<{
 };
 
 // Component Thống kê Cộng đồng
-const CommunityStats: React.FC<{ posts: any[] }> = ({ posts }) => {
-  const totalPosts = posts.length;
-  const pinnedPosts = posts.filter(p => p.is_pinned).length;
-  const removedPosts = posts.filter(p => p.deleted_at).length;
+const CommunityStats: React.FC<{ posts: any[] }> = ({ posts: _posts }) => {
+  // Lấy tất cả posts từ mock data (bao gồm cả đã gỡ) để tính thống kê chính xác
+  const allPosts = getAllPostsWithStats();
+  
+  const totalPosts = allPosts.length;
+  const pinnedPosts = allPosts.filter(p => p.is_pinned).length;
+  const removedPosts = allPosts.filter(p => p.deleted_at).length;
+
+  // Debug log để kiểm tra
+  console.log('CommunitySidebar - Thống kê:', {
+    totalPosts,
+    pinnedPosts, 
+    removedPosts,
+    activePosts: totalPosts - removedPosts
+  });
 
   return (
     <div className="bg-white rounded-lg shadow-lg border p-4">

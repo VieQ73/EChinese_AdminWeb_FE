@@ -5,13 +5,15 @@ import CommunitySidebar from '../features/community/components/CommunitySidebar'
 import CreateEditPostModal from '../features/community/components/CreateEditPostModal';
 import RemoveConfirmModal from '../features/community/components/RemoveConfirmModal';
 import PostDetailModal from '../features/community/components/PostDetailModal';
+import UserProfileModal from '../features/community/components/UserProfileModal';
 import { useAuth } from '../hooks/useAuth';
-import type { Post } from '../types/entities';
-import { mockPosts } from '../mock';
+import type { Post, User } from '../types/entities';
+import { getActivePostsWithStats } from '../mock/posts';
+import { getAllMockUsers } from '../features/users/userApi';
 
 const AdminCommunityPage: React.FC = () => {
   const currentUser = useAuth();
-  const [posts, setPosts] = useState(mockPosts);
+  const [posts, setPosts] = useState(getActivePostsWithStats());
   const [searchQuery, setSearchQuery] = useState('');
   const [topicFilter, setTopicFilter] = useState<string>('');
   const [editOpen, setEditOpen] = useState(false);
@@ -20,6 +22,10 @@ const AdminCommunityPage: React.FC = () => {
   const [confirmTarget, setConfirmTarget] = useState<Post | null>(null);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [showPostDetail, setShowPostDetail] = useState(false);
+
+  // User Profile Modal states
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showUserProfile, setShowUserProfile] = useState(false);
 
   // Theo dõi trạng thái like/view của user hiện tại
   const [userLikes, setUserLikes] = useState<Set<string>>(new Set());
@@ -115,6 +121,21 @@ const AdminCommunityPage: React.FC = () => {
     }
   };
 
+  // Handler cho user click
+  const handleUserClick = (user: User) => {
+    setSelectedUser(user);
+    setShowUserProfile(true);
+  };
+
+  // Handler cho user click by ID
+  const handleUserClickById = (userId: string) => {
+    const user = getAllMockUsers().find(u => u.id === userId);
+    if (user) {
+      setSelectedUser(user);
+      setShowUserProfile(true);
+    }
+  };
+
   const handlePin = (postId: string) => {
     setPosts(prev => prev.map(p => 
       p.id === postId ? { ...p, is_pinned: true } : p
@@ -165,7 +186,7 @@ const AdminCommunityPage: React.FC = () => {
       ));
     } else {
       // Tạo bài viết mới
-      const newPost: Post = {
+      const newPost: Post & { commentsCount: number } = {
         id: `post${Date.now()}`,
         user_id: currentUser?.id || 'admin1',
         title: data.title || '',
@@ -173,6 +194,7 @@ const AdminCommunityPage: React.FC = () => {
         topic: data.topic || 'Khác',
         likes: 0,
         views: 0,
+        commentsCount: 0,
         created_at: new Date().toISOString(),
         is_approved: true,
         is_pinned: false,
@@ -183,6 +205,22 @@ const AdminCommunityPage: React.FC = () => {
     
     setEditOpen(false);
     setEditingPost(null);
+  };
+
+  const handleRestorePost = (postId: string) => {
+    setPosts(prev => prev.map(p => 
+      p.id === postId 
+        ? { 
+            ...p, 
+            deleted_at: null,
+            deleted_reason: null,
+            deleted_by: null
+          } 
+        : p
+    ));
+    
+    // Hiển thị thông báo thành công
+    alert('Bài viết đã được khôi phục thành công!');
   };
 
 
@@ -240,6 +278,10 @@ const AdminCommunityPage: React.FC = () => {
                     onUnpin={() => handleUnpin(post.id)}
                     onEdit={() => handleEdit(post)}
                     onRemove={() => handleRemove(post)}
+                    onUserClick={(userId) => {
+                      const user = getAllMockUsers().find(u => u.id === userId);
+                      if (user) handleUserClick(user);
+                    }}
                   />
                 ))
               )}
@@ -288,7 +330,30 @@ const AdminCommunityPage: React.FC = () => {
         isViewed={selectedPost ? userViews.has(selectedPost.id) : false}
         onToggleLike={handleToggleLike}
         onToggleView={handleToggleView}
+        onUserClick={(userId) => {
+          const user = getAllMockUsers().find((u: User) => u.id === userId);
+          if (user) handleUserClick(user);
+        }}
       />
+
+      {/* User Profile Modal */}
+      {selectedUser && (
+        <UserProfileModal
+          isOpen={showUserProfile}
+          onClose={() => {
+            setShowUserProfile(false);
+            setSelectedUser(null);
+          }}
+          user={selectedUser}
+          onPostClick={handleComment}
+          userLikes={userLikes}
+          userViews={userViews}
+          onLikeToggle={(postId: string) => handleToggleLike(postId, !userLikes.has(postId))}
+          onViewToggle={(postId: string) => handleToggleView(postId, !userViews.has(postId))}
+          onUserClick={handleUserClickById}
+          onRestorePost={handleRestorePost}
+        />
+      )}
     </div>
   );
 };

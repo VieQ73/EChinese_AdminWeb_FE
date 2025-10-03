@@ -11,7 +11,10 @@ const UserProfilePanel: React.FC<{ userId?: string; onClose?: ()=>void }> = ({ u
   useEffect(()=>{
     if(!userId) return;
     setLoading(true);
-    Promise.all([fetchUserById(userId), fetchUserPostsAll(userId)])
+    Promise.all([
+      fetchUserById(userId), 
+      fetchUserPostsAll(userId).then(response => response.data || []) // Extract data từ PaginatedResponse
+    ])
       .then(([u, ps]) => { setUser(u); setPosts(ps || []); })
       .finally(()=>setLoading(false));
   }, [userId]);

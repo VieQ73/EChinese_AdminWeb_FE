@@ -15,6 +15,7 @@ interface PostDetailModalProps {
   isViewed: boolean;
   onToggleLike: (postId: string, isLiked: boolean) => void;
   onToggleView: (postId: string, isViewed: boolean) => void;
+  onUserClick?: (userId: string) => void;
 }
 
 // Helper function để tính thời gian tương đối
@@ -39,7 +40,8 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
   isLiked,
   isViewed,
   onToggleLike,
-  onToggleView
+  onToggleView,
+  onUserClick
 }) => {
   const currentUser = useAuth(); // Lấy thông tin user hiện tại
   const [newComment, setNewComment] = useState('');
@@ -160,7 +162,8 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
                 <img 
                   src={postUser?.avatar_url || '/default-avatar.png'} 
                   alt={postUser?.name || 'User'}
-                  className="w-12 h-12 rounded-full object-cover"
+                  className="w-12 h-12 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => onUserClick?.(post.user_id)}
                 />
               </div>
               
@@ -168,7 +171,10 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-gray-900 hover:underline cursor-pointer">
+                      <span 
+                        className="font-semibold text-gray-900 hover:underline cursor-pointer"
+                        onClick={() => onUserClick?.(post.user_id)}
+                      >
                         {postUser?.name}
                       </span>
                       {userBadge && (
@@ -226,28 +232,29 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
             <div className="mb-4">
               <h2 className="text-xl font-bold text-gray-900 mb-3">{post.title}</h2>
               <div 
-                className="text-gray-700 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: post.content?.html || '' }}
+                className="text-gray-700 leading-relaxed prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ 
+                  __html: post.content?.html || 
+                          (post.content?.text ? `<p>${post.content.text.replace(/\n/g, '<br>')}</p>` : '') 
+                }}
               />
+              
+              {/* Hiển thị hình ảnh nếu có */}
+              {post.content?.images && post.content.images.length > 0 && (
+                <div className="mt-4 grid grid-cols-1 gap-3">
+                  {post.content.images.map((image: string, index: number) => (
+                    <img
+                      key={index}
+                      src={image}
+                      alt={`Hình ảnh ${index + 1}`}
+                      className="w-full h-auto rounded-lg object-cover max-h-96"
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Interaction Stats */}
-            <div className="flex items-center justify-between text-sm text-gray-500 mb-4 px-2">
-              <span className="flex items-center gap-1">
-                <Heart className="w-4 h-4 text-red-500" />
-                <span>{post.likes} lượt thích</span>
-              </span>
-              <span className="flex items-center gap-1">
-                <MessageCircle className="w-4 h-4 text-blue-500" />
-                <span>{allComments.length} bình luận</span>
-              </span>
-              <span className="flex items-center gap-1">
-                <Eye className="w-4 h-4 text-green-500" />
-                <span>{post.views} lượt xem</span>
-              </span>
-            </div>
-
-            {/* Action Buttons */}
+            {/* Action Buttons - Hiển thị số lượng tương tác ngay trong nút như PostCard */}
             <div className="flex items-center gap-1 pt-3 border-t">
               <button 
                 onClick={handleLike}
@@ -261,14 +268,14 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
                 <span className={`font-medium transition-colors ${
                   isLiked ? 'text-red-600' : 'text-gray-700 group-hover:text-red-500'
                 }`}>
-                  {isLiked ? 'Bỏ thích' : 'Thích'}
+                  {isLiked ? 'Bỏ thích' : 'Thích'} {post.likes > 0 ? `(${post.likes})` : ''}
                 </span>
               </button>
               
               <button className="flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg hover:bg-gray-50 transition-colors group">
                 <MessageCircle className="w-5 h-5 text-gray-600 group-hover:text-blue-500 transition-colors" />
                 <span className="text-gray-700 font-medium group-hover:text-blue-500 transition-colors">
-                  Bình luận
+                  Bình luận {allComments.length > 0 ? `(${allComments.length})` : ''}
                 </span>
               </button>
               
@@ -284,7 +291,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
                 <span className={`font-medium transition-colors ${
                   isViewed ? 'text-green-600' : 'text-gray-700 group-hover:text-green-500'
                 }`}>
-                  {isViewed ? 'Đã xem' : 'Xem'}
+                  {isViewed ? 'Đã xem' : 'Xem'} {post.views > 0 ? `(${post.views})` : ''}
                 </span>
               </button>
             </div>
@@ -306,6 +313,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
                     depth={0}
                     onAddReply={handleAddReply}
                     tempComments={tempComments}
+                    onUserClick={onUserClick}
                   />
                 ))}
               </div>
