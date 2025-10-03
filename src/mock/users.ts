@@ -1,82 +1,10 @@
 import type { User } from '../types/entities';
+import { getAllMockUsers, getUserById as getUserFromApi } from '../features/users/userApi';
 
-// Mock data cho Users dựa trên database schema
-export const mockUsers: User[] = [
-  {
-    id: 'user1',
-    username: 'nguyenvana',
-    name: 'Nguyễn Văn A',
-    avatar_url: null,
-    email: 'nguyenvana@example.com',
-    provider: 'local',
-    role: 'user',
-    is_active: true,
-    isVerify: true,
-    community_points: 1250,
-    subscription_id: 'sub1',
-    level: '3',
-    badge_level: 2,
-    language: 'Tiếng Việt',
-    created_at: '2024-01-15T10:00:00Z',
-    last_login: '2025-10-02T08:00:00Z',
-  },
-  {
-    id: 'admin1',
-    username: 'admin',
-    name: 'Admin System',
-    avatar_url: null,
-    email: 'admin@echinese.com',
-    provider: 'local',
-    role: 'admin',
-    is_active: true,
-    isVerify: true,
-    community_points: 5000,
-    subscription_id: 'sub2',
-    level: '6',
-    badge_level: 4,
-    language: 'Tiếng Việt',
-    created_at: '2023-10-01T08:00:00Z',
-    last_login: '2025-10-03T07:30:00Z',
-  },
-  {
-    id: 'user2',
-    username: 'tranthib',
-    name: 'Trần Thị B',
-    avatar_url: null,
-    email: 'tranthib@example.com',
-    provider: 'local',
-    role: 'user',
-    is_active: false,
-    isVerify: true,
-    community_points: 850,
-    subscription_id: 'sub1',
-    level: '2',
-    badge_level: 1,
-    language: 'Tiếng Việt',
-    created_at: '2024-03-20T14:30:00Z',
-    last_login: '2025-09-28T16:20:00Z',
-  },
-  {
-    id: 'user3',
-    username: 'lequanghung',
-    name: 'Lê Quang Hưng',
-    avatar_url: null,
-    email: 'lequanghung@example.com',
-    provider: 'google',
-    provider_id: 'google_123456',
-    role: 'user',
-    is_active: true,
-    isVerify: true,
-    community_points: 2100,
-    subscription_id: 'sub2',
-    level: '4',
-    badge_level: 3,
-    language: 'Tiếng Việt',
-    created_at: '2024-02-10T09:15:00Z',
-    last_login: '2025-10-02T19:45:00Z',
-  }
-];
+// Import users từ userApi.ts để đồng nhất dữ liệu
+export const mockUsers: User[] = getAllMockUsers();
 
 export const getUserById = (userId: string): User => {
-  return mockUsers.find(u => u.id === userId) || mockUsers[0];
+  const user = getUserFromApi(userId);
+  return user || mockUsers[0]; // Fallback về Super Admin
 };

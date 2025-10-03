@@ -21,6 +21,20 @@ const AdminCommunityPage: React.FC = () => {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [showPostDetail, setShowPostDetail] = useState(false);
 
+  // Theo dõi trạng thái like/view của user hiện tại
+  const [userLikes, setUserLikes] = useState<Set<string>>(new Set());
+  const [userViews, setUserViews] = useState<Set<string>>(new Set());
+
+  // Đồng bộ selectedPost khi posts thay đổi
+  React.useEffect(() => {
+    if (selectedPost) {
+      const updatedPost = posts.find(p => p.id === selectedPost.id);
+      if (updatedPost) {
+        setSelectedPost(updatedPost);
+      }
+    }
+  }, [posts, selectedPost]);
+
 
 
   // Filter và sắp xếp posts
@@ -46,16 +60,22 @@ const AdminCommunityPage: React.FC = () => {
   });
 
   // Event handlers
-  const handleLike = (postId: string) => {
-    setPosts(prev =>
-      prev.map(p =>
-        p.id === postId ? { ...p, likes: (p.likes || 0) + 1 } : p
-      )
-    );
-  };
 
-  // Xử lý logic Toggle Like theo yêu cầu
+
+  // Xử lý logic Toggle Like 
   const handleToggleLike = (postId: string, isLiked: boolean) => {
+    // Cập nhật trạng thái like của user
+    setUserLikes(prev => {
+      const newSet = new Set(prev);
+      if (isLiked) {
+        newSet.add(postId);
+      } else {
+        newSet.delete(postId);
+      }
+      return newSet;
+    });
+
+    // Cập nhật số lượt like của post
     setPosts(prev => prev.map(p => {
       if (p.id === postId) {
         return { ...p, likes: (p.likes || 0) + (isLiked ? 1 : -1) };
@@ -64,8 +84,20 @@ const AdminCommunityPage: React.FC = () => {
     }));
   };
 
-  // Xử lý logic Toggle View theo yêu cầu
+  // Xử lý logic Toggle View 
   const handleToggleView = (postId: string, isViewed: boolean) => {
+    // Cập nhật trạng thái view của user
+    setUserViews(prev => {
+      const newSet = new Set(prev);
+      if (isViewed) {
+        newSet.add(postId);
+      } else {
+        newSet.delete(postId);
+      }
+      return newSet;
+    });
+
+    // Cập nhật số lượt xem của post
     setPosts(prev => prev.map(p => {
       if (p.id === postId) {
         return { ...p, views: (p.views || 0) + (isViewed ? 1 : -1) };
@@ -74,9 +106,13 @@ const AdminCommunityPage: React.FC = () => {
     }));
   };
 
-  const handleComment = () => {
-    // Mở giao diện chi tiết bài viết như yêu cầu
-    console.log('Mở giao diện chi tiết bài viết');
+  const handleComment = (postId: string) => {
+    // Tìm bài viết và mở modal chi tiết
+    const post = posts.find(p => p.id === postId);
+    if (post) {
+      setSelectedPost(post);
+      setShowPostDetail(true);
+    }
   };
 
   const handlePin = (postId: string) => {
@@ -195,9 +231,11 @@ const AdminCommunityPage: React.FC = () => {
                   <PostCard
                     key={post.id}
                     post={post}
+                    isLiked={userLikes.has(post.id)}
+                    isViewed={userViews.has(post.id)}
                     onToggleLike={handleToggleLike}
                     onToggleView={handleToggleView}
-                    onComment={handleComment}
+                    onComment={() => handleComment(post.id)}
                     onPin={() => handlePin(post.id)}
                     onUnpin={() => handleUnpin(post.id)}
                     onEdit={() => handleEdit(post)}
@@ -210,13 +248,15 @@ const AdminCommunityPage: React.FC = () => {
 
           {/* Thanh Công cụ Bên Phải (1/3 trên desktop) */}
           <div className="lg:col-span-1">
-            <CommunitySidebar 
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              topicFilter={topicFilter}
-              setTopicFilter={setTopicFilter}
-              posts={posts}
-            />
+            <div className="sticky top-20">
+              <CommunitySidebar 
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                topicFilter={topicFilter}
+                setTopicFilter={setTopicFilter}
+                posts={posts}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -237,21 +277,18 @@ const AdminCommunityPage: React.FC = () => {
       />
 
       {/* Post Detail Modal */}
-      {selectedPost && (
-        <PostDetailModal
-          post={selectedPost}
-          isOpen={showPostDetail}
-          onClose={() => {
-            setShowPostDetail(false);
-            setSelectedPost(null);
-          }}
-          onLike={handleLike}
-          onComment={(postId, content) => {
-            console.log('New comment:', postId, content);
-            // Có thể thêm logic xử lý comment sau
-          }}
-        />
-      )}
+      <PostDetailModal
+        isOpen={showPostDetail}
+        onClose={() => {
+          setShowPostDetail(false);
+          setSelectedPost(null);
+        }}
+        post={selectedPost || undefined}
+        isLiked={selectedPost ? userLikes.has(selectedPost.id) : false}
+        isViewed={selectedPost ? userViews.has(selectedPost.id) : false}
+        onToggleLike={handleToggleLike}
+        onToggleView={handleToggleView}
+      />
     </div>
   );
 };

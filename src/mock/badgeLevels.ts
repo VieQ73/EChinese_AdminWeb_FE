@@ -7,6 +7,7 @@ export const mockBadgeLevels: BadgeLevel[] = [
   { level: 2, name: 'Thành thạo', icon: '⭐' },
   { level: 3, name: 'Chuyên gia', icon: '🏆' },
   { level: 4, name: 'Quản trị viên', icon: '👑' },
+  { level: 5, name: 'Siêu quản trị', icon: '💎' },
 ];
 
 export const getBadgeByLevel = (level: number): BadgeLevel => {

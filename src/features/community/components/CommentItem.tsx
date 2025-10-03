@@ -1,101 +1,237 @@
-/* eslint-disable react/prop-types */
-import React, { useState } from 'react';
-import { useUser } from '../../users/useUserCache';
-import { useBadgeList } from '../../badges/useBadgeList';
+import React, { useState, useEffect, useRef } from 'react';
+import { Send, MoreVertical, Trash2 } from 'lucide-react';
+import type { Comment } from '../../../types/entities';
+import { mockUsers } from '../../../mock/users';
+import { mockBadgeLevels } from '../../../mock/badgeLevels';
+import { getNestedReplies, getTotalRepliesCount } from '../../../mock/comments';
+import { useAuth } from '../../../hooks/useAuth';
 
-const CommentItem: React.FC<{ comment: any; replies?: any[]; onReply?: (parentId:string, text:string)=>Promise<void> }> = ({ comment, replies = [], onReply }) => {
+interface CommentItemProps {
+  comment: Comment;
+  depth?: number; // Theo dõi cấp độ thụt lề
+  postId: string; // Cần để lấy nested replies
+  onAddReply?: (parentCommentId: string, content: string) => void; // Hàm để thêm reply
+  tempComments?: Comment[]; // Temp comments để hiển thị realtime
+}
+
+const CommentItem: React.FC<CommentItemProps> = ({ comment, depth = 0, postId, onAddReply, tempComments = [] }) => {
+  const currentUser = useAuth(); // Lấy thông tin user hiện tại
   const [showReplies, setShowReplies] = useState(false);
   const [replyText, setReplyText] = useState('');
-  const [replying, setReplying] = useState(false);
   const [showReplyBox, setShowReplyBox] = useState(false);
-  // ensure we resolve the canonical user object for this comment
-  const { user } = useUser(comment.user_id);
-  const badgeList = useBadgeList() || [];
-  const badgeMap: Record<number,string> = {};
-  badgeList.forEach((b:any)=>{ if(b.icon) badgeMap[b.level]=b.icon; });
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const handleReply = async ()=>{
-    if(!replyText.trim() || !onReply) return;
-    setReplying(true);
-    try{ await onReply(comment.id, replyText); setReplyText(''); setShowReplies(true); }catch(e){ console.error(e); }finally{ setReplying(false); }
+  // Đóng dropdown khi click ra ngoài
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Lấy thông tin user và badge
+  const commentUser = mockUsers.find(u => u.id === comment.user_id);
+  const userBadge = mockBadgeLevels.find(b => b.level === commentUser?.badge_level);
+  
+  // Kiểm tra quyền xóa comment (chỉ owner hoặc admin)
+  const isOwner = currentUser?.id === comment.user_id;
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super admin';
+  const canDelete = isOwner || isAdmin;
+
+  // Format thời gian theo Facebook style
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    if (minutes < 1) return 'Vừa xong';
+    if (minutes < 60) return `${minutes} phút`;
+    if (hours < 24) return `${hours} giờ`;
+    if (days < 7) return `${days} ngày`;
+    return date.toLocaleDateString('vi-VN');
   };
 
-  function ReplyBlock({ r }: { r: any }){
-    const { user: replyUser } = useUser(r.user_id);
-    const level = (replyUser?.badge_level ?? r.badge_level) || 0;
-    return (
-      <div className="p-2 bg-gray-50 rounded flex items-start gap-3">
-        <div className="relative">
-          <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">{(r.user_name||r.user_id||'U').toString().charAt(0).toUpperCase()}</div>
-          {replyUser && replyUser.is_active === false && (
-            <div title="Tài khoản đã bị khóa!" className="absolute -bottom-0.5 -right-0.5 bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">!</div>
-          )}
-        </div>
-        <div className="flex-1">
-          <div className="text-xs font-medium flex items-center gap-2">
-            <span>{r.user_name || replyUser?.name || r.user_id}</span>
-            <span className="ml-1 text-xs">{badgeMap[level]}</span>
-          </div>
-          <div className="text-xs text-gray-500">{new Date(r.created_at).toLocaleString()}</div>
-          <div className="mt-1 text-sm" dangerouslySetInnerHTML={{ __html: (r.content?.ops?.map((o:any)=>o.insert).join('') || '') }} />
-        </div>
-      </div>
-    );
-  }
+  // Xử lý xóa comment
+  const handleDeleteComment = () => {
+    // TODO: Implement delete logic
+    console.log('Delete comment:', comment.id);
+    setShowDropdown(false);
+  };
 
+  // Xử lý gửi reply
+  const handleSendReply = () => {
+    if (!replyText.trim()) return;
+    
+    // Gọi hàm callback để thêm reply
+    onAddReply?.(comment.id, replyText);
+    setReplyText('');
+    setShowReplyBox(false);
+    // Hiển thị replies sau khi gửi thành công
+    setShowReplies(true);
+  };
+
+  // Lấy replies từ mock data
+  const mockReplies = getNestedReplies(postId, comment.id, depth);
+  
+  // Lấy temp replies cho comment này
+  const tempReplies = tempComments.filter(tc => tc.parent_comment_id === comment.id);
+  
+  // Kết hợp mock và temp replies
+  const nestedReplies = [...mockReplies, ...tempReplies];
+  
+  // Đếm tổng số replies (bao gồm temp replies)
+  const mockTotalRepliesCount = getTotalRepliesCount(postId, comment.id);
+  const tempTotalRepliesCount = tempComments.filter(tc => tc.parent_comment_id === comment.id).length;
+  const totalRepliesCount = mockTotalRepliesCount + tempTotalRepliesCount;
+
+  // Giới hạn depth tối đa cho việc trả lời
+  const maxReplyDepth = 2; // Chỉ cho phép trả lời đến cấp 2 (hiển thị là cấp 3)
+  const canReply = depth < maxReplyDepth;
+  
   return (
-    <div className="p-2 bg-white rounded shadow-sm">
-      <div className="flex items-start gap-3">
-        <div className="relative">
-          <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">{(comment.user_id||'U').toString().charAt(0).toUpperCase()}</div>
-          {user && user.is_active === false && (
-            <div title="Tài khoản đã bị khóa!" className="absolute -bottom-0.5 -right-0.5 bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">!</div>
-          )}
-        </div>
-        <div className="flex-1">
-          <div className="text-sm font-medium flex items-center gap-2">
-            <span>{comment.user_name || user?.name || comment.user_id}</span>
-            <span className="ml-1 text-xs relative group">
-              <span className="select-none">{badgeMap[(user?.badge_level ?? comment.badge_level) || 0]}</span>
-              {/* popover on hover: show badge list */}
-              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="bg-white border shadow-md rounded p-2 w-40 text-xs">
-                  <div className="font-semibold mb-1">Huy hiệu</div>
-                  {badgeList.map(b=> (
-                    <div key={b.level} className="flex items-center gap-2 py-0.5">
-                      <div className="w-6 text-center">{b.icon}</div>
-                      <div>{b.name}</div>
-                    </div>
-                  ))}
+    <div className="flex gap-3">{/* Không thụt lề ở đây, sẽ thụt lề ở container bên ngoài */}
+      {/* Avatar */}
+      <img 
+        src={commentUser?.avatar_url || '/default-avatar.png'} 
+        alt={commentUser?.name || 'User'}
+        className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+      />
+      
+      <div className="flex-1 min-w-0 relative group">
+        {/* Comment Content */}
+        <div className="bg-gray-100 rounded-lg px-3 py-2 relative">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-semibold text-sm text-gray-900">{commentUser?.name}</span>
+            {userBadge && (
+              <span className="text-lg" title={userBadge.name}>
+                {userBadge.icon}
+              </span>
+            )}
+          </div>
+          <div 
+            className="text-sm text-gray-800"
+            dangerouslySetInnerHTML={{ __html: comment.content?.html || '' }}
+          />
+          
+          {/* Dropdown Menu - chỉ hiện khi có quyền */}
+          {canDelete && (
+            <div ref={dropdownRef} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={() => setShowDropdown(!showDropdown)}
+                className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+              >
+                <MoreVertical className="w-4 h-4 text-gray-500" />
+              </button>
+              
+              {showDropdown && (
+                <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border z-10 min-w-[120px]">
+                  <button
+                    onClick={handleDeleteComment}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-lg"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Gỡ bình luận
+                  </button>
                 </div>
-              </div>
-            </span>
-          </div>
-          <div className="text-xs text-gray-500">{new Date(comment.created_at).toLocaleString()}</div>
-          <div className="mt-2 text-sm" dangerouslySetInnerHTML={{ __html: (comment.content?.ops?.map((o:any)=>o.insert).join('') || '') }} />
-          <div className="mt-2 flex items-center gap-3 text-sm text-gray-500">
-            <button className="hover:text-teal-600">Thích</button>
-            <button className="hover:text-teal-600" onClick={()=>setShowReplies(s=>!s)}>{showReplies ? 'Ẩn phản hồi' : `Xem ${replies.length} phản hồi`}</button>
-            <button className="hover:text-teal-600" onClick={()=>setShowReplyBox(s=>!s)}>{showReplyBox ? 'Hủy' : 'Trả lời'}</button>
-          </div>
-
-          {showReplies && (
-            <div className="mt-3 space-y-2 pl-4 border-l">
-              {replies.map(r => (
-                <ReplyBlock key={r.id} r={r} />
-              ))}
-            </div>
-          )}
-
-          {showReplyBox && (
-            <div className="mt-3">
-              <textarea className="w-full p-2 border rounded" rows={2} value={replyText} onChange={e=>setReplyText(e.target.value)} placeholder="Viết trả lời..." />
-              <div className="flex justify-end mt-2">
-                <button className="px-3 py-1 bg-teal-600 text-white rounded" onClick={handleReply} disabled={replying || !replyText.trim()}>{replying ? 'Đang...' : 'Gửi'}</button>
-              </div>
+              )}
             </div>
           )}
         </div>
+
+        {/* Comment Actions */}
+        <div className="flex items-center justify-between mt-1 ml-3">
+          <div className="flex items-center gap-3 text-xs text-gray-500">
+            <span>{formatTime(comment.created_at)}</span>
+            {/* Chỉ hiển thị nút trả lời nếu chưa đạt giới hạn depth */}
+            {canReply && (
+              <button 
+                onClick={() => setShowReplyBox(!showReplyBox)}
+                className="hover:text-blue-600 font-medium"
+              >
+                Trả lời
+              </button>
+            )}
+            {totalRepliesCount > 0 && (
+              <button 
+                onClick={() => setShowReplies(!showReplies)}
+                className="hover:text-blue-600 font-medium"
+              >
+                {showReplies ? 'Ẩn phản hồi' : `${totalRepliesCount} phản hồi`}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Reply Input - Chỉ hiển thị nếu được phép trả lời */}
+        {showReplyBox && canReply && (
+          <div className="mt-3">
+            <div className="flex gap-2">
+              <img 
+                src={currentUser?.avatar_url || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face&auto=format"} 
+                alt={currentUser?.name || "Your avatar"}
+                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face&auto=format";
+                }}
+              />
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="Viết phản hồi..."
+                  className="w-full px-3 py-2 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white border border-transparent focus:border-blue-300 transition-all"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSendReply();
+                    }
+                  }}
+                />
+                {replyText.trim() && (
+                  <button 
+                    onClick={handleSendReply}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-blue-600 hover:text-blue-700"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Replies */}
+        {showReplies && nestedReplies.length > 0 && (
+          <div className="mt-3">
+            {nestedReplies.map((reply, index) => (
+              <div key={reply.id} className={`${index > 0 ? 'mt-3' : ''} ${
+                depth === 0 ? 'ml-10' : 
+                depth === 1 ? 'ml-10' : 
+                ''  // Từ cấp 2 trở đi không thụt lề thêm
+              }`}>
+                <CommentItem 
+                  comment={reply} 
+                  postId={postId}
+                  depth={depth < 2 ? depth + 1 : 2}
+                  onAddReply={onAddReply}
+                  tempComments={tempComments}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

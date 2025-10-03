@@ -22,7 +22,11 @@ const UserProfilePanel: React.FC<{ userId?: string; onClose?: ()=>void }> = ({ u
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center">{user?.name?.charAt(0)}</div>
+            <img 
+              src={user?.avatar_url || '/default-avatar.png'} 
+              alt={user?.name || 'User'}
+              className="h-12 w-12 rounded-full object-cover border border-gray-200"
+            />
             {user && user.is_active === false && (
               <div title="Tài khoản đã bị khóa!" className="absolute -bottom-0.5 -right-0.5 bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">!</div>
             )}

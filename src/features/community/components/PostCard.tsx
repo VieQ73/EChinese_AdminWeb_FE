@@ -6,6 +6,8 @@ import { mockUsers, mockBadgeLevels } from '../../../mock';
 
 interface PostCardProps {
   post: Post;
+  isLiked: boolean;
+  isViewed: boolean;
   onToggleLike: (postId: string, isLiked: boolean) => void;
   onToggleView: (postId: string, isViewed: boolean) => void;
   onComment: () => void;
@@ -34,6 +36,8 @@ const formatTimeAgo = (dateString: string): string => {
 // Component chính PostCard theo design từ AdminCommunityInstruction.md
 const PostCard: React.FC<PostCardProps> = ({
   post,
+  isLiked,
+  isViewed,
   onToggleLike,
   onToggleView, 
   onComment,
@@ -44,9 +48,7 @@ const PostCard: React.FC<PostCardProps> = ({
 }) => {
   const currentUser = useAuth();
   
-  // State cho các tương tác
-  const [liked, setLiked] = useState(false);
-  const [viewed, setViewed] = useState(false);
+  // State cho UI
   const [isExpanded, setIsExpanded] = useState(false);
   
   // State cho overflow detection
@@ -81,14 +83,12 @@ const PostCard: React.FC<PostCardProps> = ({
 
   // Handler functions
   const handleToggleLike = () => {
-    const newLikedState = !liked;
-    setLiked(newLikedState);
+    const newLikedState = !isLiked;
     onToggleLike(post.id, newLikedState);
   };
 
   const handleToggleView = () => {
-    const newViewedState = !viewed;
-    setViewed(newViewedState);
+    const newViewedState = !isViewed;
     onToggleView(post.id, newViewedState);
   };
 
@@ -100,9 +100,11 @@ const PostCard: React.FC<PostCardProps> = ({
           <div className="flex items-center gap-3">
             {/* Avatar */}
             <div className="relative">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">
-                {user.name?.charAt(0).toUpperCase() || 'U'}
-              </div>
+              <img 
+                src={user.avatar_url || '/default-avatar.png'} 
+                alt={user.name || 'User'}
+                className="w-10 h-10 rounded-full object-cover border border-gray-200"
+              />
               {!user.is_active && (
                 <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
                   <span className="text-white text-xs">!</span>
@@ -254,13 +256,13 @@ const PostCard: React.FC<PostCardProps> = ({
             <button
               onClick={handleToggleLike}
               className={`flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-medium transition-colors transform hover:scale-[1.02] active:scale-[0.98] ${
-                liked 
+                isLiked 
                   ? 'text-red-600 bg-red-100 hover:bg-red-200 shadow-sm' 
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
-              <Heart className={`w-5 h-5 ${liked ? 'fill-current' : ''}`} />
-              <span className="font-medium">{liked ? 'Bỏ thích' : 'Thích'}</span>
+              <Heart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+              <span className="font-medium">{isLiked ? 'Bỏ thích' : 'Thích'}</span>
             </button>
             
             {/* Nút Bình luận - Mở giao diện chi tiết */}
@@ -276,13 +278,13 @@ const PostCard: React.FC<PostCardProps> = ({
             <button
               onClick={handleToggleView}
               className={`flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-medium transition-colors transform hover:scale-[1.02] active:scale-[0.98] ${
-                viewed 
+                isViewed 
                   ? 'text-blue-600 bg-blue-100 hover:bg-blue-200 shadow-sm' 
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
-              <Eye className={`w-5 h-5 ${viewed ? 'fill-current' : ''}`} />
-              <span className="font-medium">{viewed ? 'Đã xem' : 'Xem'}</span>
+              <Eye className={`w-5 h-5 ${isViewed ? 'fill-current' : ''}`} />
+              <span className="font-medium">{isViewed ? 'Đã xem' : 'Xem'}</span>
             </button>
           </div>
         </>

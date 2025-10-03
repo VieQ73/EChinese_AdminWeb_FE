@@ -262,7 +262,7 @@ const CreateEditPostModal: React.FC<{
                 contentEditable 
                 className="p-3 min-h-[120px] bg-white text-gray-800 focus:outline-none focus:ring-0" 
                 onInput={handleContentInput} 
-                dangerouslySetInnerHTML={{ __html: content || 'Nội dung bổ sung cho câu hỏi' }} 
+                dangerouslySetInnerHTML={{ __html: content  }} 
               />
 
               {/* Rich Text Controls */}

@@ -10,6 +10,7 @@ let mockUsers: User[] = [
     id: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
     username: 'superadmin',
     name: 'Super Admin',
+    avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face&auto=format',
     email: 'super@admin.com',
     role: 'super admin',
     is_active: true,
@@ -28,6 +29,7 @@ let mockUsers: User[] = [
     id: 'b2c3d4e5-f6a7-8901-2345-67890abcdef0',
     username: 'admin',
     name: 'Admin',
+    avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face&auto=format',
     email: 'admin@example.com',
     role: 'admin',
     is_active: true,
@@ -46,6 +48,7 @@ let mockUsers: User[] = [
     id: 'c3d4e5f6-a7b8-9012-3456-7890abcdef01',
     username: 'testuser1',
     name: 'Nguyễn Văn A',
+    avatar_url: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=100&h=100&fit=crop&crop=face&auto=format',
     email: 'vana@gmail.com',
     role: 'user',
     is_active: true,
@@ -64,6 +67,7 @@ let mockUsers: User[] = [
     id: 'd4e5f6a7-b8c9-0123-4567-890abcdef012',
     username: 'testuser2',
     name: 'Trần Thị B',
+    avatar_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=face&auto=format',
     email: 'thib@gmail.com',
     role: 'user',
     is_active: false,
@@ -82,7 +86,8 @@ let mockUsers: User[] = [
   {
     id: 'e5f6a7b8-c9d0-1234-5678-90abcdef1234',
     username: 'locked_user',
-    name: 'Người Khóa',
+    name: 'Người Bị Khóa',
+    avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=face&auto=format',
     email: 'locked@example.com',
     role: 'user',
     is_active: false, // locked
@@ -94,13 +99,14 @@ let mockUsers: User[] = [
     provider: 'local',
     created_at: '2024-08-01T12:00:00Z',
     last_login: '2024-09-01T09:00:00Z',
-  subscription_id: '',
+    subscription_id: '',
     subscription_expiry: null,
   },
   {
     id: 'f6a7b8c9-d0e1-2345-6789-0abcdef12345',
     username: 'user3',
     name: 'Lê Văn C',
+    avatar_url: 'https://images.unsplash.com/photo-1507591064344-4c6ce005b128?w=100&h=100&fit=crop&crop=face&auto=format',
     email: 'c@example.com',
     role: 'user',
     is_active: true,
@@ -112,8 +118,65 @@ let mockUsers: User[] = [
     provider: 'local',
     created_at: '2024-09-10T10:00:00Z',
     last_login: '2024-09-11T08:00:00Z',
-  subscription_id: '',
+    subscription_id: '',
     subscription_expiry: null,
+  },
+  {
+    id: 'a7b8c9d0-e1f2-3456-7890-bcdef1234567',
+    username: 'moderator1',
+    name: 'Phạm Thị D',
+    avatar_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face&auto=format',
+    email: 'moderator1@example.com',
+    role: 'admin',
+    is_active: true,
+    isVerify: true,
+    community_points: 800,
+    level: '5',
+    badge_level: 3,
+    language: 'Tiếng Việt',
+    provider: 'local',
+    created_at: '2024-03-15T16:00:00Z',
+    last_login: new Date().toISOString(),
+    subscription_id: 'sub-premium-002',
+    subscription_expiry: '2025-03-15T16:00:00Z',
+  },
+  {
+    id: 'b8c9d0e1-f2a3-4567-8901-cdef12345678',
+    username: 'student1',
+    name: 'Hoàng Văn E',
+    avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face&auto=format',
+    email: 'student1@gmail.com',
+    role: 'user',
+    is_active: true,
+    isVerify: true,
+    community_points: 320,
+    level: '4',
+    badge_level: 2,
+    language: 'Tiếng Việt',
+    provider: 'google',
+    created_at: '2024-08-20T09:30:00Z',
+    last_login: '2024-09-25T14:00:00Z',
+    subscription_id: 'sub-premium-003',
+    subscription_expiry: '2025-08-20T09:30:00Z',
+  },
+  {
+    id: 'c9d0e1f2-a3b4-5678-9012-def123456789',
+    username: 'teacher1',
+    name: 'Vũ Thị F',
+    avatar_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=face&auto=format',
+    email: 'teacher1@example.com',
+    role: 'user',
+    is_active: true,
+    isVerify: true,
+    community_points: 950,
+    level: '6',
+    badge_level: 3,
+    language: 'Tiếng Việt',
+    provider: 'local',
+    created_at: '2024-02-10T11:15:00Z',
+    last_login: '2024-09-28T08:45:00Z',
+    subscription_id: 'sub-premium-004',
+    subscription_expiry: '2025-02-10T11:15:00Z',
   }
 ];
 
@@ -212,6 +275,11 @@ export const activateUser = (userId: string): Promise<User> => {
   }
   return apiClient.put(`/users/${userId}/unlock`);
 };
+
+/** Export function để lấy users từ external components */
+export const getAllMockUsers = (): User[] => [...mockUsers];
+
+export const getUserById = (userId: string): User | undefined => mockUsers.find(u => u.id === userId);
 
 /** Mock UserUsage data and helpers for AI quota management */
 interface ResetQuotaPayload {

@@ -18,7 +18,7 @@ export const mockComments: Comment[] = [
   {
     id: 'comment1_reply1',
     post_id: 'post1',
-    user_id: 'b2c3d4e5-f6a7-8901-2345-67890abcdef0',
+    user_id: 'b2c3d4e5-f6a7-8901-2345-67890abcdef0', // Admin
     content: {
       html: '<p>@nguyenvana Chào mừng bạn! Hãy thoải mái chia sẻ nhé 👍</p>'
     },
@@ -30,7 +30,7 @@ export const mockComments: Comment[] = [
   {
     id: 'comment1_reply1_reply1',
     post_id: 'post1',
-    user_id: 'c3d4e5f6-a7b8-9012-3456-7890abcdef01',
+    user_id: 'c3d4e5f6-a7b8-9012-3456-7890abcdef01', // Nguyễn Văn A
     content: {
       html: '<p>@admin Cảm ơn admin! Mình sẽ tích cực tham gia ✨</p>'
     },
@@ -39,14 +39,13 @@ export const mockComments: Comment[] = [
     deleted_by: null,
   },
 
-  
   // Comment độc lập khác cho post1
   {
     id: 'comment2',
     post_id: 'post1',
-    user_id: 'f6a7b8c9-d0e1-2345-6789-0abcdef12345',
+    user_id: 'f6a7b8c9-d0e1-2345-6789-0abcdef12345', // Lê Văn C
     content: {
-      html: '<p>Tuyệt vời! Hy vọng sẽ học được nhiều điều từ mọi người �</p>'
+      html: '<p>Tuyệt vời! Hy vọng sẽ học được nhiều điều từ mọi người 🎓</p>'
     },
     parent_comment_id: null,
     created_at: '2025-10-02T10:30:00Z',
@@ -56,7 +55,7 @@ export const mockComments: Comment[] = [
   {
     id: 'comment2_reply1',
     post_id: 'post1',
-    user_id: 'c3d4e5f6-a7b8-9012-3456-7890abcdef01',
+    user_id: 'c3d4e5f6-a7b8-9012-3456-7890abcdef01', // Nguyễn Văn A
     content: {
       html: '<p>Đúng rồi! Mình cũng mong được chia sẻ kinh nghiệm với mọi người 🌟</p>'
     },
@@ -95,7 +94,7 @@ export const mockComments: Comment[] = [
     post_id: 'post2',
     user_id: 'a7b8c9d0-e1f2-3456-7890-bcdef1234567', // Phạm Thị D (Moderator)
     content: {
-      html: '<p>@lequanghung Bạn có thể chia sẻ cách setting Anki để hiệu quả nhất không?</p>'
+      html: '<p>@levancBạn có thể chia sẻ cách setting Anki để hiệu quả nhất không?</p>'
     },
     parent_comment_id: 'comment3',
     created_at: '2025-10-02T08:30:00Z',
@@ -112,7 +111,6 @@ export const mockComments: Comment[] = [
     created_at: '2025-10-02T09:00:00Z',
     deleted_by: null,
   },
-
 
   {
     id: 'comment4',
@@ -281,9 +279,9 @@ export const mockComments: Comment[] = [
   {
     id: 'comment11',
     post_id: 'post5',
-    user_id: 'user2',
+    user_id: 'd4e5f6a7-b8c9-0123-4567-890abcdef012', // Trần Thị B
     content: {
-      html: '<p>Mình cũng muốn được chia sẻ tài liệu HSK 4 và 5. Cảm ơn bạn nhiều! �</p>'
+      html: '<p>Mình cũng muốn được chia sẻ tài liệu HSK 4 và 5. Cảm ơn bạn nhiều! 🌟</p>'
     },
     parent_comment_id: null,
     created_at: '2025-09-30T20:00:00Z',
@@ -292,7 +290,7 @@ export const mockComments: Comment[] = [
   {
     id: 'comment11_reply1',
     post_id: 'post5',
-    user_id: 'user1',
+    user_id: 'c3d4e5f6-a7b8-9012-3456-7890abcdef01', // Nguyễn Văn A
     content: {
       html: '<p>@tranthib Sure! Mình sẽ share cho bạn luôn 🤗</p>'
     },
@@ -303,7 +301,7 @@ export const mockComments: Comment[] = [
   {
     id: 'comment11_reply1_reply1',
     post_id: 'post5',
-    user_id: 'user2',
+    user_id: 'd4e5f6a7-b8c9-0123-4567-890abcdef012', // Trần Thị B
     content: {
       html: '<p>Bạn thật tốt bụng! Cộng đồng này có những người như bạn thật là may mắn 🌟</p>'
     },

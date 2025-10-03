@@ -172,7 +172,7 @@ export interface Post {
   is_pinned: boolean;
   deleted_at?: Timestamp | null;
   deleted_reason?: string | null;
-  deleted_by: UUID;
+  deleted_by: UUID | null;
 }
 
 export interface Comment {
@@ -180,12 +180,11 @@ export interface Comment {
   post_id: UUID;
   user_id: UUID;
   content: Json; // Rich text JSON
-  likes: number;
   parent_comment_id?: UUID | null;
   created_at: Timestamp;
   deleted_at?: Timestamp | null;
   deleted_reason?: string | null;
-  deleted_by: UUID;
+  deleted_by: UUID | null;
 }
 
 // Interface: PostLikes
