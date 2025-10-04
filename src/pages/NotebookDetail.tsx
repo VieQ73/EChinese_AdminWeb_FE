@@ -27,8 +27,6 @@ const NotebookDetail: React.FC = ()=>{
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 24;
-  // paging not used per UI spec (scrollable card), keep placeholders removed
-  // Trash moved to its own page: /notebooks/:id/trash
   const [importPreviewOpen, setImportPreviewOpen] = useState(false);
   const [importItems, setImportItems] = useState<any[]>([]);
   const [importDuplicates, setImportDuplicates] = useState<any[]>([]);

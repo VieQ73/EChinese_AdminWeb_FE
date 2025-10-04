@@ -67,6 +67,7 @@ const navItems: NavItem[] = [
     { id: 'vocabulary', name: 'Sổ tay và Từ vựng', icon: Book, path: '/notebooks' },
     { id: 'tests', name: 'Đề thi Mock Test', icon: FileText, path: '/tests' },
     { id: 'posts', name: 'Nội dung Cộng đồng', icon: MessageSquare, path: '/admin/community' },
+    { id: 'tips', name: 'Mẹo và hướng dẫn', icon: FileText, path: '/tips' },
     { id: 'reports', name: 'Báo cáo vi phạm', icon: AlertCircle, path: '/reports' },
     { id: 'system', name: 'Hệ thống & Cấu hình', icon: Settings, path: '/system' },
     { id: 'change-password', name: 'Đổi mật khẩu', icon: Settings, path: '/change-password' },

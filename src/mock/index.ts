@@ -6,6 +6,7 @@ export * from './comments';
 export * from './postLikes';
 export * from './postViews';
 export * from './userInteractions';
+export * from './tips';
 
 // Helper function để format thời gian
 export const formatTimeAgo = (dateString: string): string => {

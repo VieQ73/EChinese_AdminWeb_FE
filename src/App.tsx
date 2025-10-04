@@ -9,6 +9,7 @@ import NotebooksPage from './pages/NotebooksPage';
 import NotebookDetail from './pages/NotebookDetail';
 import NotebookTrash from './pages/NotebookTrash';
 import AdminCommunityPage from './pages/AdminCommunityPage';
+import TipsManagementPage from './pages/TipsManagementPage';
 import MainLayout from './components/layout/MainLayout';
 import ChangePasswordPage from './pages/ChangePassword';
 import { ToastProvider } from './components/ui/Toast';
@@ -107,6 +108,7 @@ function App() {
           <Route path="notebooks/:id" element={<NotebookDetail />} />
           <Route path="notebooks/:id/trash" element={<NotebookTrash />} />
           <Route path="admin/community" element={<AdminCommunityPage />} />
+          <Route path="tips" element={<TipsManagementPage />} />
           <Route path="change-password" element={<ChangePasswordPage />} />
           {/* ... Các trang khác sẽ được thêm vào sau */}
           
