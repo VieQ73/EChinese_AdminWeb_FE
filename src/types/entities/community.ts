@@ -4,12 +4,20 @@
 
 import type { UUID, Timestamp, Json } from './base';
 
+// --- Post Content Structure ---
+export interface PostContent {
+  html?: string;
+  text?: string;
+  ops?: unknown[]; // QuillJS operations
+  images?: string[]; // Array of image URLs
+}
+
 // --- Community ---
 export interface Post {
   id: UUID;
   user_id: UUID;
   title: string;
-  content: Json; // Rich text JSON
+  content: PostContent; // Rich text content structure
   topic:
     | 'Cơ khí'
     | 'CNTT'
@@ -37,6 +45,7 @@ export interface Post {
   deleted_by: UUID | null;
 }
 
+// Basic Comment interface - dành cho database compatibility
 export interface Comment {
   id: UUID;
   post_id: UUID;
@@ -47,6 +56,43 @@ export interface Comment {
   deleted_at?: Timestamp | null;
   deleted_reason?: string | null;
   deleted_by: UUID | null;
+}
+
+// Enhanced Comment interface - dành cho Frontend display (include user info)
+export interface CommentWithUser {
+  id: UUID;
+  post_id: UUID;
+  content: Json; // Rich text JSON
+  parent_comment_id?: UUID | null;
+  created_at: Timestamp;
+  deleted_at?: Timestamp | null;
+  deleted_reason?: string | null;
+  deleted_by: UUID | null;
+  
+  // User information - được join từ Users table
+  user: {
+    id: UUID;
+    name: string;
+    username: string;
+    avatar_url?: string | null;
+    badge_level: number;
+    role: 'user' | 'admin' | 'super admin';
+    is_active: boolean;
+  };
+  
+  // Badge information - được join từ BadgeLevel
+  badge: {
+    level: number;
+    name: string;
+    icon?: string;
+  };
+  
+  // Nested replies for hierarchical display
+  replies?: CommentWithUser[];
+  
+  // Metadata
+  reply_count?: number;
+  depth?: number; // Độ sâu lồng nhau (0 = root comment)
 }
 
 // Interface: PostLikes

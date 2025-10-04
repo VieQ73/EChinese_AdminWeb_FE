@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, MessageCircle, X, Send, Eye, MoreHorizontal, Pin, Edit, Trash2 } from 'lucide-react';
-import type { Post, Comment } from '../../../types/entities';
+import type { Post, CommentWithUser } from '../../../types/entities';
 import { mockUsers } from '../../../mock/users';
 import { mockBadgeLevels } from '../../../mock/badgeLevels';
-import { getCommentsByPostId, getParentComments } from '../../../mock/comments';
+import { getEnrichedCommentsByPostId } from '../../../mock/comments';
 import { useAuth } from '../../../hooks/useAuth';
 import CommentItem from './CommentItem';
 
@@ -48,7 +48,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
   const [showDropdown, setShowDropdown] = useState(false);
   
   // State để lưu comments tạm thời (sẽ mất sau khi reload)
-  const [tempComments, setTempComments] = useState<Comment[]>([]);
+  const [tempComments, setTempComments] = useState<CommentWithUser[]>([]);
 
   // Reset state khi modal đóng/mở hoặc post thay đổi
   useEffect(() => {
@@ -69,13 +69,12 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
   const isOwner = currentUser?.id === post.user_id;
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super admin';
 
-  // Lấy comments gốc từ mock data
-  const mockComments = getCommentsByPostId(post.id);
-  const mockParentComments = getParentComments(post.id);
+  // Lấy enriched comments từ mock data
+  const enrichedComments = getEnrichedCommentsByPostId(post.id);
   
   // Kết hợp với temp comments để hiển thị
-  const allComments = [...mockComments, ...tempComments];
-  const parentComments = [...mockParentComments, ...tempComments.filter(c => !c.parent_comment_id)];
+  const allComments = [...enrichedComments, ...tempComments];
+  const parentComments = [...enrichedComments.filter(c => !c.parent_comment_id), ...tempComments.filter(c => !c.parent_comment_id)];
 
 
 
@@ -83,17 +82,25 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
   const handleSubmitComment = () => {
     if (!newComment.trim()) return;
     
-    // Tạo comment mới với ID random
-    const newCommentObj: Comment = {
+    // Tạo comment mới với embedded user data
+    const newCommentObj: CommentWithUser = {
       id: `temp_comment_${Date.now()}`,
       post_id: post.id,
-      user_id: currentUser?.id || 'anonymous', // Sử dụng user ID thật
-      content: {
-        html: `<p>${newComment}</p>`
-      },
+      content: newComment,
       parent_comment_id: null,
       created_at: new Date().toISOString(),
       deleted_by: null,
+      user: {
+        id: currentUser?.id || 'anonymous',
+        name: currentUser?.name || 'Anonymous User',
+        username: currentUser?.username || 'anonymous',
+        avatar_url: currentUser?.avatar_url || '/default-avatar.png',
+        badge_level: currentUser?.badge_level || 1,
+        role: currentUser?.role || 'user',
+        is_active: true
+      },
+      badge: mockBadgeLevels.find(b => b.level === currentUser?.badge_level) || mockBadgeLevels[0],
+      replies: []
     };
     
     // Thêm vào temp comments
@@ -104,16 +111,24 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
 
   // Xử lý thêm reply
   const handleAddReply = (parentCommentId: string, content: string) => {
-    const replyComment: Comment = {
+    const replyComment: CommentWithUser = {
       id: `temp_reply_${Date.now()}`,
       post_id: post.id,
-      user_id: currentUser?.id || 'anonymous', // Sử dụng user ID thật
-      content: {
-        html: `<p>${content}</p>`
-      },
+      content: content,
       parent_comment_id: parentCommentId,
       created_at: new Date().toISOString(),
       deleted_by: null,
+      user: {
+        id: currentUser?.id || 'anonymous',
+        name: currentUser?.name || 'Anonymous User',
+        username: currentUser?.username || 'anonymous',
+        avatar_url: currentUser?.avatar_url || '/default-avatar.png',
+        badge_level: currentUser?.badge_level || 1,
+        role: currentUser?.role || 'user',
+        is_active: true
+      },
+      badge: mockBadgeLevels.find(b => b.level === currentUser?.badge_level) || mockBadgeLevels[0],
+      replies: []
     };
     
     // Thêm vào temp comments

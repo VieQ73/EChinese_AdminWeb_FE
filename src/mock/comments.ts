@@ -1,147 +1,278 @@
-import type { Comment } from '../types/entities';
+import type { CommentWithUser } from '../types/entities';
 
-export const mockComments: Comment[] = [
-  // Post 001 comments (5 comments)
+export const mockComments: CommentWithUser[] = [
+  // Post 001 comments
   {
     id: 'comment-001',
     post_id: 'post-001',
-    user_id: 'c3d4e5f6-a7b8-9012-3456-7890abcdef01',
-    content: { html: '<p>Bài viết rất hữu ích! Mình cũng đang học HSK4.</p>' },
+    content: 'Bài viết rất hữu ích! Mình cũng đang học HSK4.',
     created_at: '2025-10-02T09:00:00Z',
     parent_comment_id: null,
-    deleted_at: null,
-    deleted_reason: null,
-    deleted_by: null
-  },
-  {
-    id: 'comment-002',
-    post_id: 'post-001',
-    user_id: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
-    content: { html: '<p>Cảm ơn bạn đã chia sẻ! Chúng tôi sẽ có thêm tài liệu HSK4 sớm.</p>' },
-    created_at: '2025-10-02T09:30:00Z',
-    parent_comment_id: 'comment-001',
-    deleted_at: null,
-    deleted_reason: null,
-    deleted_by: null
+    deleted_by: null,
+    user: {
+      id: 'c3d4e5f6-a7b8-9012-3456-7890abcdef01',
+      name: 'Nguyễn Văn A',
+      username: 'testuser1',
+      avatar_url: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=100&h=100&fit=crop&crop=face&auto=format',
+      badge_level: 2,
+      role: 'user',
+      is_active: true
+    },
+    badge: {
+      level: 2,
+      name: 'Thành thạo',
+      icon: '⭐'
+    },
+    replies: [
+      {
+        id: 'comment-002',
+        post_id: 'post-001',
+        content: 'Cảm ơn bạn đã chia sẻ! Chúng tôi sẽ có thêm tài liệu HSK4 sớm.',
+        created_at: '2025-10-02T09:30:00Z',
+        parent_comment_id: 'comment-001',
+        deleted_by: null,
+        user: {
+          id: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
+          name: 'Super Admin',
+          username: 'superadmin',
+          avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face&auto=format',
+          badge_level: 5,
+          role: 'super admin',
+          is_active: true
+        },
+        badge: {
+          level: 5,
+          name: 'Siêu quản trị',
+          icon: '💎'
+        },
+        replies: []
+      }
+    ]
   },
   {
     id: 'comment-003',
     post_id: 'post-001',
-    user_id: 'f6a7b8c9-d0e1-2345-6789-0abcdef12345',
-    content: { html: '<p>Mình cũng gặp vấn đề tương tự với ngữ pháp này.</p>' },
+    content: 'Mình cũng gặp vấn đề tương tự với ngữ pháp này.',
     created_at: '2025-10-02T10:15:00Z',
     parent_comment_id: null,
-    deleted_at: null,
-    deleted_reason: null,
-    deleted_by: null
-  },
-  {
-    id: 'comment-004',
-    post_id: 'post-001',
-    user_id: 'e5f6a7b8-c9d0-1234-5678-90abcdef1234',
-    content: { html: '<p>Bạn có thể tham khảo thêm sách "HSK Standard Course" nhé.</p>' },
-    created_at: '2025-10-02T11:00:00Z',
-    parent_comment_id: 'comment-003',
-    deleted_at: null,
-    deleted_reason: null,
-    deleted_by: null
+    deleted_by: null,
+    user: {
+      id: 'f6a7b8c9-d0e1-2345-6789-0abcdef12345',
+      name: 'Lê Văn C',
+      username: 'user3',
+      avatar_url: 'https://images.unsplash.com/photo-1507591064344-4c6ce005b128?w=100&h=100&fit=crop&crop=face&auto=format',
+      badge_level: 0,
+      role: 'user',
+      is_active: true
+    },
+    badge: {
+      level: 0,
+      name: 'Người mới',
+      icon: '🌱'
+    },
+    replies: [
+      {
+        id: 'comment-004',
+        post_id: 'post-001',
+        content: 'Bạn có thể tham khảo thêm sách "HSK Standard Course" nhé.',
+        created_at: '2025-10-02T11:00:00Z',
+        parent_comment_id: 'comment-003',
+        deleted_by: null,
+        user: {
+          id: 'e5f6a7b8-c9d0-1234-5678-90abcdef1234',
+          name: 'Người Bị Khóa',
+          username: 'locked_user',
+          avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=face&auto=format',
+          badge_level: 1,
+          role: 'user',
+          is_active: false
+        },
+        badge: {
+          level: 1,
+          name: 'Học viên',
+          icon: '📚'
+        },
+        replies: []
+      }
+    ]
   },
   {
     id: 'comment-005',
     post_id: 'post-001',
-    user_id: 'c9d0e1f2-a3b4-5678-9012-def123456789',
-    content: { html: '<p>Thanks for sharing! Rất có ích.</p>' },
+    content: 'Thanks for sharing! Rất có ích.',
     created_at: '2025-10-02T12:30:00Z',
     parent_comment_id: null,
-    deleted_at: null,
-    deleted_reason: null,
-    deleted_by: null
+    deleted_by: null,
+    user: {
+      id: 'c9d0e1f2-a3b4-5678-9012-def123456789',
+      name: 'Vũ Thị F',
+      username: 'teacher1',
+      avatar_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=face&auto=format',
+      badge_level: 3,
+      role: 'user',
+      is_active: true
+    },
+    badge: {
+      level: 3,
+      name: 'Chuyên gia',
+      icon: '🏆'
+    },
+    replies: []
   },
 
-  // Post 002 comments (3 comments)
+  // Post 002 comments
   {
     id: 'comment-006',
     post_id: 'post-002',
-    user_id: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
-    content: { html: '<p>Kinh nghiệm rất quý báu! Cảm ơn bạn đã chia sẻ.</p>' },
+    content: 'Kinh nghiệm rất quý báu! Cảm ơn bạn đã chia sẻ.',
     created_at: '2025-10-02T15:00:00Z',
     parent_comment_id: null,
-    deleted_at: null,
-    deleted_reason: null,
-    deleted_by: null
+    deleted_by: null,
+    user: {
+      id: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
+      name: 'Super Admin',
+      username: 'superadmin',
+      avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face&auto=format',
+      badge_level: 5,
+      role: 'super admin',
+      is_active: true
+    },
+    badge: {
+      level: 5,
+      name: 'Siêu quản trị',
+      icon: '💎'
+    },
+    replies: []
   },
   {
     id: 'comment-007',
     post_id: 'post-002',
-    user_id: 'd4e5f6a7-b8c9-0123-4567-890abcdef012',
-    content: { html: '<p>Mình cũng đang chuẩn bị du học. Có thể inbox để trao đổi không?</p>' },
+    content: 'Mình cũng đang chuẩn bị du học. Có thể inbox để trao đổi không?',
     created_at: '2025-10-02T15:45:00Z',
     parent_comment_id: null,
-    deleted_at: null,
-    deleted_reason: null,
-    deleted_by: null
-  },
-  {
-    id: 'comment-008',
-    post_id: 'post-002',
-    user_id: 'b2c3d4e5-f6a7-8901-2345-67890abcdef0',
-    content: { html: '<p>Nhóm có thể tạo một topic riêng để thảo luận về du học nhé!</p>' },
-    created_at: '2025-10-02T16:15:00Z',
-    parent_comment_id: 'comment-007',
-    deleted_at: null,
-    deleted_reason: null,
-    deleted_by: null
+    deleted_by: null,
+    user: {
+      id: 'd4e5f6a7-b8c9-0123-4567-890abcdef012',
+      name: 'Trần Thị B',
+      username: 'testuser2',
+      avatar_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=face&auto=format',
+      badge_level: 5,
+      role: 'user',
+      is_active: false
+    },
+    badge: {
+      level: 5,
+      name: 'Siêu quản trị',
+      icon: '💎'
+    },
+    replies: [
+      {
+        id: 'comment-008',
+        post_id: 'post-002',
+        content: 'Nhóm có thể tạo một topic riêng để thảo luận về du học nhé!',
+        created_at: '2025-10-02T16:15:00Z',
+        parent_comment_id: 'comment-007',
+        deleted_by: null,
+        user: {
+          id: 'b2c3d4e5-f6a7-8901-2345-67890abcdef0',
+          name: 'Admin',
+          username: 'admin',
+          avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face&auto=format',
+          badge_level: 4,
+          role: 'admin',
+          is_active: true
+        },
+        badge: {
+          level: 4,
+          name: 'Quản trị viên',
+          icon: '👑'
+        },
+        replies: []
+      }
+    ]
   },
 
-  // Post 004 comments (2 comments)
+  // Post 004 comments
   {
     id: 'comment-009',
     post_id: 'post-004',
-    user_id: 'c3d4e5f6-a7b8-9012-3456-7890abcdef01',
-    content: { html: '<p>Văn hóa trà đạo thật thú vị. Mình muốn tìm hiểu thêm.</p>' },
+    content: 'Văn hóa trà đạo thật thú vị. Mình muốn tìm hiểu thêm.',
     created_at: '2025-10-01T11:00:00Z',
     parent_comment_id: null,
-    deleted_at: null,
-    deleted_reason: null,
-    deleted_by: null
-  },
-  {
-    id: 'comment-010',
-    post_id: 'post-004',
-    user_id: 'a7b8c9d0-e1f2-3456-7890-bcdef1234567',
-    content: { html: '<p>Kung fu tea là tinh túy của văn hóa Trung Quốc.</p>' },
-    created_at: '2025-10-01T12:30:00Z',
-    parent_comment_id: 'comment-009',
-    deleted_at: null,
-    deleted_reason: null,
-    deleted_by: null
+    deleted_by: null,
+    user: {
+      id: 'c3d4e5f6-a7b8-9012-3456-7890abcdef01',
+      name: 'Nguyễn Văn A',
+      username: 'testuser1',
+      avatar_url: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=100&h=100&fit=crop&crop=face&auto=format',
+      badge_level: 2,
+      role: 'user',
+      is_active: true
+    },
+    badge: {
+      level: 2,
+      name: 'Thành thạo',
+      icon: '⭐'
+    },
+    replies: [
+      {
+        id: 'comment-010',
+        post_id: 'post-004',
+        content: 'Kung fu tea là tinh túy của văn hóa Trung Quốc.',
+        created_at: '2025-10-01T12:30:00Z',
+        parent_comment_id: 'comment-009',
+        deleted_by: null,
+        user: {
+          id: 'a7b8c9d0-e1f2-3456-7890-bcdef1234567',
+          name: 'Phạm Thị D',
+          username: 'moderator1',
+          avatar_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face&auto=format',
+          badge_level: 3,
+          role: 'admin',
+          is_active: true
+        },
+        badge: {
+          level: 3,
+          name: 'Chuyên gia',
+          icon: '🏆'
+        },
+        replies: []
+      }
+    ]
   }
 ];
 
-export const getPostComments = (postId: string): Comment[] => 
-  mockComments.filter(comment => comment.post_id === postId && !comment.deleted_at);
+// Helper functions
+export const getEnrichedCommentsByPostId = (postId: string): CommentWithUser[] => 
+  mockComments.filter(comment => comment.post_id === postId && !comment.deleted_by);
 
 export const getPostCommentsCount = (postId: string): number => 
-  mockComments.filter(comment => comment.post_id === postId && !comment.deleted_at).length;
+  mockComments.filter(comment => comment.post_id === postId && !comment.deleted_by).length;
 
-export const getUserComments = (userId: string): Comment[] =>
-  mockComments.filter(comment => comment.user_id === userId && !comment.deleted_at);
+export const getUserComments = (userId: string): CommentWithUser[] =>
+  mockComments.filter(comment => comment.user.id === userId && !comment.deleted_by);
 
 export const getUserCommentsCount = (userId: string): number =>
-  mockComments.filter(comment => comment.user_id === userId && !comment.deleted_at).length;
+  mockComments.filter(comment => comment.user.id === userId && !comment.deleted_by).length;
 
-export const getAllComments = (): Comment[] => 
-  mockComments.filter(comment => !comment.deleted_at);
+export const getAllComments = (): CommentWithUser[] => 
+  mockComments.filter(comment => !comment.deleted_by);
 
-// Additional helper functions for CommentItem and PostDetailModal
-export const getCommentsByPostId = (postId: string): Comment[] => 
-  getPostComments(postId);
+// Compatibility functions (for existing code)
+export const getCommentsByPostId = (postId: string): CommentWithUser[] => 
+  getEnrichedCommentsByPostId(postId);
 
-export const getParentComments = (postId: string): Comment[] =>
-  mockComments.filter(comment => comment.post_id === postId && !comment.parent_comment_id && !comment.deleted_at);
+export const getParentComments = (postId: string): CommentWithUser[] =>
+  mockComments.filter(comment => comment.post_id === postId && !comment.parent_comment_id && !comment.deleted_by);
 
-export const getNestedReplies = (parentId: string): Comment[] =>
-  mockComments.filter(comment => comment.parent_comment_id === parentId && !comment.deleted_at);
+export const getNestedReplies = (parentId: string): CommentWithUser[] => {
+  const parentComment = mockComments.find(comment => comment.id === parentId);
+  return parentComment?.replies || [];
+};
 
 export const getTotalRepliesCount = (parentId: string): number =>
   getNestedReplies(parentId).length;
+
+export const getEnrichedComment = (commentId: string): CommentWithUser | null => {
+  return mockComments.find(c => c.id === commentId) || null;
+};

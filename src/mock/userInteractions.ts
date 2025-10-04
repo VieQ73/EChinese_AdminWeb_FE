@@ -39,7 +39,7 @@ const createUserInteractionsFromMockData = (): UserInteraction[] => {
   // Thêm interactions từ Comments
   mockComments.forEach(comment => {
     interactions.push({
-      user_id: comment.user_id,
+      user_id: comment.user.id,
       post_id: comment.post_id,
       type: 'comment',
       interaction_date: comment.created_at

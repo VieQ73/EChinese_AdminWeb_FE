@@ -6,5 +6,4 @@
 export type UUID = string; // Postgres UUID
 export type Timestamp = string; // ISO 8601 string
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Json = any; // Sử dụng 'any' cho các trường JSON/JSONB phức tạp
+export type Json = unknown; // Sử dụng 'unknown' cho các trường JSON/JSONB phức tạp

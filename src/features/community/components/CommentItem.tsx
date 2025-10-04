@@ -1,17 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, MoreVertical, Trash2 } from 'lucide-react';
-import type { Comment } from '../../../types/entities';
-import { mockUsers } from '../../../mock/users';
-import { mockBadgeLevels } from '../../../mock/badgeLevels';
-import { getNestedReplies, getTotalRepliesCount } from '../../../mock/comments';
+import type { CommentWithUser } from '../../../types/entities';
 import { useAuth } from '../../../hooks/useAuth';
 
 interface CommentItemProps {
-  comment: Comment;
+  comment: CommentWithUser;
   depth?: number; // Theo dõi cấp độ thụt lề
   postId: string; // Cần để lấy nested replies
   onAddReply?: (parentCommentId: string, content: string) => void; // Hàm để thêm reply
-  tempComments?: Comment[]; // Temp comments để hiển thị realtime
+  tempComments?: CommentWithUser[]; // Temp comments để hiển thị realtime
   onUserClick?: (userId: string) => void; // Callback khi click vào user
 }
 
@@ -44,12 +41,12 @@ const CommentItem: React.FC<CommentItemProps> = ({
     };
   }, []);
 
-  // Lấy thông tin user và badge
-  const commentUser = mockUsers.find(u => u.id === comment.user_id);
-  const userBadge = mockBadgeLevels.find(b => b.level === commentUser?.badge_level);
+  // Comment đã có embedded user và badge data
+  const commentUser = comment.user;
+  const userBadge = comment.badge;
   
   // Kiểm tra quyền xóa comment (chỉ owner hoặc admin)
-  const isOwner = currentUser?.id === comment.user_id;
+  const isOwner = currentUser?.id === comment.user.id;
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super admin';
   const canDelete = isOwner || isAdmin;
 
@@ -88,18 +85,18 @@ const CommentItem: React.FC<CommentItemProps> = ({
     setShowReplies(true);
   };
 
-  // Lấy replies từ mock data
-  const mockReplies = getNestedReplies(comment.id);
+  // Lấy replies từ comment data (đã enriched)
+  const mockReplies = comment.replies || [];
   
   // Lấy temp replies cho comment này
-  const tempReplies = tempComments.filter(tc => tc.parent_comment_id === comment.id);
+  const tempReplies = tempComments?.filter(tc => tc.parent_comment_id === comment.id) || [];
   
   // Kết hợp mock và temp replies
   const nestedReplies = [...mockReplies, ...tempReplies];
   
   // Đếm tổng số replies (bao gồm temp replies)
-  const mockTotalRepliesCount = getTotalRepliesCount(comment.id);
-  const tempTotalRepliesCount = tempComments.filter(tc => tc.parent_comment_id === comment.id).length;
+  const mockTotalRepliesCount = mockReplies.length;
+  const tempTotalRepliesCount = tempReplies.length;
   const totalRepliesCount = mockTotalRepliesCount + tempTotalRepliesCount;
 
   // Giới hạn depth tối đa cho việc trả lời
@@ -113,7 +110,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
         src={commentUser?.avatar_url || '/default-avatar.png'} 
         alt={commentUser?.name || 'User'}
         className="w-10 h-10 rounded-full object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-        onClick={() => onUserClick?.(comment.user_id)}
+        onClick={() => onUserClick?.(comment.user.id)}
       />
       
       <div className="flex-1 min-w-0 relative group">
@@ -122,7 +119,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
           <div className="flex items-center gap-2 mb-1">
             <span 
               className="font-semibold text-sm text-gray-900 cursor-pointer hover:underline"
-              onClick={() => onUserClick?.(comment.user_id)}
+              onClick={() => onUserClick?.(comment.user.id)}
             >
               {commentUser?.name}
             </span>
@@ -132,10 +129,9 @@ const CommentItem: React.FC<CommentItemProps> = ({
               </span>
             )}
           </div>
-          <div 
-            className="text-sm text-gray-800"
-            dangerouslySetInnerHTML={{ __html: comment.content?.html || '' }}
-          />
+          <div className="text-sm text-gray-800">
+            {String(comment.content)}
+          </div>
           
           {/* Dropdown Menu - chỉ hiện khi có quyền */}
           {canDelete && (
@@ -241,6 +237,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
                   depth={depth < 2 ? depth + 1 : 2}
                   onAddReply={onAddReply}
                   tempComments={tempComments}
+                  onUserClick={onUserClick}
                 />
               </div>
             ))}

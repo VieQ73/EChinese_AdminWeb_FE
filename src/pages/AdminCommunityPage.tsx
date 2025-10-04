@@ -72,12 +72,12 @@ const AdminCommunityPage: React.FC = () => {
   const filteredPosts = posts.filter(post => {
     const matchesSearch = !searchQuery || 
       post.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (typeof post.content === 'string' 
-        ? post.content.toLowerCase().includes(searchQuery.toLowerCase())
-        : post.content?.ops?.some((op: any) => 
-            op.insert?.toLowerCase().includes(searchQuery.toLowerCase())
-          )
-      );
+      post.content?.text?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.content?.html?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.content?.ops?.some((op: unknown) => {
+        const operation = op as { insert?: string };
+        return operation.insert?.toLowerCase().includes(searchQuery.toLowerCase());
+      });
     
     const matchesTopic = !topicFilter || post.topic === topicFilter;
     
