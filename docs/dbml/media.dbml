@@ -1,0 +1,36 @@
+Table Media {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  original_name varchar(255) [not null]
+  display_name varchar(255) [note: "Display name set by Admin (e.g., 'HSK 5 Phần Nghe Bài 3')"]
+  s3_path varchar(255) [unique, not null]
+  mime_type varchar(50)
+  size_bytes int
+  uploaded_by uuid [note: "NULL if system-generated or auto-scraped file"]
+  usage_type varchar(50) [note: "Enum: 'mocktest_audio', 'vocab_image', 'user_avatar', 'system'"]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  Note: '''
+  - Quản lý tập trung các tài nguyên file (audio, image).
+  - Rất quan trọng cho file Vocabulary images (tự động cào) và MockTest Audios (cần tên rõ ràng).
+  '''
+  
+  Indexes {
+    s3_path [unique]
+    created_at [type: btree]
+  }
+}
+
+Table BadgeLevels {
+  level int [unique, primary key]
+  name varchar(50) [not null]
+  icon TEXT 
+  
+  Note: '''
+  - Tên huy hiệu tùy chỉnh (admin chỉnh sửa).
+  - Công thức nâng cấp huy hiệu: 
+    - Level 1: >=100 điểm cộng đồng (tuần) hoặc >=50% HSK thấp.
+    - Level 2: >=500 (tháng) hoặc >=80% HSK trung.
+    - Level 3: >=2000 (năm) hoặc top 9 thi thử 3 lần.
+    - Level 4: Chỉ admin.
+  '''
+}

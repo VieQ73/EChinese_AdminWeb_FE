@@ -1,0 +1,140 @@
+Table Posts {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  title varchar(100) [not null]
+  content json [not null, note: "Rich text JSON (bold, italic, underline, color, align, list, insert link)"]
+  topic varchar(50) [not null, note: "Enum: 'Cơ khí', 'CNTT', 'Dịch', 'Du học', 'Du lịch', 'Góc chia sẻ', 'Tìm bạn học chung', 'Học tiếng Trung', 'Tìm gia sư', 'Việc làm', 'Văn hóa', 'Thể thao', 'Xây dựng', 'Y tế', 'Tâm sự', 'Khác'"]
+  likes int [default: 0]
+  views int [default: 0]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  is_approved boolean [default: true]
+  is_pinned boolean [default: false, note: "Admin/Superadmin có thể ghim bài viết quan trọng"]
+  deleted_at timestamptz [note: "Soft-delete: gỡ tạm thời, có thể khôi phục"]
+  deleted_reason text [note: "Lý do gỡ"]
+  deleted_by uuid [null, note: "Ai gỡ"]
+
+  Note: '''
+  - Một bài đăng có thể gắn tối đa 3 ảnh (PostMediaMap).
+  - Không hỗ trợ video.
+  - Likes và Views chỉ lưu số tổng. Chi tiết được quản lý ở PostLikes và PostViews.
+  - Soft-delete cho phép gỡ bài tạm thời, có thể khôi phục.
+  - is_pinned giúp admin ghim bài viết quan trọng lên đầu trang.
+  '''
+
+  Indexes {
+    user_id [type: btree]
+    created_at [type: btree]
+    topic [type: btree]
+    is_pinned [type: btree]
+  }
+}
+
+Table PostLikes {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  post_id uuid [not null]
+  user_id uuid [not null]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+
+  Note: '''
+  - Quản lý ai đã like bài viết.
+  - Cho phép hiển thị danh sách người like.
+  - Dùng để query các bài viết user đã like.
+  '''
+
+  Indexes {
+    (post_id, user_id) [unique] // 1 user chỉ được like 1 lần
+    post_id [type: btree]
+    user_id [type: btree]
+  }
+}
+
+Table PostViews {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  post_id uuid [not null]
+  user_id uuid [note: "NULL nếu khách (chưa đăng nhập)"]
+  viewed_at timestamptz [default: `CURRENT_TIMESTAMP`]
+
+  Note: '''
+  - Quản lý chi tiết ai đã xem bài viết.
+  - Hỗ trợ tính năng "bài viết đã xem".
+  - Nếu chỉ cần số lượng view thì vẫn cập nhật vào Posts.views.
+  '''
+
+  Indexes {
+    post_id [type: btree]
+    user_id [type: btree]
+  }
+}
+
+Table Comments {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  post_id uuid [not null]
+  user_id uuid [not null]
+  content json [not null, note: "Rich text JSON"]
+  parent_comment_id uuid
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  deleted_at timestamptz
+  deleted_reason text
+  deleted_by uuid [null, note: "ai gỡ"]
+
+  Note: '''
+  - Comment có thể bị gỡ/xóa. 
+  - Admin chỉ có quyền gỡ/khôi phục, superadmin có quyền xóa vĩnh viễn.
+  - parent_comment_id hỗ trợ comment lồng nhau.
+  - deleted_reason + deleted_by để tra cứu lý do và người thực hiện.
+  '''
+  
+  Indexes {
+    post_id [type: btree]
+    user_id [type: btree]
+    parent_comment_id [type: btree]
+    created_at [type: btree]
+  }
+}
+
+Table PostMediaMap {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  post_id uuid [not null]
+  media_id uuid [not null]
+  order_no int [default: 0, note: "Thứ tự hiển thị (0–2, tối đa 3 ảnh/post)."]
+
+  Note: '''
+  - Liên kết bài viết với ảnh trong bảng Media.
+  - Một bài viết có thể có 0–3 ảnh.
+  - enforce rule qua logic app hoặc constraint check.
+  '''
+  
+  Indexes {
+    post_id [type: btree]
+    media_id [type: btree]
+  }
+}
+
+Table ModerationLogs {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  target_type varchar(20) [not null, note: "Enum: 'post', 'comment'"]
+  target_id uuid [not null]
+  action varchar(30) [not null, note: "Enum: 'gỡ', 'khôi phục', 'xóa vĩnh viễn'"]
+  reason text
+  performed_by uuid [not null]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+
+  Note: '''
+  - Lưu lại toàn bộ lịch sử thao tác quản trị.
+  - Phục vụ kiểm toán/audit trail, minh bạch quản trị.
+  - Khác với deleted_by/deleted_reason trong Posts/Comments (chỉ lưu trạng thái cuối).
+  '''
+  
+  Indexes {
+    target_type [type: btree]
+    target_id [type: btree]
+    performed_by [type: btree]
+  }
+}
+
+// Relationships within this file
+Ref: Comments.post_id > Posts.id [delete: cascade]
+Ref: Comments.parent_comment_id > Comments.id [delete: cascade]
+Ref: PostLikes.post_id > Posts.id [delete: cascade]
+Ref: PostViews.post_id > Posts.id [delete: cascade]
+Ref: PostMediaMap.post_id > Posts.id [delete: cascade]

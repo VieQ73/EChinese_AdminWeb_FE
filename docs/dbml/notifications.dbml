@@ -1,0 +1,60 @@
+Table Notifications {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  recipient_id uuid [note: "NULL cho broadcast; nếu không NULL => notification chỉ cho user này"]
+  audience varchar(20) [not null, note: "Enum: 'user','admin','all' - dùng để lọc broadcast target"]
+  type varchar(50) [not null, note: "Enum examples: 'system','report','subscription','community','achievement','reminder','feedback'"]
+  title varchar(200) [not null]
+  content text [not null]
+  related_type varchar(50) [note: "Loại đối tượng liên quan: 'post','comment','vocabulary','report',..."]
+  related_id uuid
+  data jsonb [note: "Extra payload (e.g. { report_id: '...', post_id: '...' })"]
+  redirect_url text [note: "Frontend route or deep-link; NULL nếu không cần redirect"]
+  read_at timestamptz [note: "Thời gian đọc (NULL = chưa đọc)"]
+  is_push_sent boolean [default: false]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  expires_at timestamptz [note: "Optional: tự xóa sau thời hạn"]
+
+  Note: '''
+  - Notifications lưu message gửi đến người dùng hoặc admin.
+  - recipient_id NULL + audience='all' hoặc 'admin' -> broadcast; nếu recipient_id not NULL -> private notification.
+  - data: dùng để chứa JSON payload giúp frontend điều hướng hoặc render chi tiết.
+  '''
+
+  Indexes {
+    recipient_id [type: btree]
+    audience [type: btree]
+    created_at [type: btree]
+    read_at [type: btree]
+    (related_type, related_id) [type: btree]
+  }
+}
+
+Table Reports {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  reporter_id uuid [not null]
+  target_type varchar(20) [not null, note: "Enum: 'post', 'comment', 'user', 'bug', 'other'"]
+  target_id uuid
+  reason varchar(255) [not null]
+  details text [note: "Chi tiết/khiếu nại (nếu có)"]
+  attachments jsonb [note: "Array of {url:string, mime:string, name?:string}"]
+  status varchar(20) [default: 'pending', note: "Enum: 'pending','resolved','dismissed'"]
+  assigned_to uuid [note: "Admin id được gán xử lý (optional)"]
+  resolved_by uuid
+  resolved_at timestamptz
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz
+
+  Note: '''
+  - Lưu báo cáo (report) do user tạo: post/comment/user/bug/other.
+  - Nếu target_type in ('post','comment','user') => target_id tham chiếu resource tương ứng.
+  - Nếu target_type = 'bug' => details + attachments chứa nội dung khiếu nại/bug report.
+  - assigned_to: tiện cho luồng phân công handle.
+  '''
+
+  Indexes {
+    (target_type, target_id) [type: btree]
+    reporter_id [type: btree]
+    status [type: btree]
+    created_at [type: btree]
+  }
+}

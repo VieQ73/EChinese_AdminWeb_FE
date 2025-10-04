@@ -1,0 +1,73 @@
+Table Subscriptions {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  name varchar(100) [unique, not null]
+  daily_quota_ai_lesson int [default: 0]
+  daily_quota_translate int [default: 0]
+  price decimal(10,2) [default: 0]
+  duration_months int [note: "NULL for Permanent plans. Positive values for time-limited plans."]
+  is_active boolean [default: true]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  Note: '''
+  - duration_months: NULL biểu thị gói Vĩnh Viễn.
+  - Admin có thể tùy ý Tạo/Sửa/Xóa gói. Admin chỉnh sửa tên, thời hạn, quota (không hard-code).
+  - duration_months: 1 cho tháng, 3 cho ba tháng, null cho vĩnh viễn/miễn phí.
+  - quota cho AI (tạo bài học, dịch), reset hàng ngày qua cron job.
+  - price cho thanh toán, is_active để kích hoạt/gỡ gói.
+  '''
+  
+  Indexes {
+    name [unique]
+  }
+}
+
+Table Payments {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  subscription_id uuid [not null]
+  amount decimal(10,2) [not null]
+  currency varchar(3) [default: 'VND']
+  status varchar(20) [default: 'pending', note: "Enum: 'pending', 'successful', 'failed', 'refunded', 'manual_confirmed'"]
+  payment_method varchar(50) [not null, note: "Enum: 'visa/mastercard', 'bank_transfer', 'momo', 'zalopay', 'vnpay', etc.'"]
+  gateway_transaction_id varchar(255) [unique, not null]
+  transaction_date timestamptz [default: `CURRENT_TIMESTAMP`]
+  gateway_response json
+  processed_by_admin uuid [note: "Admin/Super Admin ID that processed this transaction (usually for refunds or manual confirmation)."]
+  notes text
+  
+  Note: '''
+  - Theo dõi chi tiết mọi giao dịch mua gói đăng ký.
+  - Gateway_transaction_id là ID duy nhất từ cổng thanh toán (ví dụ: VNPAY, Momo, Stripe).
+  - Processed_by_admin cho các trường hợp hoàn tiền hoặc xác nhận thủ công.
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+    status [type: btree]
+    transaction_date [type: btree]
+    payment_method [type: btree]
+  }
+}
+
+Table UserUsage {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  feature varchar(50) [not null, note: "Enum: 'ai_lesson', 'ai_translate'"]
+  daily_count int [default: 0]
+  last_reset timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  Note: '''
+  - Quản lý quota sử dụng AI theo tính năng (tạo bài học, dịch, TTS).
+  - daily_count reset hàng ngày qua cron job dựa trên subscription quotas.
+  - last_reset để kiểm tra reset quota (ví dụ, reset nếu >24h).
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+    feature [type: btree]
+  }
+}
+
+// Relationships within this file
+Ref: Payments.subscription_id > Subscriptions.id [delete: restrict]

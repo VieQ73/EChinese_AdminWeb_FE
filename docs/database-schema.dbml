@@ -43,6 +43,61 @@ Table Users {
   }
 }
 
+// Table UserSessions
+Table UserSessions {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  login_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  logout_at timestamptz
+  device varchar(50) [note: "mobile, web, desktop"]
+  ip_address varchar(50)
+
+  Note: '''
+  - Lưu lại chi tiết từng phiên login/logout.
+  - Dùng để tính toán thời gian online chi tiết hoặc phát hiện đăng nhập bất thường.
+  '''
+
+  Indexes {
+    user_id [type: btree]
+    login_at [type: btree]
+  }
+}
+
+// Table UserDailyActivity
+Table UserDailyActivity {
+  user_id uuid [not null]
+  date date [not null]
+  minutes_online int [default: 0]
+  login_count int [default: 0]
+
+  Note: '''
+  - Tóm tắt hoạt động theo ngày (minutes online, số lần login).
+  - Hỗ trợ thống kê theo tuần/tháng dễ dàng.
+  '''
+
+  Indexes {
+    user_id [type: btree]
+    date [type: btree]
+  }
+
+  primary key (user_id, date)
+}
+
+// Table UserStreaks
+Table UserStreaks {
+  user_id uuid [primary key]
+  current_streak int [default: 0]
+  longest_streak int [default: 0]
+  last_login_date date
+
+  Note: '''
+  - Quản lý chuỗi ngày đăng nhập liên tục (gamification).
+  - current_streak reset nếu người dùng bỏ lỡ 1 ngày.
+  - longest_streak lưu kỷ lục cao nhất để hiển thị thành tựu.
+  '''
+}
+
+
 // Table Subscriptions
 Table Subscriptions {
   id uuid [primary key, default: `uuid_generate_v4()`]
@@ -127,7 +182,7 @@ Table Posts {
   is_pinned boolean [default: false, note: "Admin/Superadmin có thể ghim bài viết quan trọng"]
   deleted_at timestamptz [note: "Soft-delete: gỡ tạm thời, có thể khôi phục"]
   deleted_reason text [note: "Lý do gỡ"]
-  deleted_by uuid [not null, note: "Ai gỡ"]
+  deleted_by uuid [null, note: "Ai gỡ"]
 
   Note: '''
   - Một bài đăng có thể gắn tối đa 3 ảnh (PostMediaMap).
@@ -191,12 +246,11 @@ Table Comments {
   post_id uuid [not null]
   user_id uuid [not null]
   content json [not null, note: "Rich text JSON"]
-  likes int [default: 0]
   parent_comment_id uuid
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
   deleted_at timestamptz
   deleted_reason text
-  deleted_by uuid
+  deleted_by uuid [null, note: "ai gỡ"]
 
   Note: '''
   - Comment có thể bị gỡ/xóa. 
@@ -255,55 +309,152 @@ Table ModerationLogs {
   }
 }
 
-// Table MockTests
+// Table MockTests Thông tin kỳ thi (mock test)
 Table MockTests {
   id uuid [primary key, default: `uuid_generate_v4()`]
   type varchar(10) [not null, note: "Enum: 'HSK', 'TOCFL', 'D4', 'HSKK'"]
-  level varchar(10) [not null, note: "Test level"]
+  level varchar(10) [not null, note: "Ví dụ: HSK1–HSK6, HSK7-9, TOCFL A1–C2"]
   title varchar(100) [not null]
-  total_time_limit int [not null]
+  total_time_limit int [not null, note: "Tổng thời gian làm bài (phút)"]
   total_max_score int [not null]
-  sections json [not null, note: "Array of sections: [{name: string ('Listening', 'Reading', 'Writing', 'Visual'), time_limit: int (minutes), max_score: int, total_questions: int, questions: [{id: uuid (local ID), type: string ('mcq', 'fill', 'write', 'repeat', 'describe', 'answer'), text: string (question content), options: array<string> (for MCQ, null otherwise), correct_answer: string (index for MCQ, text for others), explanation: string (detailed explanation with examples), media_url: string (S3 URL for audio/image, null if none), is_visual: boolean (true for picture-based questions)}]}]"]
   instructions text
   is_active boolean [default: true]
-  created_by uuid
-  deleted_at timestamptz [note: "Soft-Delete: Allows Admin to temporarily remove (recoverable)."]
-  
+  created_by uuid [note: "Người tạo (Admin)"]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  deleted_at timestamptz [note: "Soft delete (ẩn tạm thời)"]
+
   Note: '''
-  - Xóa Vĩnh Viễn (Hard Delete) sẽ là thao tác riêng, thường là Cron Job hoặc Super Admin API.
-  - Cấu trúc đề thi chi tiết được lưu trong JSON sections.
-  - Mô phỏng kỳ thi thực tế (HSK1: Listening+Visual; HSK6: Listening+Reading+Writing).
-  - HSKK: Chỉ nhiệm vụ (không có câu hỏi).
-  - Media qua URL S3 (audio cho Listening, image cho Visual).
-  - Trộn/sửa câu hỏi phía client.
+  - Bảng gốc quản lý đề thi thử.
+  - Ví dụ: 'HSK3 - Đề số 1'.
   '''
   
   Indexes {
     (type, level) [type: btree]
+    created_by [type: btree]
+    is_active [type: btree]
   }
 }
 
-// Table UserTestScores
+// Các phần trong đề (Listening, Reading, Writing...)
+Table MockTestSections {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  test_id uuid [not null]
+  name varchar(50) [not null, note: "Listening, Reading, Writing, Speaking..."]
+  order_no int [not null, default: 1]
+  time_limit int [note: "Giới hạn thời gian section (phút), NULL nếu không tách riêng"]
+  max_score int [not null]
+  total_questions int [not null]
+
+  Note: '''
+  - Mỗi đề thi có nhiều section.
+  - order_no để sắp xếp (ví dụ Listening = 1, Reading = 2).
+  '''
+  
+  Indexes {
+    test_id [type: btree]
+    order_no [type: btree]
+  }
+}
+
+// Câu hỏi trong section
+Table MockTestQuestions {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  section_id uuid [not null]
+  order_no int [not null]
+  type varchar(20) [not null, note: "Enum: 'mcq','fill','write','repeat','describe','answer'"]
+  text text [note: "Nội dung câu hỏi"]
+  options jsonb [note: "Array<string> cho MCQ, null nếu không có lựa chọn"]
+  correct_answer text [note: "Chỉ số cho MCQ hoặc text cho dạng khác"]
+  explanation text [note: "Giải thích đáp án (dùng khi review)"]
+  media_id uuid [note: "Tham chiếu Media (audio/hình ảnh)"]
+  start_time int [note: "Thời điểm bắt đầu (giây) trong file audio"]
+  end_time int [note: "Thời điểm kết thúc (giây) trong file audio"]
+  is_visual boolean [default: false, note: "true nếu là câu dựa trên hình ảnh"]
+
+  Note: '''
+  - Câu hỏi có thể đi kèm file nghe hoặc hình.
+  - start_time/end_time dùng để phát lại 1 đoạn audio trong file nghe lớn.
+  '''
+  
+  Indexes {
+    section_id [type: btree]
+    order_no [type: btree]
+    type [type: btree]
+    media_id [type: btree]
+  }
+}
+
+// =======================
+// BẢNG KẾT QUẢ NGƯỜI DÙNG
+// =======================
+
+// Tổng hợp điểm cao nhất của user cho 1 đề thi
 Table UserTestScores {
   id uuid [primary key, default: `uuid_generate_v4()`]
   user_id uuid [not null]
   test_id uuid [not null]
   highest_total_score int [default: 0]
-  attempts json [note: "Array of attempts: [{attempt_id: uuid, started_at: timestamp, submitted_at: timestamp, total_score: int, section_scores: [{section_name: string, score: int, completed_questions: int, total_questions: int, percentage: float}], user_answers: [{question_local_id: uuid, selected_answer: string, is_correct: boolean, time_spent: int (seconds)}]}]"]
-  explanations_viewed json [note: "Track {attempt_id: {question_id: boolean}}"]
-  
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+
   Note: '''
-  - Theo dõi điểm cao nhất và chi tiết lần thử, bao gồm câu trả lời của người dùng.
-  - Section_scores cho phân tích (ví dụ, Listening: 80/100).
-  - Chế độ ôn tập liên kết với MockTests.sections.questions.
-  - Xếp hạng qua view (top 9 theo loại/cấp độ, loại trừ HSKK).
+  - Lưu điểm cao nhất của user cho từng đề.
+  - Dùng để xếp hạng nhanh (leaderboard).
+  - Chi tiết từng lần thi tách ra ở bảng UserTestAttempts.
   '''
-  
+
   Indexes {
     (user_id, test_id) [unique]
     highest_total_score [type: btree]
+    created_at [type: btree]
   }
 }
+
+// Lần làm bài cụ thể của user
+Table UserTestAttempts {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  test_id uuid [not null]
+  started_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  submitted_at timestamptz
+  total_score int
+  section_scores jsonb [note: "Ví dụ: [{section_id, score, completed_questions, total_questions}]"]
+
+  Note: '''
+  - Mỗi lần thi của user = 1 record.
+  - section_scores lưu điểm chi tiết theo phần.
+  '''
+
+  Indexes {
+    user_id [type: btree]
+    test_id [type: btree]
+    submitted_at [type: btree]
+  }
+}
+
+// Câu trả lời chi tiết của user trong từng attempt
+Table UserTestAnswers {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  attempt_id uuid [not null]
+  question_id uuid [not null]
+  selected_answer text
+  is_correct boolean
+  time_spent int [note: "Thời gian làm câu (giây)"]
+  reviewed boolean [default: false, note: "Người dùng đã xem lại lời giải chưa"]
+
+  Note: '''
+  - Lưu chi tiết từng câu user đã làm.
+  - Phục vụ tính năng review đáp án sau khi thi.
+  - reviewed = true nếu user đã click xem giải thích.
+  '''
+
+  Indexes {
+    attempt_id [type: btree]
+    question_id [type: btree]
+    is_correct [type: btree]
+  }
+}
+
 
 // Table Notebooks
 Table Notebooks {
@@ -608,6 +759,10 @@ Table RefreshTokens {
 Ref: Users.badge_level > BadgeLevels.level [delete: set default]
 Ref: Users.subscription_id > Subscriptions.id [delete: set null]
 
+Ref: UserSessions.user_id > Users.id [delete: cascade]
+Ref: UserDailyActivity.user_id > Users.id [delete: cascade]
+Ref: UserStreaks.user_id > Users.id [delete: cascade]
+
 Ref: Payments.user_id > Users.id [delete: restrict]
 Ref: Payments.subscription_id > Subscriptions.id [delete: restrict]
 Ref: Payments.processed_by_admin > Users.id [delete: set null]
@@ -632,9 +787,6 @@ Ref: PostLikes.user_id > Users.id [delete: cascade]
 Ref: PostViews.post_id > Posts.id [delete: cascade]
 Ref: PostViews.user_id > Users.id [delete: set null]
 
-Ref: UserTestScores.user_id > Users.id [delete: cascade]
-Ref: UserTestScores.test_id > MockTests.id [delete: restrict]
-
 Ref: Notebooks.user_id > Users.id [delete: cascade]
 Ref: NotebookVocabItems.notebook_id > Notebooks.id [delete: cascade]
 Ref: NotebookVocabItems.vocab_id > Vocabulary.id [delete: restrict]
@@ -648,7 +800,19 @@ Ref: Reports.reporter_id > Users.id [delete: set null]
 Ref: Reports.assigned_to > Users.id [delete: set null]
 Ref: Reports.resolved_by > Users.id [delete: set null]
 
-Ref: MockTests.created_by > Users.id [delete: set null]
+Ref: MockTestSections.test_id > MockTests.id [delete: cascade]
+Ref: MockTestQuestions.section_id > MockTestSections.id [delete: cascade]
+Ref: MockTestQuestions.media_id > Media.id [delete: set null]
+
+Ref: UserTestScores.user_id > Users.id [delete: cascade]
+Ref: UserTestScores.test_id > MockTests.id [delete: cascade]
+
+Ref: UserTestAttempts.user_id > Users.id [delete: cascade]
+Ref: UserTestAttempts.test_id > MockTests.id [delete: cascade]
+
+Ref: UserTestAnswers.attempt_id > UserTestAttempts.id [delete: cascade]
+Ref: UserTestAnswers.question_id > MockTestQuestions.id [delete: cascade]
+
 Ref: Tips.created_by > Users.id [delete: set null]
 Ref: Media.uploaded_by > Users.id [delete: set null]
 Ref: TranslationHistory.user_id > Users.id [delete: cascade]
