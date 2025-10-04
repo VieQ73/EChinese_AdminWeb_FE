@@ -26,6 +26,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const replyInputRef = useRef<HTMLInputElement>(null);
 
   // Đóng dropdown khi click ra ngoài
   useEffect(() => {
@@ -165,7 +166,28 @@ const CommentItem: React.FC<CommentItemProps> = ({
             {/* Chỉ hiển thị nút trả lời nếu chưa đạt giới hạn depth */}
             {canReply && (
               <button 
-                onClick={() => setShowReplyBox(!showReplyBox)}
+                onClick={() => {
+                  // Khi nhấn trả lời, hiển thị cả replies và reply box
+                  setShowReplies(true);
+                  const newShowReplyBox = !showReplyBox;
+                  setShowReplyBox(newShowReplyBox);
+                  
+                  // Nếu đang mở reply box và không phải comment của chính mình
+                  if (newShowReplyBox && currentUser?.id !== comment.user.id) {
+                    // Tự động thêm @tên người dùng vào ô nhập liệu
+                    const mentionText = `@${comment.user.name} `;
+                    setReplyText(mentionText);
+                    
+                    // Focus vào input sau khi render
+                    setTimeout(() => {
+                      if (replyInputRef.current) {
+                        replyInputRef.current.focus();
+                        // Đặt con trỏ ở cuối text
+                        replyInputRef.current.setSelectionRange(mentionText.length, mentionText.length);
+                      }
+                    }, 100);
+                  }
+                }}
                 className="hover:text-blue-600 font-medium"
               >
                 Trả lời
@@ -182,9 +204,35 @@ const CommentItem: React.FC<CommentItemProps> = ({
           </div>
         </div>
 
-        {/* Reply Input - Chỉ hiển thị nếu được phép trả lời */}
-        {showReplyBox && canReply && (
+        {/* Replies - Hiển thị trước ô nhập liệu */}
+        {showReplies && nestedReplies.length > 0 && (
           <div className="mt-3">
+            {nestedReplies.map((reply, index) => (
+              <div key={reply.id} className={`${index > 0 ? 'mt-3' : ''} ${
+                depth === 0 ? 'ml-10' : 
+                depth === 1 ? 'ml-10' : 
+                ''  // Từ cấp 2 trở đi không thụt lề thêm
+              }`}>
+                <CommentItem 
+                  comment={reply} 
+                  postId={postId}
+                  depth={depth < 2 ? depth + 1 : 2}
+                  onAddReply={onAddReply}
+                  tempComments={tempComments}
+                  onUserClick={onUserClick}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Reply Input - Hiển thị sau danh sách replies */}
+        {showReplyBox && canReply && (
+          <div className={`mt-3 ${
+            depth === 0 ? 'ml-10' : 
+            depth === 1 ? 'ml-10' : 
+            ''  // Đồng bộ thụt lề với replies
+          }`}>
             <div className="flex gap-2">
               <img 
                 src={currentUser?.avatar_url || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face&auto=format"} 
@@ -197,6 +245,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
               />
               <div className="flex-1 relative">
                 <input
+                  ref={replyInputRef}
                   type="text"
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
@@ -219,28 +268,6 @@ const CommentItem: React.FC<CommentItemProps> = ({
                 )}
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Replies */}
-        {showReplies && nestedReplies.length > 0 && (
-          <div className="mt-3">
-            {nestedReplies.map((reply, index) => (
-              <div key={reply.id} className={`${index > 0 ? 'mt-3' : ''} ${
-                depth === 0 ? 'ml-10' : 
-                depth === 1 ? 'ml-10' : 
-                ''  // Từ cấp 2 trở đi không thụt lề thêm
-              }`}>
-                <CommentItem 
-                  comment={reply} 
-                  postId={postId}
-                  depth={depth < 2 ? depth + 1 : 2}
-                  onAddReply={onAddReply}
-                  tempComments={tempComments}
-                  onUserClick={onUserClick}
-                />
-              </div>
-            ))}
           </div>
         )}
       </div>

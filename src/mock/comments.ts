@@ -93,6 +93,52 @@ export const mockComments: CommentWithUser[] = [
           icon: '📚'
         },
         replies: []
+      },
+      {
+        id: 'comment-004b',
+        post_id: 'post-001',
+        content: 'Mình cũng vừa mua cuốn sách này, thấy khá hay!',
+        created_at: '2025-10-02T11:30:00Z',
+        parent_comment_id: 'comment-003',
+        deleted_by: null,
+        user: {
+          id: 'b8c9d0e1-f2a3-4567-8901-cdef12345678',
+          name: 'Hoàng Văn E',
+          username: 'student1',
+          avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face&auto=format',
+          badge_level: 2,
+          role: 'user',
+          is_active: true
+        },
+        badge: {
+          level: 2,
+          name: 'Thành thạo',
+          icon: '⭐'
+        },
+        replies: []
+      },
+      {
+        id: 'comment-004c',
+        post_id: 'post-001',
+        content: 'Các bạn có thể tham gia group học chung HSK4 không?',
+        created_at: '2025-10-02T12:00:00Z',
+        parent_comment_id: 'comment-003',
+        deleted_by: null,
+        user: {
+          id: 'a7b8c9d0-e1f2-3456-7890-bcdef1234567',
+          name: 'Phạm Thị D',
+          username: 'moderator1',
+          avatar_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face&auto=format',
+          badge_level: 3,
+          role: 'admin',
+          is_active: true
+        },
+        badge: {
+          level: 3,
+          name: 'Chuyên gia',
+          icon: '🏆'
+        },
+        replies: []
       }
     ]
   },
