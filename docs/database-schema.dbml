@@ -544,11 +544,11 @@ Table NotebookVocabItems {
 // Table Tips
 Table Tips {
   id uuid [primary key, default: `uuid_generate_v4()`]
-  order int [not null]
   topic varchar(50) [not null, note: "Enum: 'Tất cả', 'Văn hóa', 'Ngữ pháp', 'Từ vựng', 'Phát âm', 'Khẩu ngữ', 'Kỹ năng nghe', 'Kỹ năng đọc', 'Kỹ năng viết', 'Khác'"]
   level varchar(10) [not null, note: "Enum: 'Sơ cấp', 'Trung cấp', 'Cao cấp'"]
-  content text [not null]
+  content jsonb [not null, note: "Lưu trữ nội dung Rich Text dưới dạng JSON, hỗ trợ định dạng văn bản và căn chỉnh"]
   answer text
+  is_pinned boolean [not null, default: false, note: "Mới: Quyết định mẹo có được ghim (Pin) lên đầu danh sách hay không. Tối đa 3 mẹo được ghim/chủ đề."]
   created_by uuid
   
   Note: '''
@@ -560,8 +560,10 @@ Table Tips {
   Indexes {
     topic [type: btree]
     level [type: btree]
+    is_pinned [type: btree]
   }
 }
+
 
 // Table AILessons
 Table AILessons {

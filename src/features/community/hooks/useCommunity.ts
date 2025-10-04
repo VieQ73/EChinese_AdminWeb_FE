@@ -70,10 +70,7 @@ export const useCommunity = () => {
     return restoredPost;
   };
 
-  const hardDeletePost = async (id: string, options?: communityApi.AdminActionOptions): Promise<void> => {
-    await communityApi.hardDeletePost(id, options);
-    setPosts(prev => prev.filter(p => p.id !== id));
-  };
+  // hardDeletePost - chưa được sử dụng trong frontend hiện tại
 
   const pinPost = async (id: string): Promise<Post> => {
     const pinnedPost = await communityApi.pinPost(id);
@@ -87,16 +84,7 @@ export const useCommunity = () => {
     return unpinnedPost;
   };
 
-  const approvePost = async (id: string): Promise<Post> => {
-    const approvedPost = await communityApi.approvePost(id);
-    setPosts(prev => prev.map(p => p.id === id ? approvedPost : p));
-    return approvedPost;
-  };
-
-  const rejectPost = async (id: string, reason?: string): Promise<void> => {
-    await communityApi.rejectPost(id, reason);
-    await loadPosts();
-  };
+  // approvePost/rejectPost - chưa có workflow duyệt bài trong frontend hiện tại
 
   // ===== COMMENTS MANAGEMENT =====
   
@@ -161,14 +149,7 @@ export const useCommunity = () => {
   };
 
   // ===== REPORTS =====
-  
-  const reportPost = async (postId: string, payload: communityApi.ReportPayload): Promise<void> => {
-    await communityApi.reportPost(postId, payload);
-  };
-
-  const reportComment = async (commentId: string, payload: communityApi.ReportPayload): Promise<void> => {
-    await communityApi.reportComment(commentId, payload);
-  };
+  // Report functionality sẽ được tách thành module riêng
 
   // ===== PAGINATION =====
   
@@ -206,11 +187,10 @@ export const useCommunity = () => {
     updatePost,
     removePost,
     restorePost,
-    hardDeletePost,
+    // hardDeletePost - chưa được sử dụng
     pinPost,
     unpinPost,
-    approvePost,
-    rejectPost,
+    // approvePost, rejectPost - chưa có workflow duyệt bài
     
     // Comments management
     fetchComments,
@@ -226,9 +206,7 @@ export const useCommunity = () => {
     viewPost,
     sharePost,
     
-    // Reports
-    reportPost,
-    reportComment,
+    // Reports - sẽ được tách thành module riêng
     
     // Pagination
     goToPage,

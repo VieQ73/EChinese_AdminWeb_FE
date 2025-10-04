@@ -6,10 +6,10 @@
 
 ```
 src/features/community/
-├── communityApi.ts          # Tất cả API calls cho cộng đồng
+├── communityApi.ts          # API calls cho cộng đồng (chỉ chức năng đã phát triển)
 ├── hooks/
 │   ├── useCommunity.ts      # Hook chính cho quản lý posts & comments
-│   ├── useReports.ts        # Hook quản lý báo cáo vi phạm
+│   ├── useReports.ts        # Placeholder - Reports sẽ có module riêng
 │   └── useCommunityStats.ts # Hook quản lý thống kê & logs
 └── components/              # Các React components
 ```
@@ -78,8 +78,7 @@ POST /admin/community/posts/:id/restore   # Khôi phục
 DELETE /admin/community/posts/:id         # Xóa cứng
 POST /admin/community/posts/:id/pin       # Ghim bài viết
 POST /admin/community/posts/:id/unpin     # Bỏ ghim
-POST /admin/community/posts/:id/approve   # Duyệt bài
-POST /admin/community/posts/:id/reject    # Từ chối duyệt
+# Note: Approval/Rejection workflow chưa phát triển
 ```
 
 ## 2. Comments Management API
@@ -139,33 +138,9 @@ POST /community/posts/:id/share
 Response: {success: boolean}
 ```
 
-## 4. Reports API
+## 4. Reports API (Chưa phát triển)
 
-### Báo cáo vi phạm
-```typescript
-POST /community/posts/:id/report        # Báo cáo bài viết
-POST /community/comments/:id/report     # Báo cáo comment
-POST /community/users/:id/report        # Báo cáo user
-
-Body: {
-  reason: string,
-  details?: string,
-  attachments?: Array<{
-    url: string,
-    mime?: string,
-    name?: string
-  }>
-}
-
-Response: Report
-```
-
-### Quản lý báo cáo (Admin)
-```typescript
-GET /admin/community/reports                    # Lấy danh sách báo cáo
-POST /admin/community/reports/:id/resolve       # Xử lý báo cáo
-POST /admin/community/reports/:id/assign        # Gán cho admin xử lý
-```
+**Note**: Chức năng báo cáo sẽ được phát triển trong module riêng về Notifications & Reports cho Admin.
 
 ## 5. Statistics API
 

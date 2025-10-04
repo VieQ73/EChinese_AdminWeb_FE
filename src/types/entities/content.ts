@@ -6,13 +6,14 @@ import type { UUID, Timestamp, Json } from './base';
 
 export interface Tip {
   id: UUID;
-  order: number;
-  topic: string; // 'Tất cả', 'Văn hóa', 'Ngữ pháp', ...
+  topic: string; // 'Tất cả', 'Câu đố', 'HSK', 'Câu nói hay', 'Giao tiếp', 'Ngữ pháp', 'Văn hóa', 'Từ vựng', 'Viết', 'HSKK', 'Phát âm', 'Khẩu ngữ', 'Ngôn ngữ mạng', 'Du học', 'Hướng dẫn sử dụng', 'Truyện cười'
   level: string; // 'Sơ cấp', 'Trung cấp', 'Cao cấp'
-  content: string;
+  content: Json; // Rich text JSON
   answer?: string;
+  is_pinned?: boolean; // Xác định mẹo có được ghim lên đầu danh sách (Pin) hay không.
   created_by?: UUID;
 }
+
 
 export interface AILesson {
   id: UUID;

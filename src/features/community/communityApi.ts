@@ -4,13 +4,43 @@ import type {
   Comment, 
   PostLike, 
   PostView, 
-  Report, 
   ModerationLog
 } from '../../types/entities';
 import type { PaginatedResponse } from '../../types/api';
 
 // ========================
-// TYPES - Định nghĩa types cho API requests/responses
+// IMPORTANT NOTES FOR BACKEND IMPLEMENTATION
+// ========================
+/*
+ * QUAN TRỌNG: Khi implement backend cho các API like/view/comment,
+ * cần đảm bảo ĐỒNG BỘ dữ liệu giữa các bảng:
+ * 
+ * 1. Khi user LIKE bài viết:
+ *    - Tạo record trong PostLikes table
+ *    - Tăng Post.likes_count += 1
+ *    - Return cả PostLike object VÀ likes_count mới
+ * 
+ * 2. Khi user UNLIKE bài viết:
+ *    - Xóa record khỏi PostLikes table  
+ *    - Giảm Post.likes_count -= 1
+ *    - Return success = true VÀ likes_count mới
+ * 
+ * 3. Khi user VIEW bài viết:
+ *    - Tạo record trong PostViews table (nếu chưa có)
+ *    - Tăng Post.views_count += 1 (chỉ count unique users)
+ *    - Return cả PostView object VÀ views_count mới
+ * 
+ * 4. Khi user COMMENT:
+ *    - Tạo record trong Comments table
+ *    - Tăng Post.comments_count += 1
+ *    - Khi xóa comment thì giảm Post.comments_count -= 1
+ * 
+ * ĐẢM BẢO: Database transaction để tránh inconsistency
+ * ĐẢM BẢO: Real-time sync giữa admin web và mobile app
+ */
+
+// ========================
+// TYPES - Định nghĩa types cho API requests/responses  
 // ========================
 
 // Params cho query posts với filter và pagination
@@ -55,16 +85,7 @@ export interface AdminActionOptions {
   };
 }
 
-// Payload để báo cáo bài viết/comment
-export interface ReportPayload {
-  reason: string;
-  details?: string;
-  attachments?: Array<{
-    url: string;
-    mime?: string;
-    name?: string;
-  }>;
-}
+// Report functionality sẽ được tách thành module riêng
 
 // ========================
 // POSTS API - Quản lý bài viết
@@ -84,12 +105,7 @@ export const fetchPostById = (id: string): Promise<Post> => {
   return apiClient.get(`/admin/community/posts/${id}`);
 };
 
-/**
- * Lấy danh sách bài viết đã bị xóa (soft delete)
- */
-export const fetchDeletedPosts = (params: FetchPostsParams = {}): Promise<PaginatedResponse<Post>> => {
-  return apiClient.get('/admin/community/posts/deleted', { params });
-};
+// fetchDeletedPosts - không được sử dụng trong frontend hiện tại
 
 /**
  * Tạo bài viết mới
@@ -119,12 +135,7 @@ export const restorePost = (id: string, options: AdminActionOptions = {}): Promi
   return apiClient.post(`/admin/community/posts/${id}/restore`, options);
 };
 
-/**
- * Xóa cứng bài viết (không thể khôi phục)
- */
-export const hardDeletePost = (id: string, options: AdminActionOptions = {}): Promise<{ success: boolean }> => {
-  return apiClient.delete(`/admin/community/posts/${id}`, { data: options });
-};
+// hardDeletePost - chưa được sử dụng trong frontend hiện tại
 
 /**
  * Ghim bài viết lên đầu
@@ -140,19 +151,7 @@ export const unpinPost = (id: string): Promise<Post> => {
   return apiClient.post(`/admin/community/posts/${id}/unpin`);
 };
 
-/**
- * Duyệt bài viết (nếu có hệ thống duyệt bài)
- */
-export const approvePost = (id: string): Promise<Post> => {
-  return apiClient.post(`/admin/community/posts/${id}/approve`);
-};
-
-/**
- * Từ chối duyệt bài viết
- */
-export const rejectPost = (id: string, reason?: string): Promise<{ success: boolean }> => {
-  return apiClient.post(`/admin/community/posts/${id}/reject`, { reason });
-};
+// approvePost/rejectPost - chưa có workflow duyệt bài trong frontend hiện tại
 
 // ========================
 // COMMENTS API - Quản lý bình luận
@@ -231,22 +230,25 @@ export const hardDeleteComment = (commentId: string, options: AdminActionOptions
 
 /**
  * Like một bài viết
+ * NOTE: Backend phải đảm bảo cập nhật cả PostLike record VÀ Post.likes_count
  */
-export const likePost = (postId: string): Promise<PostLike> => {
+export const likePost = (postId: string): Promise<PostLike & { post_likes_count: number }> => {
   return apiClient.post(`/community/posts/${postId}/like`);
 };
 
 /**
- * Unlike một bài viết
+ * Unlike một bài viết  
+ * NOTE: Backend phải đảm bảo xóa PostLike record VÀ giảm Post.likes_count
  */
-export const unlikePost = (postId: string): Promise<{ success: boolean }> => {
+export const unlikePost = (postId: string): Promise<{ success: boolean; post_likes_count: number }> => {
   return apiClient.delete(`/community/posts/${postId}/like`);
 };
 
 /**
  * Đánh dấu đã xem bài viết
+ * NOTE: Backend phải đảm bảo tạo PostView record VÀ tăng Post.views_count
  */
-export const viewPost = (postId: string): Promise<PostView> => {
+export const viewPost = (postId: string): Promise<PostView & { post_views_count: number }> => {
   return apiClient.post(`/community/posts/${postId}/view`);
 };
 
@@ -272,55 +274,42 @@ export const getPostViews = (postId: string): Promise<PostView[]> => {
 };
 
 // ========================
-// REPORTS API - Báo cáo vi phạm
+// COUNTERS UPDATE API - Cập nhật số lượng like/views trong Post
 // ========================
 
 /**
- * Báo cáo bài viết vi phạm
+ * Cập nhật số lượng likes cho bài viết (dành cho admin hoặc sync data)
+ * Backend tự tính toán từ bảng PostLikes và cập nhật Post.likes_count
  */
-export const reportPost = (postId: string, payload: ReportPayload): Promise<Report> => {
-  return apiClient.post(`/community/posts/${postId}/report`, payload);
+export const updatePostLikesCount = (postId: string): Promise<{ likes_count: number }> => {
+  return apiClient.post(`/admin/community/posts/${postId}/sync-likes-count`);
 };
 
 /**
- * Báo cáo bình luận vi phạm
+ * Cập nhật số lượng views cho bài viết (dành cho admin hoặc sync data)
+ * Backend tự tính toán từ bảng PostViews và cập nhật Post.views_count
  */
-export const reportComment = (commentId: string, payload: ReportPayload): Promise<Report> => {
-  return apiClient.post(`/community/comments/${commentId}/report`, payload);
+export const updatePostViewsCount = (postId: string): Promise<{ views_count: number }> => {
+  return apiClient.post(`/admin/community/posts/${postId}/sync-views-count`);
 };
 
 /**
- * Báo cáo user vi phạm
+ * Cập nhật số lượng comments cho bài viết (tự động khi thêm/xóa comment)
+ * Backend tự tính toán từ bảng Comments và cập nhật Post.comments_count
  */
-export const reportUser = (userId: string, payload: ReportPayload): Promise<Report> => {
-  return apiClient.post(`/community/users/${userId}/report`, payload);
+export const updatePostCommentsCount = (postId: string): Promise<{ comments_count: number }> => {
+  return apiClient.post(`/admin/community/posts/${postId}/sync-comments-count`);
 };
 
 /**
- * Lấy danh sách báo cáo (dành cho admin)
+ * Sync tất cả counters cho một bài viết
  */
-export const fetchReports = (params: {
-  page?: number;
-  limit?: number;
-  status?: 'pending' | 'resolved' | 'dismissed';
-  target_type?: 'post' | 'comment' | 'user' | 'bug' | 'other';
-  assigned_to?: string;
-}): Promise<PaginatedResponse<Report>> => {
-  return apiClient.get('/admin/community/reports', { params });
-};
-
-/**
- * Xử lý báo cáo (dành cho admin)
- */
-export const resolveReport = (reportId: string, action: 'resolved' | 'dismissed'): Promise<Report> => {
-  return apiClient.post(`/admin/community/reports/${reportId}/resolve`, { action });
-};
-
-/**
- * Gán báo cáo cho admin xử lý
- */
-export const assignReport = (reportId: string, adminId: string): Promise<Report> => {
-  return apiClient.post(`/admin/community/reports/${reportId}/assign`, { admin_id: adminId });
+export const syncAllPostCounters = (postId: string): Promise<{
+  likes_count: number;
+  views_count: number; 
+  comments_count: number;
+}> => {
+  return apiClient.post(`/admin/community/posts/${postId}/sync-all-counters`);
 };
 
 // ========================
@@ -430,4 +419,71 @@ export const getCommunityStatsByTopic = (): Promise<Array<{
   views_count: number;
 }>> => {
   return apiClient.get('/admin/community/statistics/by-topic');
+};
+
+// ========================
+// EXPORTED FUNCTIONS - Grouping theo chức năng
+// ========================
+
+export default {
+  // Post Management
+  posts: {
+    fetchPosts,
+    fetchPostById, 
+    createPost,
+    updatePost,
+    removePost,
+    restorePost,
+    pinPost,
+    unpinPost
+  },
+  
+  // Comment Management
+  comments: {
+    fetchComments,
+    fetchUserComments,
+    fetchCommentById,
+    addComment,
+    addReply,
+    updateComment,
+    removeComment,
+    restoreComment,
+    hardDeleteComment
+  },
+  
+  // Interactions (QUAN TRỌNG: Các API này cập nhật counters)
+  interactions: {
+    likePost,      // Cập nhật Post.likes_count
+    unlikePost,    // Cập nhật Post.likes_count  
+    viewPost,      // Cập nhật Post.views_count
+    sharePost,
+    getPostLikes,
+    getPostViews
+  },
+  
+  // Counter Sync (Dành cho admin hoặc data repair)
+  counters: {
+    updatePostLikesCount,    // Sync likes_count từ PostLikes table
+    updatePostViewsCount,    // Sync views_count từ PostViews table  
+    updatePostCommentsCount, // Sync comments_count từ Comments table
+    syncAllPostCounters      // Sync tất cả counters
+  },
+  
+  // User Posts
+  userPosts: {
+    fetchUserPosts,
+    fetchUserPostsAll,
+    getUserPostStats
+  },
+  
+  // Moderation & Statistics
+  moderation: {
+    fetchModerationLogs
+  },
+  
+  statistics: {
+    getCommunityStats,
+    getCommunityStatsByDate,
+    getCommunityStatsByTopic
+  }
 };

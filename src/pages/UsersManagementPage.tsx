@@ -5,7 +5,6 @@ import type { User } from '../types/entities';
 import type { PaginatedResponse } from '../types/api';
 import { UserDetailModal } from '../features/users/components/UserDetailModal';
 import { Button } from '../components/ui/button';
-import { Loader2 } from 'lucide-react';
 import { UserFilter } from '../features/users/components/UserFilter';
 import { UserListTable } from '../features/users/components/UserListTable';
 
