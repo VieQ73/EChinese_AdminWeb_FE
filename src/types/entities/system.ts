@@ -15,26 +15,69 @@ export interface AdminLog {
 }
 
 export interface Notification {
-  id: string; // UUID
-  recipient_id?: string | null; // null => broadcast
+  id: UUID;
+  recipient_id?: UUID | null;
   audience: 'user' | 'admin' | 'all';
-
-  type: 'system' | 'report' | 'subscription' | 'community' | 'achievement' | 'reminder' | 'feedback';
-
+  type:
+    | 'system'
+    | 'report'
+    | 'violation'
+    | 'appeal'
+    | 'subscription'
+    | 'community'
+    | 'achievement'
+    | 'reminder'
+    | 'feedback';
+  
   title: string;
   content: string;
-
-  related_type?: 'post' | 'comment' | 'report' | 'subscription' | 'notebook' | string | null;
-  related_id?: string | null;
-
+  related_type?: string | null;
+  related_id?: UUID | null;
   data?: Record<string, any> | null;
   redirect_url?: string | null;
+  
+  read_at?: Timestamp | null;
+  is_push_sent: boolean;
+  created_at: Timestamp;
+  expires_at?: Timestamp | null;
+  
+  priority: number; // Độ ưu tiên hiển thị: 0=thường, 1=quan trọng
+  from_system: boolean;
+}
 
-  read_at?: string | null;    // ISO timestamp
-  is_push_sent?: boolean;
+export interface Report {
+  id: UUID;
+  reporter_id?: UUID | null; // Null nếu AI tự tạo
+  target_type: 'post' | 'comment' | 'user' | 'bug' | 'other';
+  target_id?: UUID | null;
+  reason: string;
+  details?: string | null;
+  attachments?: { url: string; mime: string; name?: string }[] | null;
 
-  created_at: string;         // ISO timestamp
-  expires_at?: string | null;
+  status: 'pending' | 'in_progress' | 'resolved' | 'dismissed';
+  resolution?: string | null;
+  assigned_to?: UUID | null;
+  resolved_by?: UUID | null;
+  resolved_at?: Timestamp | null;
+  related_violation_id?: UUID | null;
+  auto_flagged: boolean;
+
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+export interface Violation {
+  id: UUID;
+  user_id: UUID;
+  target_type: 'post' | 'comment';
+  target_id: UUID;
+  rule: string;
+  severity: 'low' | 'medium' | 'high';
+  detected_by: 'admin' | 'auto_ai';
+  handled: boolean;
+  created_at: Timestamp;
+  resolved_at?: Timestamp | null;
+  resolution?: string | null;
 }
 
 export interface Media {

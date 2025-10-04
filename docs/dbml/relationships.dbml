@@ -8,6 +8,8 @@ Ref: Payments.processed_by_admin > Users.id [delete: set null]
 Ref: Posts.user_id > Users.id
 Ref: Posts.deleted_by > Users.id
 
+Ref: Violations.user_id > Users.id [delete: cascade]
+
 Ref: Comments.user_id > Users.id
 Ref: Comments.deleted_by > Users.id
 
@@ -30,7 +32,7 @@ Ref: MockTests.created_by > Users.id [delete: set null]
 Ref: Tips.created_by > Users.id [delete: set null]
 Ref: Media.uploaded_by > Users.id [delete: set null]
 
-Ref: Notifications.recipient_id > Users.id [delete: set null]
+Ref: Notifications.recipient_id > Users.id [delete: cascade]
 
 Ref: Reports.reporter_id > Users.id [delete: set null]
 Ref: Reports.assigned_to > Users.id [delete: set null]

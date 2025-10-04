@@ -1,6 +1,5 @@
 // Enable UUID extension
 
-// Table Users
 Table Users {
   id uuid [primary key, default: `uuid_generate_v4()`]
   username varchar(50) [unique]
@@ -14,23 +13,21 @@ Table Users {
   is_active boolean [default: true]
   isVerify boolean [default: false]
   community_points int [default: 0]
-  subscription_id uuid [note: "Allows NULL for Free and Permanent plans"]
-  subscription_expiry timestamptz
+  subscription_id uuid [not null]
+  subscription_expiry timestamptz [note: "Cho phép NULL cho Free user và người đăng ký gói vĩnh viễn"]
   level varchar(3) [not null, note: "Enum: '1', '2', '3', '4', '5', '6', '7-9'"]
   badge_level int [not null, default: 0]
   language varchar(10) [not null, note: "Enum: 'Tiếng Việt', 'Tiếng Anh'"]
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
   last_login timestamptz
-  achievements json [note: "Array of {name: string, achieved_at: timestamp, criteria: string}"]
   
   Note: '''
   - Bảng trung tâm cho hồ sơ người dùng, hỗ trợ đăng nhập qua username/password, goole, apple.
   - Username/password_hash cho đăng nhập local (hash bcrypt), provider/provider_id cho OAuth (Google/Apple).
   - Email và name có thể null.
-  - Thành tựu tính toán qua cron job (ví dụ, 7 ngày đăng nhập liên tục).
   - Điểm cộng đồng tổng hợp từ Posts/Comments (likes*10, posts*20, comments_received*20), lưu trực tiếp để tối ưu query.
   - isVerify hỗ trợ xác thực email, tăng bảo mật.
-  - subscription_id NULL: Áp dụng cho Free User hoặc gói Premium Vĩnh Viễn.
+  - subscription_id: not null - tự động gán id gói free cho người dùng ngay khi tạo tài khoản
   '''
   
   Indexes {
@@ -97,6 +94,57 @@ Table UserStreaks {
   '''
 }
 
+//Table Achievements
+Table Achievements {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  name varchar(100) [not null, unique, note: "Tên thành tích, ví dụ: 'Gấu chăm chỉ', 'Thánh tra cứu'"]
+  description text [not null, note: "Mô tả thành tích, ví dụ: 'Đăng nhập liên tục 7 ngày'"]
+  criteria jsonb [not null, note: "Tiêu chí đạt được dưới dạng JSON để linh hoạt, ví dụ: {'type': 'login_streak', 'min_streak': 7} hoặc {'type': 'translation_usage', 'min_count': 30, 'feature': 'ai_translate'}"]
+  icon text [note: "URL icon hiển thị cho thành tích"]
+  points int [default: 0, note: "Điểm thưởng cộng vào community_points khi đạt được"]
+  is_active boolean [default: true, note: "Admin có thể tắt/mở thành tích"]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  Note: '''
+  - Quản lý các thành tích (achievements) do admin tạo/sửa.
+  - criteria JSONB cho phép định nghĩa linh hoạt các điều kiện (dựa trên UserStreaks, UserUsage, TranslationHistory, etc.).
+  - Ví dụ criteria:
+    - {'type': 'login_streak', 'min_streak': 7} -> Thành tích 'Gấu chăm chỉ'
+    - {'type': 'translation_usage', 'min_count': 30, 'feature': 'ai_translate'} -> Thành tích 'Thánh tra cứu'
+    - {'type': 'community_points', 'min_points': 1000} -> Thành tích 'Người đóng góp xuất sắc'
+  - Cron job hoặc trigger kiểm tra criteria và cấp thành tích qua UserAchievements.
+  - points: Số điểm thưởng, cộng vào Users.community_points khi đạt được.
+  '''
+  
+  Indexes {
+    name [unique]
+    is_active [type: btree]
+  }
+}
+
+//Table UserAchievements
+Table UserAchievements {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  achievement_id uuid [not null]
+  achieved_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  progress jsonb [note: "Tiến độ hiện tại nếu cần (ví dụ: {'current_count': 25, 'required': 30}), NULL nếu không theo dõi progress"]
+  
+  Note: '''
+  - Liên kết N:N giữa Users và Achievements, lưu thời gian đạt được.
+  - progress JSONB để theo dõi tiến độ (nếu thành tích có tiêu chí đếm dần, như số lần dịch).
+  - Unique constraint (user_id, achievement_id) để tránh cấp trùng lặp.
+  - Cron job update progress và cấp thành tích khi đạt criteria.
+  '''
+  
+  Indexes {
+    (user_id, achievement_id) [unique]
+    user_id [type: btree]
+    achievement_id [type: btree]
+    achieved_at [type: btree]
+  }
+}
 
 // Table Subscriptions
 Table Subscriptions {
@@ -168,37 +216,44 @@ Table Payments {
   }
 }
 
-// Table Posts
+//Table Posts
 Table Posts {
   id uuid [primary key, default: `uuid_generate_v4()`]
   user_id uuid [not null]
   title varchar(100) [not null]
-  content json [not null, note: "Rich text JSON (bold, italic, underline, color, align, list, insert link)"]
+  content json [not null, note: "Rich text JSON: bold, italic, underline, list, link,..."]
   topic varchar(50) [not null, note: "Enum: 'Cơ khí', 'CNTT', 'Dịch', 'Du học', 'Du lịch', 'Góc chia sẻ', 'Tìm bạn học chung', 'Học tiếng Trung', 'Tìm gia sư', 'Việc làm', 'Văn hóa', 'Thể thao', 'Xây dựng', 'Y tế', 'Tâm sự', 'Khác'"]
   likes int [default: 0]
   views int [default: 0]
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
-  is_approved boolean [default: true]
-  is_pinned boolean [default: false, note: "Admin/Superadmin có thể ghim bài viết quan trọng"]
-  deleted_at timestamptz [note: "Soft-delete: gỡ tạm thời, có thể khôi phục"]
-  deleted_reason text [note: "Lý do gỡ"]
-  deleted_by uuid [null, note: "Ai gỡ"]
+
+  //Moderation
+  status varchar(20) [default: 'published', note: "Enum: 'draft','published','hidden','removed','archived'"]
+  is_approved boolean [default: true, note: "False = chờ duyệt / vi phạm / bị ẩn"]
+  auto_flagged boolean [default: false, note: "True = bị AI phát hiện nghi ngờ vi phạm"]
+  is_pinned boolean [default: false, note: "Admin/Superadmin có thể ghim bài viết"]
+
+  deleted_at timestamptz [note: "Thời điểm bị gỡ (soft delete)"]
+  deleted_reason text [note: "Lý do gỡ (do user hoặc admin)"]
+  deleted_by uuid [note: "Ai gỡ (user tự gỡ hoặc admin)"]
 
   Note: '''
-  - Một bài đăng có thể gắn tối đa 3 ảnh (PostMediaMap).
-  - Không hỗ trợ video.
-  - Likes và Views chỉ lưu số tổng. Chi tiết được quản lý ở PostLikes và PostViews.
-  - Soft-delete cho phép gỡ bài tạm thời, có thể khôi phục.
-  - is_pinned giúp admin ghim bài viết quan trọng lên đầu trang.
+  - Khi user tự xóa bài: status='removed', deleted_by=user_id, is_approved=true.
+  - Khi admin xóa: status='removed', deleted_by=admin_id, is_approved=false, tạo Violation.
+  - Khi AI nghi ngờ: auto_flagged=true, status='hidden' chờ admin xem.
+  - Bài bị removed sẽ bị xóa cứng sau 7 ngày nếu không được khôi phục.
   '''
 
   Indexes {
     user_id [type: btree]
-    created_at [type: btree]
     topic [type: btree]
+    created_at [type: btree]
+    status [type: btree]
+    auto_flagged [type: btree]
     is_pinned [type: btree]
   }
 }
+
 
 
 // Table PostLikes
@@ -555,6 +610,7 @@ Table Tips {
   - Mẹo trang chủ với đáp án tùy chọn cho quiz.
   - Tổng số tính toán động.
   - Sử dụng cho mẹo bài học AI nếu lưu riêng.
+  
   '''
   
   Indexes {
@@ -610,38 +666,6 @@ Table AdminLogs {
   }
 }
 
-
-// Table Reports
-Table Reports {
-  id uuid [primary key, default: `uuid_generate_v4()`]
-  reporter_id uuid [not null]
-  target_type varchar(20) [not null, note: "Enum: 'post', 'comment', 'user', 'bug', 'other'"]
-  target_id uuid
-  reason varchar(255) [not null]
-  details text [note: "Chi tiết/khiếu nại (nếu có)"]
-  attachments jsonb [note: "Array of {url:string, mime:string, name?:string}"]
-  status varchar(20) [default: 'pending', note: "Enum: 'pending','resolved','dismissed'"]
-  assigned_to uuid [note: "Admin id được gán xử lý (optional)"]
-  resolved_by uuid
-  resolved_at timestamptz
-  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
-  updated_at timestamptz
-
-  Note: '''
-  - Lưu báo cáo (report) do user tạo: post/comment/user/bug/other.
-  - Nếu target_type in ('post','comment','user') => target_id tham chiếu resource tương ứng.
-  - Nếu target_type = 'bug' => details + attachments chứa nội dung khiếu nại/bug report.
-  - assigned_to: tiện cho luồng phân công handle.
-  '''
-
-  Indexes {
-    (target_type, target_id) [type: btree]
-    reporter_id [type: btree]
-    status [type: btree]
-    created_at [type: btree]
-  }
-}
-
 // Table TranslationHistory
 Table TranslationHistory {
   id uuid [primary key, default: `uuid_generate_v4()`]
@@ -687,24 +711,30 @@ Table UserUsage {
 // Table Notifications
 Table Notifications {
   id uuid [primary key, default: `uuid_generate_v4()`]
-  recipient_id uuid [note: "NULL cho broadcast; nếu không NULL => notification chỉ cho user này"]
-  audience varchar(20) [not null, note: "Enum: 'user','admin','all' - dùng để lọc broadcast target"]
-  type varchar(50) [not null, note: "Enum examples: 'system','report','subscription','community','achievement','reminder','feedback'"]
+  recipient_id uuid [note: "NULL cho broadcast; nếu không NULL => thông báo riêng cho user"]
+  audience varchar(20) [not null, note: "Enum: 'user','admin','all'"]
+  type varchar(50) [not null, note: "Enum: 'system','report','violation','appeal','subscription','community','achievement','reminder','feedback'"]
+
   title varchar(200) [not null]
   content text [not null]
-  related_type varchar(50) [note: "Loại đối tượng liên quan: 'post','comment','vocabulary','report',..."]
+  
+  related_type varchar(50) [note: "Loại đối tượng liên quan: 'post','comment','user','report','violation',..."]
   related_id uuid
-  data jsonb [note: "Extra payload (e.g. { report_id: '...', post_id: '...' })"]
-  redirect_url text [note: "Frontend route or deep-link; NULL nếu không cần redirect"]
-  read_at timestamptz [note: "Thời gian đọc (NULL = chưa đọc)"]
-  is_push_sent boolean [default: false]
+  data jsonb [note: "Payload bổ sung cho frontend, ví dụ: { post_id:'...', reason:'...' }"]
+  
+  redirect_url text [note: "Route hoặc deep-link đến màn hình chi tiết (optional)"]
+  read_at timestamptz [note: "Thời gian đọc; NULL nếu chưa đọc"]
+  is_push_sent boolean [default: false, note: "Đánh dấu đã gửi push notification đến mobile"]
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
-  expires_at timestamptz [note: "Optional: tự xóa sau thời hạn"]
+  expires_at timestamptz [note: "Tự động xóa sau thời hạn nếu có"]
+  
+  priority int [default: 0, note: "Độ ưu tiên hiển thị: 0=thường, 1=quan trọng"]
+  from_system boolean [default: false, note: "True nếu thông báo được tạo bởi hệ thống tự động"]
 
   Note: '''
-  - Notifications lưu message gửi đến người dùng hoặc admin.
-  - recipient_id NULL + audience='all' hoặc 'admin' -> broadcast; nếu recipient_id not NULL -> private notification.
-  - data: dùng để chứa JSON payload giúp frontend điều hướng hoặc render chi tiết.
+  - Dùng cho mọi loại thông báo: hệ thống, vi phạm, broadcast,...
+  - from_system = true giúp phân biệt thông báo tự động và do admin gửi.
+  - priority hữu ích để sắp xếp hoặc highlight các thông báo khẩn.
   '''
 
   Indexes {
@@ -713,6 +743,78 @@ Table Notifications {
     created_at [type: btree]
     read_at [type: btree]
     (related_type, related_id) [type: btree]
+    type [type: btree]
+    priority [type: btree]
+  }
+}
+
+
+// Table Reports
+Table Reports {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  reporter_id uuid [note: "Ai tạo báo cáo; NULL nếu do hệ thống (AI) tự phát hiện"]
+  target_type varchar(20) [not null, note: "Enum: 'post','comment','user','bug','other'"]
+  target_id uuid [note: "ID đối tượng bị báo cáo (post_id, comment_id, user_id, ...)"]
+  reason varchar(255) [not null, note: "Lý do báo cáo (VD: spam, xúc phạm, vi phạm bản quyền, lỗi hệ thống, v.v.)"]
+  details text [note: "Mô tả chi tiết hoặc khiếu nại (nếu có)"]
+  attachments jsonb [note: "Array of {url:string, mime:string, name?:string}"]
+  
+  status varchar(20) [default: 'pending', note: "Enum: 'pending','in_progress','resolved','dismissed'"]
+  resolution text [note: "Kết quả xử lý hoặc ghi chú của admin"]
+  
+  assigned_to uuid [note: "Admin được giao xử lý (optional)"]
+  resolved_by uuid [note: "Admin đã xử lý xong"]
+  resolved_at timestamptz
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  related_violation_id uuid [note: "Liên kết với bản ghi vi phạm nếu có"]
+  auto_flagged boolean [default: false, note: "True nếu được tạo bởi AI thay vì user"]
+
+  Note: '''
+  - Lưu báo cáo do user hoặc hệ thống (AI) tạo.
+  - Khi target_type='bug' → dùng details + attachments để miêu tả lỗi hệ thống.
+  - assigned_to chỉ dùng khi có phân công nội bộ.
+  - resolution mô tả kết quả xử lý (VD: 'Nội dung hợp lệ', 'Bài viết bị xóa', ...).
+  - auto_flagged = true cho phép lọc riêng báo cáo do AI tự động.
+  - related_violation_id giúp truy vết sang Violation nếu xử lý dẫn đến vi phạm.
+  '''
+
+  Indexes {
+    (target_type, target_id) [type: btree]
+    reporter_id [type: btree]
+    status [type: btree]
+    created_at [type: btree]
+    auto_flagged [type: btree]
+  }
+}
+
+//Table Violations
+Table Violations {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null, note: "Người vi phạm"]
+  target_type varchar(20) [not null, note: "Enum: 'post', 'comment'"]
+  target_id uuid [not null, note: "ID bài viết hoặc bình luận vi phạm"]
+  rule varchar(100) [not null, note: "Loại vi phạm: spam, ngôn từ kích động, nội dung nhạy cảm,..."]
+  severity varchar(10) [not null, note: "Enum: 'low', 'medium', 'high'"]
+  detected_by varchar(20) [not null, note: "Enum: 'admin', 'auto_ai'"]
+  handled boolean [default: false, note: "Đã xử lý hay chưa"]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  resolved_at timestamptz [note: "Khi vi phạm được xử lý"]
+  resolution text [note: "Ghi chú: cảnh cáo, xóa bài, khóa tài khoản,..."]
+
+  Note: '''
+  - Lưu lịch sử các vi phạm, bao gồm do AI tự phát hiện hoặc do admin xử lý từ báo cáo.
+  - handled = false: chờ xác nhận từ admin.
+  - severity để phân loại mức độ vi phạm.
+  - Admin có thể xem lại các vi phạm chưa xử lý và quyết định giữ nguyên hoặc khôi phục.
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+    target_id [type: btree]
+    handled [type: btree]
+    created_at [type: btree]
   }
 }
 
@@ -765,6 +867,9 @@ Ref: UserSessions.user_id > Users.id [delete: cascade]
 Ref: UserDailyActivity.user_id > Users.id [delete: cascade]
 Ref: UserStreaks.user_id > Users.id [delete: cascade]
 
+Ref: UserAchievements.user_id > Users.id [delete: cascade]
+Ref: UserAchievements.achievement_id > Achievements.id [delete: restrict]
+
 Ref: Payments.user_id > Users.id [delete: restrict]
 Ref: Payments.subscription_id > Subscriptions.id [delete: restrict]
 Ref: Payments.processed_by_admin > Users.id [delete: set null]
@@ -798,9 +903,10 @@ Ref: AILessons.user_id > Users.id [delete: cascade]
 Ref: AdminLogs.user_id > Users.id [delete: set null]
 
 Ref: Reports.reporter_id > Users.id [delete: set null]
-
 Ref: Reports.assigned_to > Users.id [delete: set null]
 Ref: Reports.resolved_by > Users.id [delete: set null]
+
+Ref: Violations.user_id > Users.id [delete: cascade]
 
 Ref: MockTestSections.test_id > MockTests.id [delete: cascade]
 Ref: MockTestQuestions.section_id > MockTestSections.id [delete: cascade]

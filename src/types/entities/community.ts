@@ -17,7 +17,7 @@ export interface Post {
   id: UUID;
   user_id: UUID;
   title: string;
-  content: PostContent; // Rich text content structure
+  content: any; // Rich text JSON
   topic:
     | 'Cơ khí'
     | 'CNTT'
@@ -38,12 +38,18 @@ export interface Post {
   likes: number;
   views: number;
   created_at: Timestamp;
+
+  // Moderation
+  status: 'draft' | 'published' | 'hidden' | 'removed' | 'archived';
   is_approved: boolean;
+  auto_flagged: boolean;
   is_pinned: boolean;
+
   deleted_at?: Timestamp | null;
   deleted_reason?: string | null;
-  deleted_by: UUID | null;
+  deleted_by?: UUID | null;
 }
+
 
 // Basic Comment interface - dành cho database compatibility
 export interface Comment {
@@ -127,30 +133,4 @@ export interface ModerationLog {
   reason?: string;
   performed_by: string;    // UUID
   created_at: string;
-}
-
-export interface Report {
-  id: string; // UUID
-  reporter_id: string; // UUID
-
-  // Enum inline
-  target_type: 'post' | 'comment' | 'user' | 'bug' | 'notebook' | 'vocab'|'other';
-  target_id?: string; // UUID, optional nếu là bug/other
-
-  reason: string;
-  details?: string;
-
-  // Attachment list
-  attachments?: {
-    url: string;
-    mime?: string;
-    name?: string;
-  }[];
-
-  status: 'pending' | 'resolved' | 'dismissed';
-  assigned_to?: string;   // admin id
-  resolved_by?: string;   // admin id
-  resolved_at?: string;   // ISO timestamp
-  created_at: string;     // ISO timestamp
-  updated_at?: string;
 }

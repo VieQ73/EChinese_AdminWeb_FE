@@ -19,13 +19,12 @@ export interface User {
   isVerify: boolean;
   community_points: number;
   subscription_id: UUID; // Bắt buộc, không null
-  subscription_expiry?: Timestamp | null;
+  subscription_expiry?: Timestamp | null; // null cho free user và gói vĩnh viễn
   level: '1' | '2' | '3' | '4' | '5' | '6' | '7-9';
   badge_level: number;
   language: 'Tiếng Việt' | 'Tiếng Anh';
   created_at: Timestamp;
   last_login?: Timestamp | null;
-  achievements?: Json; // Array of achievement objects
 }
 
 export interface UserSession {
@@ -55,6 +54,33 @@ export interface UserStreak {
   longest_streak: number;
   last_login_date?: string | null; // YYYY-MM-DD
   updated_at: Timestamp;
+}
+
+// --- Achievements ---
+export interface Achievement {
+  id: UUID;
+  name: string; // Bắt buộc, không null, unique
+  description: string; // Bắt buộc, không null
+  criteria: {
+    type: string; // Loại tiêu chí, ví dụ: 'login_streak', 'translation_usage', 'community_points'
+    [key: string]: any; // Linh hoạt cho các thuộc tính như min_streak, min_count, min_points
+  }; // Bắt buộc, JSONB lưu tiêu chí
+  icon?: string | null; // Có thể null
+  points: number; // Mặc định 0
+  is_active: boolean; // Mặc định true
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+// --- UserAchievements ---
+export interface UserAchievement {
+  id: UUID;
+  user_id: UUID; // Bắt buộc, không null
+  achievement_id: UUID; // Bắt buộc, không null
+  achieved_at: Timestamp; // Mặc định CURRENT_TIMESTAMP
+  progress?: {
+    [key: string]: any; // Linh hoạt cho các thuộc tính như current_count, required
+  } | null; // Có thể null, JSONB lưu tiến độ
 }
 
 export interface UserUsage {

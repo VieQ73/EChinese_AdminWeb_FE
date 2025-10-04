@@ -1,23 +1,30 @@
+// Table Notifications
 Table Notifications {
   id uuid [primary key, default: `uuid_generate_v4()`]
-  recipient_id uuid [note: "NULL cho broadcast; nếu không NULL => notification chỉ cho user này"]
-  audience varchar(20) [not null, note: "Enum: 'user','admin','all' - dùng để lọc broadcast target"]
-  type varchar(50) [not null, note: "Enum examples: 'system','report','subscription','community','achievement','reminder','feedback'"]
+  recipient_id uuid [note: "NULL cho broadcast; nếu không NULL => thông báo riêng cho user"]
+  audience varchar(20) [not null, note: "Enum: 'user','admin','all'"]
+  type varchar(50) [not null, note: "Enum: 'system','report','violation','appeal','subscription','community','achievement','reminder','feedback'"]
+
   title varchar(200) [not null]
   content text [not null]
-  related_type varchar(50) [note: "Loại đối tượng liên quan: 'post','comment','vocabulary','report',..."]
+  
+  related_type varchar(50) [note: "Loại đối tượng liên quan: 'post','comment','user','report','violation',..."]
   related_id uuid
-  data jsonb [note: "Extra payload (e.g. { report_id: '...', post_id: '...' })"]
-  redirect_url text [note: "Frontend route or deep-link; NULL nếu không cần redirect"]
-  read_at timestamptz [note: "Thời gian đọc (NULL = chưa đọc)"]
-  is_push_sent boolean [default: false]
+  data jsonb [note: "Payload bổ sung cho frontend, ví dụ: { post_id:'...', reason:'...' }"]
+  
+  redirect_url text [note: "Route hoặc deep-link đến màn hình chi tiết (optional)"]
+  read_at timestamptz [note: "Thời gian đọc; NULL nếu chưa đọc"]
+  is_push_sent boolean [default: false, note: "Đánh dấu đã gửi push notification đến mobile"]
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
-  expires_at timestamptz [note: "Optional: tự xóa sau thời hạn"]
+  expires_at timestamptz [note: "Tự động xóa sau thời hạn nếu có"]
+  
+  priority int [default: 0, note: "Độ ưu tiên hiển thị: 0=thường, 1=quan trọng"]
+  from_system boolean [default: false, note: "True nếu thông báo được tạo bởi hệ thống tự động"]
 
   Note: '''
-  - Notifications lưu message gửi đến người dùng hoặc admin.
-  - recipient_id NULL + audience='all' hoặc 'admin' -> broadcast; nếu recipient_id not NULL -> private notification.
-  - data: dùng để chứa JSON payload giúp frontend điều hướng hoặc render chi tiết.
+  - Dùng cho mọi loại thông báo: hệ thống, vi phạm, broadcast,...
+  - from_system = true giúp phân biệt thông báo tự động và do admin gửi.
+  - priority hữu ích để sắp xếp hoặc highlight các thông báo khẩn.
   '''
 
   Indexes {
@@ -26,29 +33,41 @@ Table Notifications {
     created_at [type: btree]
     read_at [type: btree]
     (related_type, related_id) [type: btree]
+    type [type: btree]
+    priority [type: btree]
   }
 }
 
+
+// Table Reports
 Table Reports {
   id uuid [primary key, default: `uuid_generate_v4()`]
-  reporter_id uuid [not null]
-  target_type varchar(20) [not null, note: "Enum: 'post', 'comment', 'user', 'bug', 'other'"]
-  target_id uuid
-  reason varchar(255) [not null]
-  details text [note: "Chi tiết/khiếu nại (nếu có)"]
+  reporter_id uuid [note: "Ai tạo báo cáo; NULL nếu do hệ thống (AI) tự phát hiện"]
+  target_type varchar(20) [not null, note: "Enum: 'post','comment','user','bug','other'"]
+  target_id uuid [note: "ID đối tượng bị báo cáo (post_id, comment_id, user_id, ...)"]
+  reason varchar(255) [not null, note: "Lý do báo cáo (VD: spam, xúc phạm, vi phạm bản quyền, lỗi hệ thống, v.v.)"]
+  details text [note: "Mô tả chi tiết hoặc khiếu nại (nếu có)"]
   attachments jsonb [note: "Array of {url:string, mime:string, name?:string}"]
-  status varchar(20) [default: 'pending', note: "Enum: 'pending','resolved','dismissed'"]
-  assigned_to uuid [note: "Admin id được gán xử lý (optional)"]
-  resolved_by uuid
+  
+  status varchar(20) [default: 'pending', note: "Enum: 'pending','in_progress','resolved','dismissed'"]
+  resolution text [note: "Kết quả xử lý hoặc ghi chú của admin"]
+  
+  assigned_to uuid [note: "Admin được giao xử lý (optional)"]
+  resolved_by uuid [note: "Admin đã xử lý xong"]
   resolved_at timestamptz
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
-  updated_at timestamptz
+  updated_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  related_violation_id uuid [note: "Liên kết với bản ghi vi phạm nếu có"]
+  auto_flagged boolean [default: false, note: "True nếu được tạo bởi AI thay vì user"]
 
   Note: '''
-  - Lưu báo cáo (report) do user tạo: post/comment/user/bug/other.
-  - Nếu target_type in ('post','comment','user') => target_id tham chiếu resource tương ứng.
-  - Nếu target_type = 'bug' => details + attachments chứa nội dung khiếu nại/bug report.
-  - assigned_to: tiện cho luồng phân công handle.
+  - Lưu báo cáo do user hoặc hệ thống (AI) tạo.
+  - Khi target_type='bug' → dùng details + attachments để miêu tả lỗi hệ thống.
+  - assigned_to chỉ dùng khi có phân công nội bộ.
+  - resolution mô tả kết quả xử lý (VD: 'Nội dung hợp lệ', 'Bài viết bị xóa', ...).
+  - auto_flagged = true cho phép lọc riêng báo cáo do AI tự động.
+  - related_violation_id giúp truy vết sang Violation nếu xử lý dẫn đến vi phạm.
   '''
 
   Indexes {
@@ -56,5 +75,37 @@ Table Reports {
     reporter_id [type: btree]
     status [type: btree]
     created_at [type: btree]
+    auto_flagged [type: btree]
   }
 }
+
+
+Table Violations {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null, note: "Người vi phạm"]
+  target_type varchar(20) [not null, note: "Enum: 'post', 'comment'"]
+  target_id uuid [not null, note: "ID bài viết hoặc bình luận vi phạm"]
+  rule varchar(100) [not null, note: "Loại vi phạm: spam, ngôn từ kích động, nội dung nhạy cảm,..."]
+  severity varchar(10) [not null, note: "Enum: 'low', 'medium', 'high'"]
+  detected_by varchar(20) [not null, note: "Enum: 'admin', 'auto_ai'"]
+  handled boolean [default: false, note: "Đã xử lý hay chưa"]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  resolved_at timestamptz [note: "Khi vi phạm được xử lý"]
+  resolution text [note: "Ghi chú: cảnh cáo, xóa bài, khóa tài khoản,..."]
+
+  Note: '''
+  - Lưu lịch sử các vi phạm, bao gồm do AI tự phát hiện hoặc do admin xử lý từ báo cáo.
+  - handled = false: chờ xác nhận từ admin.
+  - severity để phân loại mức độ vi phạm.
+  - Admin có thể xem lại các vi phạm chưa xử lý và quyết định giữ nguyên hoặc khôi phục.
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+    target_id [type: btree]
+    handled [type: btree]
+    created_at [type: btree]
+  }
+}
+
+Ref: Reports.related_violation_id > Violations.id [delete: set null]

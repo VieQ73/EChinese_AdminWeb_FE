@@ -2,32 +2,39 @@ Table Posts {
   id uuid [primary key, default: `uuid_generate_v4()`]
   user_id uuid [not null]
   title varchar(100) [not null]
-  content json [not null, note: "Rich text JSON (bold, italic, underline, color, align, list, insert link)"]
+  content json [not null, note: "Rich text JSON: bold, italic, underline, list, link,..."]
   topic varchar(50) [not null, note: "Enum: 'Cơ khí', 'CNTT', 'Dịch', 'Du học', 'Du lịch', 'Góc chia sẻ', 'Tìm bạn học chung', 'Học tiếng Trung', 'Tìm gia sư', 'Việc làm', 'Văn hóa', 'Thể thao', 'Xây dựng', 'Y tế', 'Tâm sự', 'Khác'"]
   likes int [default: 0]
   views int [default: 0]
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
-  is_approved boolean [default: true]
-  is_pinned boolean [default: false, note: "Admin/Superadmin có thể ghim bài viết quan trọng"]
-  deleted_at timestamptz [note: "Soft-delete: gỡ tạm thời, có thể khôi phục"]
-  deleted_reason text [note: "Lý do gỡ"]
-  deleted_by uuid [null, note: "Ai gỡ"]
+
+  -- Moderation
+  status varchar(20) [default: 'published', note: "Enum: 'draft','published','hidden','removed','archived'"]
+  is_approved boolean [default: true, note: "False = chờ duyệt / vi phạm / bị ẩn"]
+  auto_flagged boolean [default: false, note: "True = bị AI phát hiện nghi ngờ vi phạm"]
+  is_pinned boolean [default: false, note: "Admin/Superadmin có thể ghim bài viết"]
+
+  deleted_at timestamptz [note: "Thời điểm bị gỡ (soft delete)"]
+  deleted_reason text [note: "Lý do gỡ (do user hoặc admin)"]
+  deleted_by uuid [note: "Ai gỡ (user tự gỡ hoặc admin)"]
 
   Note: '''
-  - Một bài đăng có thể gắn tối đa 3 ảnh (PostMediaMap).
-  - Không hỗ trợ video.
-  - Likes và Views chỉ lưu số tổng. Chi tiết được quản lý ở PostLikes và PostViews.
-  - Soft-delete cho phép gỡ bài tạm thời, có thể khôi phục.
-  - is_pinned giúp admin ghim bài viết quan trọng lên đầu trang.
+  - Khi user tự xóa bài: status='removed', deleted_by=user_id, is_approved=true.
+  - Khi admin xóa: status='removed', deleted_by=admin_id, is_approved=false, tạo Violation.
+  - Khi AI nghi ngờ: auto_flagged=true, status='hidden' chờ admin xem.
+  - Bài bị removed sẽ bị xóa cứng sau 7 ngày nếu không được khôi phục.
   '''
 
   Indexes {
     user_id [type: btree]
-    created_at [type: btree]
     topic [type: btree]
+    created_at [type: btree]
+    status [type: btree]
+    auto_flagged [type: btree]
     is_pinned [type: btree]
   }
 }
+
 
 Table PostLikes {
   id uuid [primary key, default: `uuid_generate_v4()`]
