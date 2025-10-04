@@ -10,6 +10,8 @@ import { useAuth } from '../hooks/useAuth';
 import type { Post, User } from '../types/entities';
 import { getActivePostsWithStats } from '../mock/posts';
 import { getAllMockUsers } from '../features/users/userApi';
+import { getUserLikedPosts, getUserViewedPosts } from '../mock/userInteractions';
+import debugUserInteractions from '../mock/debug';
 
 const AdminCommunityPage: React.FC = () => {
   const currentUser = useAuth();
@@ -30,6 +32,29 @@ const AdminCommunityPage: React.FC = () => {
   // Theo dõi trạng thái like/view của user hiện tại
   const [userLikes, setUserLikes] = useState<Set<string>>(new Set());
   const [userViews, setUserViews] = useState<Set<string>>(new Set());
+
+  // Init user likes/views từ mock data khi component mount
+  React.useEffect(() => {
+    if (currentUser?.id) {
+      const likedPosts = getUserLikedPosts(currentUser.id);
+      const viewedPosts = getUserViewedPosts(currentUser.id);
+      
+      setUserLikes(new Set(likedPosts));
+      setUserViews(new Set(viewedPosts));
+
+      // Debug để kiểm tra
+      console.log('🔍 Current User Interactions:', {
+        userId: currentUser.id,
+        name: currentUser.name,
+        role: currentUser.role,
+        likedPosts,
+        viewedPosts
+      });
+      
+      // Debug all interactions
+      debugUserInteractions();
+    }
+  }, [currentUser]);
 
   // Đồng bộ selectedPost khi posts thay đổi
   React.useEffect(() => {
@@ -198,7 +223,7 @@ const AdminCommunityPage: React.FC = () => {
         created_at: new Date().toISOString(),
         is_approved: true,
         is_pinned: false,
-        deleted_by: currentUser?.id || 'admin1',
+        deleted_by: null,
       };
       setPosts(prev => [newPost, ...prev]);
     }
