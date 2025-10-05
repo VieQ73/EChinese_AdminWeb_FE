@@ -206,7 +206,6 @@ resetUserQuota(id, payload) -> { message }
 - [ ] Update environment variables: `VITE_USE_MOCK_API=false`
 - [ ] Replace import path: `'../userApi'` → `'../userManagementApi'`
 
-**Không cần thay đổi gì khác!** Function names, parameters, return types đều giống hệt.  
 - [ ] Update function names where needed
 - [ ] Test pagination changes
 - [ ] Test new bulk operations

@@ -99,18 +99,6 @@ export const deactivateUser = async (userId: UUID): Promise<User> => {
   return response.data;
 };
 
-// NOTE: verify/unverify email không được sử dụng bởi frontend hiện tại
-
-// =====================================================
-// USER SUBSCRIPTION MANAGEMENT  
-// =====================================================
-
-// NOTE: Subscription management được xử lý ở subscriptionApi module riêng
-
-// =====================================================
-// AI QUOTA & USAGE MANAGEMENT
-// =====================================================
-
 /**
  * [GET] /api/admin/users/:id/usage
  * Lấy thông tin sử dụng AI của người dùng
@@ -126,56 +114,6 @@ export const resetUserQuota = async (userId: UUID, payload: { feature?: string }
   return response.data;
 };
 
-// NOTE: System usage stats chưa được frontend sử dụng
-
-// =====================================================
-// BADGE & ACHIEVEMENT MANAGEMENT
-// =====================================================
-
-// NOTE: Badge management được xử lý ở badges module
-
-// =====================================================
-// BULK OPERATIONS (Chưa phát triển)
-// =====================================================
-
-// NOTE: Bulk operations chưa được frontend sử dụng
-
-// =====================================================
-// ADMIN LOGS & AUDIT TRAIL (Chưa phát triển)
-// =====================================================
-
-// NOTE: Admin audit logs chưa được frontend sử dụng
-
-// =====================================================
-// NOTIFICATION MANAGEMENT (Chưa phát triển)
-// =====================================================
-
-// NOTE: Notification broadcast sẽ được xử lý ở notifications module
-
-// NOTE: Subscription & Badge level lists có sẵn trong các module riêng
-
-// =====================================================
-// PASSWORD MANAGEMENT (Chưa phát triển)
-// =====================================================
-
-// NOTE: Password reset chưa được frontend sử dụng
-
-// =====================================================
-// ADVANCED SEARCH & FILTERING (Chưa phát triển)
-// =====================================================
-
-// NOTE: Advanced search với nhiều filter chưa được frontend sử dụng
-
-// =====================================================
-// API EXPORT - CHỈ CÁC FUNCTIONS ĐƯỢC SỬ DỤNG
-// =====================================================
-/**
- * Export chỉ các functions thực sự được frontend sử dụng:
- * 
- * ĐƯỢC SỬ DỤNG BỞI:
- * - UsersManagementPage.tsx: fetchAllUsers, updateUser, deleteUser, activateUser, deactivateUser
- * - UserDetailModal.tsx: fetchUserById, updateUser, fetchUserUsage, resetUserQuota
- */
 export default {
   fetchAllUsers,
   fetchUserById,

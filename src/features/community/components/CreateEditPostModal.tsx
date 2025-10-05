@@ -1,9 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-// SỬ DỤNG CÁC IMPORTS GỐC THEO YÊU CẦU CỦA BẠN
-// Đã loại bỏ các import lỗi và thay thế bằng cấu trúc HTML/Tailwind nội tuyến
-// import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../../components/ui/dialog';
-// import { Button } from '../../../components/ui/button';
-import { X, Image as ImageIcon, Bold, Italic, Underline, Link, List, ListOrdered, AlignLeft, AlignCenter, AlignRight, Trash2, ChevronLeft, ChevronRight, Sparkles, Loader2 } from 'lucide-react';
+import { X, Image as ImageIcon, Bold, Italic, Underline, Link, List, ListOrdered, AlignLeft, AlignCenter, AlignRight, Trash2 } from 'lucide-react';
 
 // Danh sách các Chủ đề theo entities.ts
 const TOPICS = [
@@ -12,65 +8,7 @@ const TOPICS = [
   'Văn hóa', 'Thể thao', 'Xây dựng', 'Y tế', 'Tâm sự', 'Khác'
 ];
 
-// Khai báo API Key cho Gemini (trong production nên lưu trong env)
-const API_KEY = ""; // Thêm API key thực tế
-const GEMINI_MODEL = "gemini-2.5-flash-preview-05-20";
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`;
 
-// API utility functions cho Gemini
-const fetchWithBackoff = async (payload: any, retries = 3): Promise<any> => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (response.ok) {
-        return response.json();
-      } else if (response.status === 429 && i < retries - 1) {
-        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-      } else {
-        throw new Error(`API call failed with status: ${response.status}`);
-      }
-    } catch (error) {
-      if (i === retries - 1) throw error;
-    }
-  }
-};
-
-const analyzePost = async (title: string, contentHtml: string): Promise<string> => {
-  const prompt = `Phân tích bài viết sau.
-  Tiêu đề: ${title}
-  Nội dung (HTML đã được lọc): ${contentHtml.replace(/<[^>]*>/g, ' ')}
-  
-  Hãy đưa ra một bản tóm tắt ngắn gọn (tối đa 30 từ) và đề xuất 3 chủ đề liên quan (phân cách bằng dấu phẩy) mà bài viết có thể thuộc về.
-  Định dạng phản hồi phải là:
-  Tóm tắt: [Tóm tắt ở đây]
-  Chủ đề đề xuất: [Chủ đề 1, Chủ đề 2, Chủ đề 3]
-  `;
-
-  const payload = {
-    contents: [{ parts: [{ text: prompt }] }],
-    systemInstruction: {
-      parts: [{ text: "Act as a helpful and professional community content analyst. Respond strictly in Vietnamese." }]
-    },
-  };
-
-  try {
-    if (!API_KEY) {
-      return "Vui lòng cấu hình API Key để sử dụng tính năng phân tích Gemini.";
-    }
-    const result = await fetchWithBackoff(payload);
-    const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-    return text || "Không thể phân tích nội dung bài viết.";
-  } catch (error) {
-    console.error("Gemini API Error for Analysis:", error);
-    return "Lỗi kết nối hoặc xử lý API Gemini.";
-  }
-};
 
 /**
  * Component icon đơn giản cho Editor (Rich Text Controls)
@@ -94,44 +32,45 @@ const CreateEditPostModal: React.FC<{
   onSave: (data: any) => Promise<void>;
   initial?: any;
 }> = ({ isOpen, onClose, onSave, initial }) => {
-  const [title, setTitle] = useState(initial?.title || '');
+  const [title, setTitle] = useState('');
   // Nội dung Rich Text/HTML
-  const [content, setContent] = useState(
-    initial?.content?.html || initial?.content?.ops?.map((o: any) => o.insert).join('') || ''
-  );
-  // Mảng chứa URL/Blob URL của các ảnh đã tải lên (max 3)
-  const [images, setImages] = useState<string[]>(initial?.images || []);
-  // Bố cục ảnh, mặc định là 'single'
-  const [frameType, setFrameType] = useState<'single'|'two'|'gallery'>(initial?.frameType || 'single');
-  const [selectedTopic, setSelectedTopic] = useState<string>(initial?.topic || '');
+  const [content, setContent] = useState('');
+  // Mảng chứa URL/Blob URL của các ảnh đã tải lên (max 4)
+  const [images, setImages] = useState<string[]>([]);
+  const [selectedTopic, setSelectedTopic] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const editorRef = useRef<HTMLDivElement|null>(null);
   
-  // State cho tính năng Gemini Analysis
-  const [analysisResult, setAnalysisResult] = useState<string>('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  
   useEffect(() => {
     if (isOpen) {
+      // Lấy dữ liệu từ initial khi edit
       setTitle(initial?.title || '');
       setSelectedTopic(initial?.topic || '');
-      const rawContent = initial?.content?.html || initial?.content?.ops?.map((o: any) => o.insert).join('') || '';
+      
+      // Xử lý content - có thể là HTML hoặc ops format
+      const rawContent = initial?.content?.html || 
+                        (initial?.content?.ops ? initial.content.ops.map((o: any) => o.insert).join('') : '') || 
+                        '';
       setContent(rawContent);
-      setAnalysisResult('');
+      
+      // Lấy danh sách ảnh nếu có
+      setImages(initial?.images || []);
+      
+      // Cập nhật editor với nội dung
+      if (editorRef.current && rawContent) {
+        editorRef.current.innerHTML = rawContent;
+      }
+    } else {
+      // Reset form khi đóng modal
+      setTitle('');
+      setSelectedTopic('');
+      setContent('');
+      setImages([]);
+      if (editorRef.current) {
+        editorRef.current.innerHTML = '';
+      }
     }
   }, [isOpen, initial]);
-
-  const handleAnalyze = async () => {
-    if (!title.trim() && !content.trim()) {
-      setAnalysisResult('Vui lòng nhập tiêu đề và nội dung để phân tích.');
-      return;
-    }
-    setIsAnalyzing(true);
-    setAnalysisResult('');
-    const result = await analyzePost(title, content);
-    setAnalysisResult(result);
-    setIsAnalyzing(false);
-  };
   
   const handleSave = async () => {
     // Ràng buộc: Tiêu đề và Chủ đề là bắt buộc
@@ -151,9 +90,7 @@ const CreateEditPostModal: React.FC<{
         topic: selectedTopic,
         // Đóng gói nội dung
         content: { html: finalContent, ops: [{ insert: finalContent }] }, 
-        images, 
-        // Ràng buộc bố cục: Chỉ áp dụng khi có 2 ảnh trở lên, nếu không thì là 'single'
-        frameType: images.length >= 2 ? frameType : 'single', 
+        images
       };
       await onSave(payload);
       onClose();
@@ -176,41 +113,59 @@ const CreateEditPostModal: React.FC<{
     setContent(e.currentTarget.innerHTML || '');
   };
 
-  // Xử lý tải ảnh (với ràng buộc)
+  // Xử lý tải ảnh (tối đa 4 ảnh)
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files; if(!files) return;
+    const files = e.target.files; 
+    if (!files) return;
+    
     const allowed = ['image/jpeg','image/jpg','image/png','image/webp'];
-    const maxFiles = 3;
+    const maxFiles = 4;
     const toAdd: string[] = [];
-    for(let i=0;i<files.length;i++){
+    
+    for(let i = 0; i < files.length; i++){
       const f = files[i];
-      // Ràng buộc loại file
-      if(!allowed.includes(f.type)) { console.warn('Lỗi ràng buộc: Chỉ chấp nhận JPG, PNG, WEBP.'); continue; }
-      // Ràng buộc kích thước file (5MB)
-      if(f.size > 5*1024*1024) { console.warn('Lỗi ràng buộc: Ảnh quá lớn. Tối đa 5MB mỗi ảnh.'); continue; }
-      // Ràng buộc số lượng
-      if(images.length + toAdd.length >= maxFiles) { console.warn('Lỗi ràng buộc: Đã đạt giới hạn 3 ảnh'); break; }
+      // Validation loại file
+      if(!allowed.includes(f.type)) { 
+        console.warn('Lỗi validation: Chỉ chấp nhận JPG, PNG, WEBP.'); 
+        continue; 
+      }
+      // Validation kích thước file (5MB)
+      if(f.size > 5*1024*1024) { 
+        console.warn('Lỗi validation: Ảnh quá lớn. Tối đa 5MB mỗi ảnh.'); 
+        continue; 
+      }
+      // Validation số lượng
+      if(images.length + toAdd.length >= maxFiles) { 
+        console.warn('Lỗi validation: Đã đạt giới hạn 4 ảnh'); 
+        break; 
+      }
       
       toAdd.push(URL.createObjectURL(f));
     }
+    
     setImages(prev => {
-      const merged = [...prev, ...toAdd].slice(0,3);
+      const merged = [...prev, ...toAdd].slice(0, maxFiles);
       return merged;
     });
+    
     // Reset input để cho phép tải lên cùng một file sau khi đã xóa
     e.target.value = '';
   };
   
-  // Class CSS cho các kiểu khung hình ảnh xem trước dựa trên số lượng ảnh
-  const imagePreviewGridClass = () => {
-    if (images.length === 1) return 'grid-cols-1';
-    // Khi có 2 ảnh trở lên, sử dụng frameType để mô phỏng bố cục
-    if (images.length === 2) return frameType === 'two' ? 'grid-cols-2' : 'grid-cols-1';
-    if (images.length >= 3) {
-      if (frameType === 'two') return 'grid-cols-2'; // 2 cột (1 ảnh lớn, 2 ảnh nhỏ hoặc chia đều)
-      return 'grid-cols-3'; // 3 cột chia đều (hoặc single/gallery)
+  // Tự động tính toán layout cho ảnh dựa trên số lượng
+  const getImageLayoutClass = () => {
+    switch(images.length) {
+      case 1:
+        return 'grid-cols-1';
+      case 2:
+        return 'grid-cols-2';
+      case 3:
+        return 'grid-cols-2'; // 2 ảnh trên, 1 ảnh dưới
+      case 4:
+        return 'grid-cols-2'; // 2x2 grid
+      default:
+        return 'grid-cols-1';
     }
-    return 'grid-cols-1';
   };
 
   if (!isOpen) return null;
@@ -295,8 +250,8 @@ const CreateEditPostModal: React.FC<{
               <label 
                 htmlFor="image-upload" 
                 className={`flex items-center gap-1 cursor-pointer px-3 py-1 rounded-full text-sm font-medium transition-colors shadow-sm
-                  ${images.length >= 3 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-500 text-white hover:bg-green-600'}`} 
-                title={images.length >= 3 ? "Đã đạt giới hạn 3 ảnh" : "Tải lên tối đa 3 ảnh"}
+                  ${images.length >= 4 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-500 text-white hover:bg-green-600'}`} 
+                title={images.length >= 4 ? "Đã đạt giới hạn 4 ảnh" : "Tải lên tối đa 4 ảnh"}
               >
                 <ImageIcon size={16} /> Tải ảnh
                 <input 
@@ -306,91 +261,56 @@ const CreateEditPostModal: React.FC<{
                   multiple 
                   onChange={handleImageUpload} 
                   className="hidden" 
-                  disabled={images.length >= 3} 
+                  disabled={images.length >= 4} 
                 />
               </label>
             </div>
             
-            {/* Xem trước ảnh */}
+            {/* Xem trước ảnh với layout tự động */}
             {images.length > 0 && (
-              <div className={`grid ${imagePreviewGridClass()} gap-2`}>
+              <div className={`grid ${getImageLayoutClass()} gap-2`}>
                 {images.map((src,i)=> (
-                  <div key={i} className={`relative aspect-square overflow-hidden ${images.length >= 3 && frameType === 'two' && i === 0 ? 'row-span-2 col-span-1 h-auto aspect-[4/3] sm:aspect-[4/5]' : ''}`}>
-                    <img src={src} alt={`Ảnh ${i+1}`} className="h-full w-full object-cover rounded-lg border border-gray-200 shadow-sm" />
-                    <div className="absolute top-1 right-1 flex gap-1">
-                      {/* Nút xóa */}
-                      <button type="button" title="Xóa ảnh" className="bg-red-500/90 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow" onClick={()=>setImages(prev=>prev.filter((_,idx)=>idx!==i))}><Trash2 size={16}/></button>
+                  <div 
+                    key={i} 
+                    className={`relative overflow-hidden ${
+                      // Layout đặc biệt cho 3 ảnh: ảnh đầu chiếm 2 cột
+                      images.length === 3 && i === 0 ? 'col-span-2 aspect-[2/1]' : 
+                      // Layout thông thường
+                      'aspect-square'
+                    }`}
+                  >
+                    <img 
+                      src={src} 
+                      alt={`Ảnh ${i+1}`} 
+                      className="h-full w-full object-cover rounded-lg border border-gray-200 shadow-sm" 
+                    />
+                    <div className="absolute top-1 right-1">
+                      {/* Nút xóa ảnh */}
+                      <button 
+                        type="button" 
+                        title="Xóa ảnh" 
+                        className="bg-red-500/90 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow" 
+                        onClick={()=>setImages(prev=>prev.filter((_,idx)=>idx!==i))}
+                      >
+                        <Trash2 size={16}/>
+                      </button>
                     </div>
                   </div>
-              ))}
+                ))}
               </div>
             )}
 
-            {/* Chọn kiểu khung hình (RÀNG BUỘC: Chỉ hiện khi có 2 ảnh trở lên) */}
-            {images.length >= 2 && (
-              <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-200">
-                <span className="text-sm font-medium text-gray-700">Chọn bố cục ảnh:</span>
-                <button 
-                  type="button"
-                  className={"px-3 py-1 text-xs rounded transition-colors " + (frameType==='single'? 'bg-blue-100 text-blue-700 font-semibold':'bg-gray-200 text-gray-600 hover:bg-gray-300')} 
-                  onClick={()=>setFrameType('single')}
-                >Ảnh đơn (Tỷ lệ tự động)</button>
-                <button 
-                  type="button"
-                  className={"px-3 py-1 text-xs rounded transition-colors " + (frameType==='two'? 'bg-blue-100 text-blue-700 font-semibold':'bg-gray-200 text-gray-600 hover:bg-gray-300')} 
-                  onClick={()=>setFrameType('two')}
-                >Chia 2 cột</button>
-                <button 
-                  type="button"
-                  className={"px-3 py-1 text-xs rounded transition-colors " + (frameType==='gallery'? 'bg-blue-100 text-blue-700 font-semibold':'bg-gray-200 text-gray-600 hover:bg-gray-300')} 
-                  onClick={()=>setFrameType('gallery')}
-                >Chia đều (Grid)</button>
-              </div>
-            )}
-            
-            {/* Thông báo ràng buộc chuẩn */}
-            <div className="text-xs text-gray-500 mt-2 p-2 border-l-4 border-yellow-500 bg-yellow-50">
-              **RÀNG BUỘC:** Chỉ chấp nhận tối đa **3 ảnh** (JPG/PNG/WEBP). Kích thước tối đa mỗi ảnh: **5 MB**. Chức năng **Chọn bố cục ảnh** chỉ khả dụng khi bạn tải lên **2 ảnh trở lên**.
+            {/* Thông báo validation */}
+            <div className="text-xs text-gray-500 mt-2 p-2 border-l-4 border-blue-500 bg-blue-50">
+              **Lưu ý:** Chỉ chấp nhận tối đa **4 ảnh** (JPG/PNG/WEBP). Kích thước tối đa mỗi ảnh: **5 MB**. Layout sẽ tự động điều chỉnh theo số lượng ảnh.
             </div>
           </div>
 
-          {/* Tính năng Gemini Analysis */}
-          <div className="p-4 border border-blue-200 bg-gradient-to-r from-blue-50 to-teal-50 rounded-lg">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-blue-600" />
-                <span className="font-semibold text-blue-800">Phân tích thông minh với AI</span>
-              </div>
-              <button
-                type="button"
-                onClick={handleAnalyze}
-                disabled={isAnalyzing || (!title.trim() && !content.trim())}
-                className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors flex items-center gap-2"
-              >
-                {isAnalyzing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Đang phân tích...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    Phân tích
-                  </>
-                )}
-              </button>
-            </div>
-            
-            {analysisResult && (
-              <div className="p-3 bg-white rounded-lg border border-blue-200 text-sm">
-                <pre className="whitespace-pre-wrap text-gray-700">{analysisResult}</pre>
-              </div>
-            )}
-          </div>
 
-          {/* Khu vực Chủ đề câu hỏi (Giống giao diện Dark Mode cũ, nhưng đổi màu Light) */}
+
+          {/* Chủ đề câu hỏi */}
           <div className="space-y-3">
-            <label className="block text-sm font-semibold text-gray-600">Chủ đề câu hỏi</label>
+            <label className="block text-sm font-semibold text-gray-600">Chủ đề câu hỏi*</label>
             <div className="grid grid-cols-2 gap-2">
               {TOPICS.map((topic) => (
                 <button
@@ -425,7 +345,7 @@ const CreateEditPostModal: React.FC<{
             className="px-4 py-2 rounded-lg font-medium transition-colors bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-300"
             disabled={saving || !title.trim() || !selectedTopic.trim()} 
           >
-            {saving ? 'Đang đăng...' : (initial ? 'Cập nhật' : 'Đăng')}
+{saving ? 'Đang lưu...' : (initial ? 'Cập nhật' : 'Đăng')}
           </button>
         </div>
       </div>
