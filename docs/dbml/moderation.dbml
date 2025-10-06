@@ -1,3 +1,25 @@
+// moderation.dbml
+
+// Table AdminLogs
+Table AdminLogs {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null, note: "Tham chiếu Users.id, chỉ lưu user có role admin/super_admin"]
+  action_type varchar(50) [not null, note: "Enum: CREATE, UPDATE, DELETE, BAN_USER, ..."]
+  target_id uuid [note: "Đối tượng bị tác động, có thể là user_id, post_id, ..."]
+  description text
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  Note: '''
+  - Theo dõi hành động admin (ví dụ, xóa post, khóa user) để kiểm toán.
+  - user_id tham chiếu tới bảng Users, nhưng chỉ cho phép role admin/super_admin.
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+    created_at [type: btree]
+  }
+}
+
 // Table Notifications
 Table Notifications {
   id uuid [primary key, default: `uuid_generate_v4()`]
@@ -37,7 +59,6 @@ Table Notifications {
     priority [type: btree]
   }
 }
-
 
 // Table Reports
 Table Reports {
@@ -79,7 +100,7 @@ Table Reports {
   }
 }
 
-
+//Table Violations
 Table Violations {
   id uuid [primary key, default: `uuid_generate_v4()`]
   user_id uuid [not null, note: "Người vi phạm"]
@@ -108,4 +129,40 @@ Table Violations {
   }
 }
 
+Table Appeals {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  violation_id uuid [not null]
+  user_id uuid [not null]
+  reason text [not null]
+  status varchar(20) [default: 'pending', note: "Enum: 'pending','accepted','rejected'"]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  resolved_at timestamptz
+  resolved_by uuid 
+  notes text
+
+  Note: '''
+  - Người dùng có thể khiếu nại sau khi bài viết/comment bị gỡ.
+  - Khi admin xử lý: nếu accepted → khôi phục bài, nếu rejected → xóa sau 7 ngày.
+  - Mỗi violation có thể có 1 appeal tương ứng.
+  - Khi pending thì resolved = null
+  '''
+
+  Indexes {
+    violation_id [type: btree]
+    user_id [type: btree]
+    status [type: btree]
+    created_at [type: btree]
+  }
+}
+
+// Relationships
+Ref: AdminLogs.user_id > Users.id [delete: set null]
+Ref: Reports.reporter_id > Users.id [delete: set null]
+Ref: Reports.assigned_to > Users.id [delete: set null]
+Ref: Reports.resolved_by > Users.id [delete: set null]
 Ref: Reports.related_violation_id > Violations.id [delete: set null]
+Ref: Appeals.violation_id > Violations.id [delete: cascade]
+Ref: Appeals.user_id > Users.id [delete: cascade]
+Ref: Appeals.resolved_by > Users.id [delete: set null]
+Ref: Violations.user_id > Users.id [delete: cascade]
+Ref: Notifications.recipient_id > Users.id [delete: set null]

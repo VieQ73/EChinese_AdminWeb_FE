@@ -1,3 +1,6 @@
+// subscriptions.dbml
+
+// Table Subscriptions
 Table Subscriptions {
   id uuid [primary key, default: `uuid_generate_v4()`]
   name varchar(100) [unique, not null]
@@ -22,6 +25,23 @@ Table Subscriptions {
   }
 }
 
+// Table BadgeLevels
+Table BadgeLevels {
+  level int [unique, primary key]
+  name varchar(50) [not null]
+  icon TEXT 
+  
+  Note: '''
+  - Tên huy hiệu tùy chỉnh (admin chỉnh sửa).
+  - Công thức nâng cấp huy hiệu: 
+    - Level 1: >=100 điểm cộng đồng (tuần) hoặc >=50% HSK thấp.
+    - Level 2: >=500 (tháng) hoặc >=80% HSK trung.
+    - Level 3: >=2000 (năm) hoặc top 9 thi thử 3 lần.
+    - Level 4: Chỉ admin.
+  '''
+}
+
+// Table Payments
 Table Payments {
   id uuid [primary key, default: `uuid_generate_v4()`]
   user_id uuid [not null]
@@ -50,24 +70,9 @@ Table Payments {
   }
 }
 
-Table UserUsage {
-  id uuid [primary key, default: `uuid_generate_v4()`]
-  user_id uuid [not null]
-  feature varchar(50) [not null, note: "Enum: 'ai_lesson', 'ai_translate'"]
-  daily_count int [default: 0]
-  last_reset timestamptz [default: `CURRENT_TIMESTAMP`]
-  
-  Note: '''
-  - Quản lý quota sử dụng AI theo tính năng (tạo bài học, dịch, TTS).
-  - daily_count reset hàng ngày qua cron job dựa trên subscription quotas.
-  - last_reset để kiểm tra reset quota (ví dụ, reset nếu >24h).
-  '''
-  
-  Indexes {
-    user_id [type: btree]
-    feature [type: btree]
-  }
-}
-
-// Relationships within this file
+// Relationships
+Ref: Users.badge_level > BadgeLevels.level [delete: set default]
+Ref: Users.subscription_id > Subscriptions.id [delete: set null]
+Ref: Payments.user_id > Users.id [delete: restrict]
 Ref: Payments.subscription_id > Subscriptions.id [delete: restrict]
+Ref: Payments.processed_by_admin > Users.id [delete: set null]

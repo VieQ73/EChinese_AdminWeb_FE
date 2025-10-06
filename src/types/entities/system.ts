@@ -80,6 +80,19 @@ export interface Violation {
   resolution?: string | null;
 }
 
+
+export interface Appeal {
+  id: UUID;
+  violation_id: UUID;
+  user_id: UUID;
+  reason: string; // Lý do khiếu nại do người dùng nhập
+  status: 'pending' | 'accepted' | 'rejected'; // Trạng thái xử lý
+  created_at: Timestamp;
+  resolved_at?: Timestamp | null;
+  resolved_by?: UUID | null;
+  notes?: string | null; // Ghi chú của admin
+}
+
 export interface Media {
   id: UUID;
   original_name: string;

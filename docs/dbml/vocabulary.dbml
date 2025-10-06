@@ -1,0 +1,91 @@
+// vocabulary.dbml
+
+// Table Notebooks
+Table Notebooks {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid
+  name varchar(100) [not null]
+  vocab_count int [default: 0]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  options json [not null, note: "{show_hanzi: bool, show_pinyin: bool, show_meaning: bool, sort_by: string}"]
+  is_premium boolean [default: false]
+  
+  Note: '''
+  - Sổ tay cá nhân hoặc sẵn có (user_id NULL cho sẵn có).
+  - Trigger cập nhật vocab_count từ NotebookVocabItems.
+  - Truy cập premium kiểm tra qua Users.subscription_id.
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+  }
+}
+
+Table Vocabulary {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  hanzi varchar(50) [not null]
+  pinyin varchar(50) [not null]
+  meaning text [not null]
+  notes text
+  level text[] [not null, note: "Một từ có thể thuộc nhiều HSK levels: HSK1, HSK2, ..., HSK7-9, HSKK"]
+  image_url text
+
+  Note: '''
+  - Unique constraint (hanzi+pinyin) để tránh trùng lặp
+  - Từ vựng có thể liên kết nhiều từ loại (WordType)
+  '''
+
+  Indexes {
+    (hanzi, pinyin) [unique]
+    level [type: gin]
+  }
+}
+
+Table WordType {
+  code varchar(50) [primary key, note: "Enum: Danh từ, Đại từ, Động từ, Tính từ, Trạng từ, Giới từ, Liên từ, Trợ từ, Thán từ, Số từ, Lượng từ, Thành phần câu, Cụm từ"]
+
+  Note: '''
+  - Một từ có thể có nhiều từ loại
+  '''
+}
+
+Table VocabularyWordType {
+  vocab_id uuid [not null]
+  word_type varchar(50) [not null]
+
+  Note: '''
+  - Bảng trung gian N:N giữa Vocabulary và WordType
+  - Cho phép một từ vựng có nhiều từ loại
+  '''
+
+  Indexes {
+    (vocab_id)
+    (word_type)
+  }
+
+  primary key (vocab_id, word_type)
+}
+
+// Table NotebookVocabItems
+Table NotebookVocabItems {
+  notebook_id uuid [not null]
+  vocab_id uuid [not null]
+  status varchar(20) [not null, note: "Enum: 'đã thuộc', 'chưa thuộc', 'yêu thích', 'không chắc'"]
+  added_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  Note: '''
+  - Bảng liên kết N:N cho Notebook-Vocabulary.
+  - Thống kê (ví dụ, số từ đã thuộc) qua COUNT GROUP BY status.
+  '''
+  
+  Indexes {
+    (notebook_id, vocab_id) [unique]
+  }
+}
+
+// Relationships
+Ref: Notebooks.user_id > Users.id [delete: cascade]
+Ref: NotebookVocabItems.notebook_id > Notebooks.id [delete: cascade]
+Ref: NotebookVocabItems.vocab_id > Vocabulary.id [delete: restrict]
+Ref: VocabularyWordType.vocab_id > Vocabulary.id [delete: cascade]
+Ref: VocabularyWordType.word_type > WordType.code [delete: cascade]

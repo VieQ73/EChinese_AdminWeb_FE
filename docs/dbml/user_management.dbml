@@ -1,3 +1,5 @@
+// user_management.dbml
+
 // Enable UUID extension
 
 Table Users {
@@ -40,6 +42,7 @@ Table Users {
   }
 }
 
+// Table UserSessions
 Table UserSessions {
   id uuid [primary key, default: `uuid_generate_v4()`]
   user_id uuid [not null]
@@ -59,6 +62,7 @@ Table UserSessions {
   }
 }
 
+// Table UserDailyActivity
 Table UserDailyActivity {
   user_id uuid [not null]
   date date [not null]
@@ -78,6 +82,7 @@ Table UserDailyActivity {
   primary key (user_id, date)
 }
 
+// Table UserStreaks
 Table UserStreaks {
   user_id uuid [primary key]
   current_streak int [default: 0]
@@ -91,76 +96,7 @@ Table UserStreaks {
   '''
 }
 
-Table Achievements {
-  id uuid [primary key, default: `uuid_generate_v4()`]
-  name varchar(100) [not null, unique, note: "Tên thành tích, ví dụ: 'Gấu chăm chỉ', 'Thánh tra cứu'"]
-  description text [not null, note: "Mô tả thành tích, ví dụ: 'Đăng nhập liên tục 7 ngày'"]
-  criteria jsonb [not null, note: "Tiêu chí đạt được dưới dạng JSON để linh hoạt, ví dụ: {'type': 'login_streak', 'min_streak': 7} hoặc {'type': 'translation_usage', 'min_count': 30, 'feature': 'ai_translate'}"]
-  icon text [note: "URL icon hiển thị cho thành tích"]
-  points int [default: 0, note: "Điểm thưởng cộng vào community_points khi đạt được"]
-  is_active boolean [default: true, note: "Admin có thể tắt/mở thành tích"]
-  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
-  updated_at timestamptz [default: `CURRENT_TIMESTAMP`]
-  
-  Note: '''
-  - Quản lý các thành tích (achievements) do admin tạo/sửa.
-  - criteria JSONB cho phép định nghĩa linh hoạt các điều kiện (dựa trên UserStreaks, UserUsage, TranslationHistory, etc.).
-  - Ví dụ criteria:
-    - {'type': 'login_streak', 'min_streak': 7} -> Thành tích 'Gấu chăm chỉ'
-    - {'type': 'translation_usage', 'min_count': 30, 'feature': 'ai_translate'} -> Thành tích 'Thánh tra cứu'
-    - {'type': 'community_points', 'min_points': 1000} -> Thành tích 'Người đóng góp xuất sắc'
-  - Cron job hoặc trigger kiểm tra criteria và cấp thành tích qua UserAchievements.
-  - points: Số điểm thưởng, cộng vào Users.community_points khi đạt được.
-  '''
-  
-  Indexes {
-    name [unique]
-    is_active [type: btree]
-  }
-}
-
--- Table UserAchievements
-Table UserAchievements {
-  id uuid [primary key, default: `uuid_generate_v4()`]
-  user_id uuid [not null]
-  achievement_id uuid [not null]
-  achieved_at timestamptz [default: `CURRENT_TIMESTAMP`]
-  progress jsonb [note: "Tiến độ hiện tại nếu cần (ví dụ: {'current_count': 25, 'required': 30}), NULL nếu không theo dõi progress"]
-  
-  Note: '''
-  - Liên kết N:N giữa Users và Achievements, lưu thời gian đạt được.
-  - progress JSONB để theo dõi tiến độ (nếu thành tích có tiêu chí đếm dần, như số lần dịch).
-  - Unique constraint (user_id, achievement_id) để tránh cấp trùng lặp.
-  - Cron job update progress và cấp thành tích khi đạt criteria.
-  '''
-  
-  Indexes {
-    (user_id, achievement_id) [unique]
-    user_id [type: btree]
-    achievement_id [type: btree]
-    achieved_at [type: btree]
-  }
-}
-
-Table AdminLogs {
-  id uuid [primary key, default: `uuid_generate_v4()`]
-  user_id uuid [not null, note: "Tham chiếu Users.id, chỉ lưu user có role admin/super_admin"]
-  action_type varchar(50) [not null, note: "Enum: CREATE, UPDATE, DELETE, BAN_USER, ..."]
-  target_id uuid [note: "Đối tượng bị tác động, có thể là user_id, post_id, ..."]
-  description text
-  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
-  
-  Note: '''
-  - Theo dõi hành động admin (ví dụ, xóa post, khóa user) để kiểm toán.
-  - user_id tham chiếu tới bảng Users, nhưng chỉ cho phép role admin/super_admin.
-  '''
-  
-  Indexes {
-    user_id [type: btree]
-    created_at [type: btree]
-  }
-}
-
+// Table RefreshTokens
 Table RefreshTokens {
   id uuid [primary key, default: `uuid_generate_v4()`]
   user_id uuid [not null]
@@ -178,11 +114,8 @@ Table RefreshTokens {
   }
 }
 
-// Relationships within this file
+// Relationships
 Ref: UserSessions.user_id > Users.id [delete: cascade]
 Ref: UserDailyActivity.user_id > Users.id [delete: cascade]
 Ref: UserStreaks.user_id > Users.id [delete: cascade]
-Ref: UserAchievements.user_id > Users.id [delete: cascade]
-Ref: UserAchievements.achievement_id > Achievements.id [delete: restrict]
-Ref: AdminLogs.user_id > Users.id [delete: set null]
 Ref: RefreshTokens.user_id > Users.id [delete: cascade]

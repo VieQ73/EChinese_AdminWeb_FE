@@ -346,7 +346,7 @@ Table ModerationLogs {
   id uuid [primary key, default: `uuid_generate_v4()`]
   target_type varchar(20) [not null, note: "Enum: 'post', 'comment'"]
   target_id uuid [not null]
-  action varchar(30) [not null, note: "Enum: 'gỡ', 'khôi phục', 'xóa vĩnh viễn'"]
+  action varchar(30) [not null, note: "Enum: 'gỡ', 'khôi phục'"]
   reason text
   performed_by uuid [not null]
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
@@ -540,11 +540,9 @@ Table Vocabulary {
   notes text
   level text[] [not null, note: "Một từ có thể thuộc nhiều HSK levels: HSK1, HSK2, ..., HSK7-9, HSKK"]
   image_url text
-  deleted_at timestamptz [note: "Soft delete: Cho phép khôi phục trong thời gian ngắn"]
 
   Note: '''
   - Unique constraint (hanzi+pinyin) để tránh trùng lặp
-  - Hard delete chỉ cho Super Admin hoặc cron job
   - Từ vựng có thể liên kết nhiều từ loại (WordType)
   '''
 
@@ -665,6 +663,7 @@ Table AdminLogs {
     created_at [type: btree]
   }
 }
+
 
 // Table TranslationHistory
 Table TranslationHistory {
@@ -818,6 +817,32 @@ Table Violations {
   }
 }
 
+Table Appeals {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  violation_id uuid [not null]
+  user_id uuid [not null]
+  reason text [not null]
+  status varchar(20) [default: 'pending', note: "Enum: 'pending','accepted','rejected'"]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  resolved_at timestamptz
+  resolved_by uuid 
+  notes text
+
+  Note: '''
+  - Người dùng có thể khiếu nại sau khi bài viết/comment bị gỡ.
+  - Khi admin xử lý: nếu accepted → khôi phục bài, nếu rejected → xóa sau 7 ngày.
+  - Mỗi violation có thể có 1 appeal tương ứng.
+  - Khi pending thì resolved = null
+  '''
+
+  Indexes {
+    violation_id [type: btree]
+    user_id [type: btree]
+    status [type: btree]
+    created_at [type: btree]
+  }
+}
+
 // Table Media
 Table Media {
   id uuid [primary key, default: `uuid_generate_v4()`]
@@ -905,12 +930,19 @@ Ref: AdminLogs.user_id > Users.id [delete: set null]
 Ref: Reports.reporter_id > Users.id [delete: set null]
 Ref: Reports.assigned_to > Users.id [delete: set null]
 Ref: Reports.resolved_by > Users.id [delete: set null]
+Ref: Reports.related_violation_id > Violations.id [delete: set null]
+
+Ref: Appeals.violation_id > Violations.id [delete: cascade]
+Ref: Appeals.user_id > Users.id [delete: cascade]
+Ref: Appeals.resolved_by > Users.id [delete: set null]
 
 Ref: Violations.user_id > Users.id [delete: cascade]
 
 Ref: MockTestSections.test_id > MockTests.id [delete: cascade]
 Ref: MockTestQuestions.section_id > MockTestSections.id [delete: cascade]
 Ref: MockTestQuestions.media_id > Media.id [delete: set null]
+
+Ref: MockTests.created_by > Users.id [delete: set null]
 
 Ref: UserTestScores.user_id > Users.id [delete: cascade]
 Ref: UserTestScores.test_id > MockTests.id [delete: cascade]

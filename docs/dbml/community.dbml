@@ -1,3 +1,6 @@
+// community.dbml
+
+//Table Posts
 Table Posts {
   id uuid [primary key, default: `uuid_generate_v4()`]
   user_id uuid [not null]
@@ -8,7 +11,7 @@ Table Posts {
   views int [default: 0]
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
 
-  -- Moderation
+  //Moderation
   status varchar(20) [default: 'published', note: "Enum: 'draft','published','hidden','removed','archived'"]
   is_approved boolean [default: true, note: "False = chờ duyệt / vi phạm / bị ẩn"]
   auto_flagged boolean [default: false, note: "True = bị AI phát hiện nghi ngờ vi phạm"]
@@ -35,7 +38,7 @@ Table Posts {
   }
 }
 
-
+// Table PostLikes
 Table PostLikes {
   id uuid [primary key, default: `uuid_generate_v4()`]
   post_id uuid [not null]
@@ -55,6 +58,7 @@ Table PostLikes {
   }
 }
 
+// Table PostViews
 Table PostViews {
   id uuid [primary key, default: `uuid_generate_v4()`]
   post_id uuid [not null]
@@ -73,6 +77,7 @@ Table PostViews {
   }
 }
 
+// Table Comments
 Table Comments {
   id uuid [primary key, default: `uuid_generate_v4()`]
   post_id uuid [not null]
@@ -99,6 +104,7 @@ Table Comments {
   }
 }
 
+// Table PostMediaMap
 Table PostMediaMap {
   id uuid [primary key, default: `uuid_generate_v4()`]
   post_id uuid [not null]
@@ -117,6 +123,7 @@ Table PostMediaMap {
   }
 }
 
+// Table ModerationLogs
 Table ModerationLogs {
   id uuid [primary key, default: `uuid_generate_v4()`]
   target_type varchar(20) [not null, note: "Enum: 'post', 'comment'"]
@@ -139,9 +146,17 @@ Table ModerationLogs {
   }
 }
 
-// Relationships within this file
+// Relationships
+Ref: Posts.user_id > Users.id
+Ref: Posts.deleted_by > Users.id
 Ref: Comments.post_id > Posts.id [delete: cascade]
+Ref: Comments.user_id > Users.id
 Ref: Comments.parent_comment_id > Comments.id [delete: cascade]
-Ref: PostLikes.post_id > Posts.id [delete: cascade]
-Ref: PostViews.post_id > Posts.id [delete: cascade]
+Ref: Comments.deleted_by > Users.id
 Ref: PostMediaMap.post_id > Posts.id [delete: cascade]
+Ref: PostMediaMap.media_id > Media.id [delete: cascade]
+Ref: ModerationLogs.performed_by > Users.id
+Ref: PostLikes.post_id > Posts.id [delete: cascade]
+Ref: PostLikes.user_id > Users.id [delete: cascade]
+Ref: PostViews.post_id > Posts.id [delete: cascade]
+Ref: PostViews.user_id > Users.id [delete: set null]

@@ -1,0 +1,98 @@
+// ai_features.dbml
+
+// Table Tips
+Table Tips {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  topic varchar(50) [not null, note: "Enum: 'Tất cả', 'Văn hóa', 'Ngữ pháp', 'Từ vựng', 'Phát âm', 'Khẩu ngữ', 'Kỹ năng nghe', 'Kỹ năng đọc', 'Kỹ năng viết', 'Khác'"]
+  level varchar(10) [not null, note: "Enum: 'Sơ cấp', 'Trung cấp', 'Cao cấp'"]
+  content jsonb [not null, note: "Lưu trữ nội dung Rich Text dưới dạng JSON, hỗ trợ định dạng văn bản và căn chỉnh"]
+  answer text
+  is_pinned boolean [not null, default: false, note: "Mới: Quyết định mẹo có được ghim (Pin) lên đầu danh sách hay không. Tối đa 3 mẹo được ghim/chủ đề."]
+  created_by uuid
+  
+  Note: '''
+  - Mẹo trang chủ với đáp án tùy chọn cho quiz.
+  - Tổng số tính toán động.
+  - Sử dụng cho mẹo bài học AI nếu lưu riêng.
+  
+  '''
+  
+  Indexes {
+    topic [type: btree]
+    level [type: btree]
+    is_pinned [type: btree]
+  }
+}
+
+// Table AILessons
+Table AILessons {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  theme varchar(100) [not null]
+  level varchar(10) [not null, note: "Enum: 'Cơ bản', 'Trung cấp', 'Cao cấp'"]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  content json [not null, note: "Structure: {vocabularies: [{vocab_id: uuid (ref Vocabulary.id), audio_url: string (S3 URL, null if not generated)}], phrases: [{vocab_id: uuid (ref Vocabulary.id), audio_url: string (S3 URL, null if not generated)}], tips: [{tip_id: uuid (ref Tips.id, null if not stored separately), vietnamese: string, chinese: string}], dialogues: [{messages: [{text: string (simplified hanzi), pinyin: string, audio_url: string (S3 URL, null if not generated)}]}]}"]
+  
+  Note: '''
+  - Lưu bài học tạo bởi AI.
+  - content.vocabularies/phrases reference Vocabulary.id.
+  - Lưu bài học tạo bởi AI (chủ đề và mức độ người dùng chọn).
+  - content.vocabularies/phrases reference Vocabulary.id để tránh trùng lặp.
+  - content.tips có thể reference Tips.id hoặc lưu inline (vietnamese+chinese).
+  - content.dialogues lưu dưới dạng JSON (chat-like, với audio URL, chỉ hán tự giản thể).
+  - Audio tạo động (TTS API), URL lưu tạm thời.
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+    (theme, level) [type: btree]
+  }
+}
+
+// Table TranslationHistory
+Table TranslationHistory {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  original_text text [not null]
+  original_lang varchar(10) [not null, note: "Enum: 'vi', 'zh'"]
+  translated_text text [not null]
+  translated_lang varchar(10) [not null, note: "Enum: 'vi', 'zh'"]
+  is_ai boolean [default: false]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  Note: '''
+  - Lưu lịch sử dịch (Trung-Việt/Việt-Trung), phân biệt dịch thường hoặc AI.
+  - Người dùng xóa qua API.
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+    created_at [type: btree]
+  }
+}
+
+// Table UserUsage
+Table UserUsage {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  feature varchar(50) [not null, note: "Enum: 'ai_lesson', 'ai_translate'"]
+  daily_count int [default: 0]
+  last_reset timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  Note: '''
+  - Quản lý quota sử dụng AI theo tính năng (tạo bài học, dịch, TTS).
+  - daily_count reset hàng ngày qua cron job dựa trên subscription quotas.
+  - last_reset để kiểm tra reset quota (ví dụ, reset nếu >24h).
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+    feature [type: btree]
+  }
+}
+
+// Relationships
+Ref: AILessons.user_id > Users.id [delete: cascade]
+Ref: Tips.created_by > Users.id [delete: set null]
+Ref: TranslationHistory.user_id > Users.id [delete: cascade]
+Ref: UserUsage.user_id > Users.id [delete: cascade]

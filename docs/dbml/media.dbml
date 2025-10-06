@@ -1,3 +1,6 @@
+// media.dbml
+
+// Table Media
 Table Media {
   id uuid [primary key, default: `uuid_generate_v4()`]
   original_name varchar(255) [not null]
@@ -20,17 +23,5 @@ Table Media {
   }
 }
 
-Table BadgeLevels {
-  level int [unique, primary key]
-  name varchar(50) [not null]
-  icon TEXT 
-  
-  Note: '''
-  - Tên huy hiệu tùy chỉnh (admin chỉnh sửa).
-  - Công thức nâng cấp huy hiệu: 
-    - Level 1: >=100 điểm cộng đồng (tuần) hoặc >=50% HSK thấp.
-    - Level 2: >=500 (tháng) hoặc >=80% HSK trung.
-    - Level 3: >=2000 (năm) hoặc top 9 thi thử 3 lần.
-    - Level 4: Chỉ admin.
-  '''
-}
+// Relationships
+Ref: Media.uploaded_by > Users.id [delete: set null]

@@ -12,7 +12,6 @@ export interface Vocabulary {
   notes?: string;
   level: string[]; // ví dụ: ['HSK1', 'HSK2']
   image_url?: string;
-  deleted_at?: Timestamp;
   word_types: string[]; // ['Danh từ', 'Động từ']
 }
 
