@@ -22,7 +22,7 @@ Table Posts {
   deleted_by uuid [note: "Ai gỡ (user tự gỡ hoặc admin)"]
 
   Note: '''
-  - Khi user tự xóa bài: status='removed', deleted_by=user_id, is_approved=true.
+  - Khi user tự xóa bài: status='removed', deleted_by=user_id, is_approved=false.
   - Khi admin xóa: status='removed', deleted_by=admin_id, is_approved=false, tạo Violation.
   - Khi AI nghi ngờ: auto_flagged=true, status='hidden' chờ admin xem.
   - Bài bị removed sẽ bị xóa cứng sau 7 ngày nếu không được khôi phục.
@@ -90,8 +90,8 @@ Table Comments {
   deleted_by uuid [null, note: "ai gỡ"]
 
   Note: '''
-  - Comment có thể bị gỡ/xóa. 
-  - Admin chỉ có quyền gỡ/khôi phục, superadmin có quyền xóa vĩnh viễn.
+  - Comment có thể bị gỡ. 
+  - Admin/Super Admin có quyền gỡ của user thường và chính mình, user thường chỉ có thể gỡ bình luận của chính mình.
   - parent_comment_id hỗ trợ comment lồng nhau.
   - deleted_reason + deleted_by để tra cứu lý do và người thực hiện.
   '''

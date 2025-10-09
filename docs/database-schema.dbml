@@ -13,23 +13,20 @@ Table Users {
   is_active boolean [default: true]
   isVerify boolean [default: false]
   community_points int [default: 0]
-  subscription_id uuid [not null]
-  subscription_expiry timestamptz [note: "Cho phép NULL cho Free user và người đăng ký gói vĩnh viễn"]
   level varchar(3) [not null, note: "Enum: '1', '2', '3', '4', '5', '6', '7-9'"]
   badge_level int [not null, default: 0]
   language varchar(10) [not null, note: "Enum: 'Tiếng Việt', 'Tiếng Anh'"]
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
   last_login timestamptz
-  
+
   Note: '''
-  - Bảng trung tâm cho hồ sơ người dùng, hỗ trợ đăng nhập qua username/password, goole, apple.
-  - Username/password_hash cho đăng nhập local (hash bcrypt), provider/provider_id cho OAuth (Google/Apple).
-  - Email và name có thể null.
-  - Điểm cộng đồng tổng hợp từ Posts/Comments (likes*10, posts*20, comments_received*20), lưu trực tiếp để tối ưu query.
-  - isVerify hỗ trợ xác thực email, tăng bảo mật.
-  - subscription_id: not null - tự động gán id gói free cho người dùng ngay khi tạo tài khoản
+  - Trung tâm hồ sơ người dùng, hỗ trợ đăng nhập local và OAuth (Google/Apple).
+  - password_hash chỉ dùng cho đăng nhập local, provider/provider_id cho OAuth.
+  - community_points tích lũy từ hoạt động cộng đồng, cập nhật trực tiếp để tối ưu query.
+  - isVerify xác thực email, tăng bảo mật.
+  - Không lưu gói đăng ký trực tiếp tại đây để tránh phình bảng — dùng bảng UserSubscriptions riêng.
   '''
-  
+
   Indexes {
     username [unique]
     email [unique]
@@ -150,24 +147,52 @@ Table UserAchievements {
 Table Subscriptions {
   id uuid [primary key, default: `uuid_generate_v4()`]
   name varchar(100) [unique, not null]
+  description json [note: "Rich Text - Mô tả quyền lợi của gói, hiển thị cho người dùng"]
   daily_quota_ai_lesson int [default: 0]
   daily_quota_translate int [default: 0]
   price decimal(10,2) [default: 0]
-  duration_months int [note: "NULL for Permanent plans. Positive values for time-limited plans."]
+  duration_months int [note: "NULL cho gói vĩnh viễn, >0 cho gói giới hạn thời gian"]
   is_active boolean [default: true]
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
   updated_at timestamptz [default: `CURRENT_TIMESTAMP`]
-  
+
   Note: '''
-  - duration_months: NULL biểu thị gói Vĩnh Viễn.
-  - Admin có thể tùy ý Tạo/Sửa/Xóa gói. Admin chỉnh sửa tên, thời hạn, quota (không hard-code).
-  - duration_months: 1 cho tháng, 3 cho ba tháng, null cho vĩnh viễn/miễn phí.
-  - quota cho AI (tạo bài học, dịch), reset hàng ngày qua cron job.
-  - price cho thanh toán, is_active để kích hoạt/gỡ gói.
+  - duration_months: NULL = gói vĩnh viễn/miễn phí.
+  - Admin có thể tạo/sửa/xóa gói (không hard-code).
+  - Quota cho AI (tạo bài học, dịch) được reset hàng ngày.
+  - price là giá niêm yết, dùng để tính thanh toán.
+  - is_active dùng để ẩn/hiện gói.
+  '''
+
+  Indexes {
+    name [unique]
+    is_active [type: btree]
+  }
+}
+
+Table UserSubscriptions {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  subscription_id uuid [not null]
+  start_date timestamptz [default: `CURRENT_TIMESTAMP`]
+  expiry_date timestamptz [note: "NULL cho gói vĩnh viễn hoặc gói free"]
+  is_active boolean [default: true]
+  auto_renew boolean [default: false]
+  last_payment_id uuid 
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [default: `CURRENT_TIMESTAMP`]
+
+  Note: '''
+  - Ghi nhận gói hiện tại của người dùng (liên kết giữa Users và Subscriptions).
+  - expiry_date = NULL nếu gói là vĩnh viễn hoặc gói miễn phí.
+  - last_payment_id lưu giao dịch cuối cùng dùng để kích hoạt/ gia hạn.
+  - auto_renew: dùng cho thanh toán định kỳ tự động.
+  - Khi người dùng nâng cấp, tạo bản ghi mới, bản cũ is_active = false.
   '''
   
   Indexes {
-    name [unique]
+    (user_id, is_active) [type: btree]
+    expiry_date [type: btree]
   }
 }
 
@@ -195,26 +220,58 @@ Table Payments {
   amount decimal(10,2) [not null]
   currency varchar(3) [default: 'VND']
   status varchar(20) [default: 'pending', note: "Enum: 'pending', 'successful', 'failed', 'refunded', 'manual_confirmed'"]
-  payment_method varchar(50) [not null, note: "Enum: 'visa/mastercard', 'bank_transfer', 'momo', 'zalopay', 'vnpay', etc.'"]
+  payment_method varchar(50) [not null, note: "Enum: 'visa/mastercard', 'bank_transfer', 'momo', 'zalopay', 'vnpay', ..."]
+  payment_channel varchar(20) [default: 'auto', note: "Enum: 'auto', 'manual'"]
   gateway_transaction_id varchar(255) [unique, not null]
+  manual_proof_url text [note: "Ảnh biên lai nếu thanh toán thủ công"]
   transaction_date timestamptz [default: `CURRENT_TIMESTAMP`]
   gateway_response json
-  processed_by_admin uuid [note: "Admin/Super Admin ID that processed this transaction (usually for refunds or manual confirmation)."]
+  processed_by_admin uuid [note: "Admin xử lý thủ công hoặc hoàn tiền"]
   notes text
-  
+
   Note: '''
-  - Theo dõi chi tiết mọi giao dịch mua gói đăng ký.
-  - Gateway_transaction_id là ID duy nhất từ cổng thanh toán (ví dụ: VNPAY, Momo, Stripe).
-  - Processed_by_admin cho các trường hợp hoàn tiền hoặc xác nhận thủ công.
+  - Lưu toàn bộ giao dịch thanh toán gói đăng ký.
+  - payment_channel: 'auto' (qua cổng) hoặc 'manual' (chuyển khoản thủ công).
+  - gateway_transaction_id là mã từ cổng thanh toán (Momo, VNPAY, Stripe...).
+  - processed_by_admin dùng cho xác nhận thủ công hoặc hoàn tiền.
   '''
-  
+
   Indexes {
     user_id [type: btree]
     status [type: btree]
     transaction_date [type: btree]
     payment_method [type: btree]
+    payment_channel [type: btree]
   }
 }
+
+
+Table Refunds {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  payment_id uuid [not null]
+  user_id uuid [not null]
+  processed_by_admin uuid
+  refund_amount decimal(10,2) [not null]
+  refund_method varchar(50) [note: "Enum: 'gateway', 'manual_transfer'"]
+  reason text
+  status varchar(20) [default: 'pending', note: "Enum: 'pending', 'completed', 'rejected'"]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  processed_at timestamptz
+
+  Note: '''
+  - Quản lý lịch sử hoàn tiền riêng biệt để dễ kiểm toán.
+  - refund_method cho biết hoàn tiền qua gateway hay thủ công.
+  - Admin xác nhận thì cập nhật status và processed_at.
+  '''
+
+  Indexes {
+    user_id [type: btree]
+    payment_id [type: btree]
+    status [type: btree]
+    created_at [type: btree]
+  }
+}
+
 
 //Table Posts
 Table Posts {
@@ -238,9 +295,9 @@ Table Posts {
   deleted_by uuid [note: "Ai gỡ (user tự gỡ hoặc admin)"]
 
   Note: '''
-  - Khi user tự xóa bài: status='removed', deleted_by=user_id, is_approved=true.
-  - Khi admin xóa: status='removed', deleted_by=admin_id, is_approved=false, tạo Violation.
-  - Khi AI nghi ngờ: auto_flagged=true, status='hidden' chờ admin xem.
+  - Khi user tự gỡ bài: status='removed', deleted_by=user_id, is_approved=false.
+  - Khi admin gỡ: status='removed', deleted_by=admin_id, is_approved=false, tạo Violation.
+  - Khi AI nghi ngờ: auto_flagged=true, status='removed'.
   - Bài bị removed sẽ bị xóa cứng sau 7 ngày nếu không được khôi phục.
   '''
 
@@ -308,8 +365,8 @@ Table Comments {
   deleted_by uuid [null, note: "ai gỡ"]
 
   Note: '''
-  - Comment có thể bị gỡ/xóa. 
-  - Admin chỉ có quyền gỡ/khôi phục, superadmin có quyền xóa vĩnh viễn.
+  - Comment có thể bị gỡ. 
+  - Admin/Super Admin có quyền gỡ của user thường và chính mình, user thường chỉ có thể gỡ bình luận của chính mình.
   - parent_comment_id hỗ trợ comment lồng nhau.
   - deleted_reason + deleted_by để tra cứu lý do và người thực hiện.
   '''
@@ -715,7 +772,7 @@ Table Notifications {
   type varchar(50) [not null, note: "Enum: 'system','report','violation','appeal','subscription','community','achievement','reminder','feedback'"]
 
   title varchar(200) [not null]
-  content text [not null]
+  content json [not null] 
   
   related_type varchar(50) [note: "Loại đối tượng liên quan: 'post','comment','user','report','violation',..."]
   related_id uuid
@@ -761,7 +818,6 @@ Table Reports {
   status varchar(20) [default: 'pending', note: "Enum: 'pending','in_progress','resolved','dismissed'"]
   resolution text [note: "Kết quả xử lý hoặc ghi chú của admin"]
   
-  assigned_to uuid [note: "Admin được giao xử lý (optional)"]
   resolved_by uuid [note: "Admin đã xử lý xong"]
   resolved_at timestamptz
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
@@ -788,14 +844,40 @@ Table Reports {
   }
 }
 
-//Table Violations
+
+// Bảng Quy tắc Cộng đồng (CommunityRules)
+
+
+Table CommunityRules {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  title varchar(100) [not null, unique, note: "Tên ngắn gọn của quy tắc, ví dụ: 'Công kích cá nhân'"]
+  description text [not null, note: "Mô tả chi tiết để xác định hành vi vi phạm thuộc quy tắc này"]
+  severity_default varchar(10) [not null, note: "Enum: 'low', 'medium', 'high' — Mức độ mặc định của quy tắc"]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [note: "Thời điểm cập nhật gần nhất"]
+
+  Note: '''
+  - Chứa danh sách quy tắc cộng đồng do admin thiết lập.
+  - Dùng để tham chiếu khi tạo vi phạm (Violations).
+  - Admin có thể thêm, sửa hoặc tạm ngưng quy tắc.
+  '''
+
+  Indexes {
+    title [type: btree]
+    severity_default [type: btree]
+  }
+}
+
+
+// Bảng Vi phạm (Violations)
+
+
 Table Violations {
   id uuid [primary key, default: `uuid_generate_v4()`]
   user_id uuid [not null, note: "Người vi phạm"]
   target_type varchar(20) [not null, note: "Enum: 'post', 'comment'"]
   target_id uuid [not null, note: "ID bài viết hoặc bình luận vi phạm"]
-  rule varchar(100) [not null, note: "Loại vi phạm: spam, ngôn từ kích động, nội dung nhạy cảm,..."]
-  severity varchar(10) [not null, note: "Enum: 'low', 'medium', 'high'"]
+  severity varchar(10) [not null, note: "Enum: 'low', 'medium', 'high' — Mức độ vi phạm cụ thể"]
   detected_by varchar(20) [not null, note: "Enum: 'admin', 'auto_ai'"]
   handled boolean [default: false, note: "Đã xử lý hay chưa"]
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
@@ -803,17 +885,36 @@ Table Violations {
   resolution text [note: "Ghi chú: cảnh cáo, xóa bài, khóa tài khoản,..."]
 
   Note: '''
-  - Lưu lịch sử các vi phạm, bao gồm do AI tự phát hiện hoặc do admin xử lý từ báo cáo.
-  - handled = false: chờ xác nhận từ admin.
-  - severity để phân loại mức độ vi phạm.
-  - Admin có thể xem lại các vi phạm chưa xử lý và quyết định giữ nguyên hoặc khôi phục.
+  - Lưu lịch sử vi phạm của người dùng.
+  - Một vi phạm có thể gắn với nhiều quy tắc (qua bảng ViolationRules).
+  - Admin hoặc AI đều có thể tạo bản ghi này.
   '''
-  
+
   Indexes {
     user_id [type: btree]
     target_id [type: btree]
     handled [type: btree]
     created_at [type: btree]
+  }
+}
+
+
+// Bảng Liên kết (ViolationRules)
+
+Table ViolationRules {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  violation_id uuid [not null, note: "Tham chiếu đến bảng Violations"]
+  rule_id uuid [not null, note: "Tham chiếu đến bảng CommunityRules"]
+
+  Note: '''
+  - Cho phép một vi phạm có thể vi phạm nhiều quy tắc.
+  - Đồng thời, một quy tắc có thể áp dụng cho nhiều vi phạm.
+  - Đây là bảng trung gian (many-to-many).
+  '''
+
+  Indexes {
+    violation_id [type: btree]
+    rule_id [type: btree]
   }
 }
 
@@ -827,6 +928,7 @@ Table Appeals {
   resolved_at timestamptz
   resolved_by uuid 
   notes text
+  violation_snapshot jsonb [note: "Lưu bản sao dữ liệu vi phạm tại thời điểm khiếu nại"]
 
   Note: '''
   - Người dùng có thể khiếu nại sau khi bài viết/comment bị gỡ.
@@ -885,13 +987,12 @@ Table RefreshTokens {
 }
 
 // Relationships
+
 Ref: Users.badge_level > BadgeLevels.level [delete: set default]
-Ref: Users.subscription_id > Subscriptions.id [delete: set null]
 
 Ref: UserSessions.user_id > Users.id [delete: cascade]
 Ref: UserDailyActivity.user_id > Users.id [delete: cascade]
 Ref: UserStreaks.user_id > Users.id [delete: cascade]
-
 Ref: UserAchievements.user_id > Users.id [delete: cascade]
 Ref: UserAchievements.achievement_id > Achievements.id [delete: restrict]
 
@@ -899,12 +1000,19 @@ Ref: Payments.user_id > Users.id [delete: restrict]
 Ref: Payments.subscription_id > Subscriptions.id [delete: restrict]
 Ref: Payments.processed_by_admin > Users.id [delete: set null]
 
+Ref: UserSubscriptions.user_id > Users.id [delete: cascade]
+Ref: UserSubscriptions.subscription_id > Subscriptions.id [delete: restrict]
+Ref: UserSubscriptions.last_payment_id > Payments.id [delete: set null]
+
+Ref: Refunds.payment_id > Payments.id [delete: cascade]
+Ref: Refunds.user_id > Users.id [delete: cascade]
+Ref: Refunds.processed_by_admin > Users.id [delete: set null]
+
 Ref: Posts.user_id > Users.id
 Ref: Posts.deleted_by > Users.id
 
 Ref: Comments.post_id > Posts.id [delete: cascade]
 Ref: Comments.user_id > Users.id
-
 Ref: Comments.parent_comment_id > Comments.id [delete: cascade]
 Ref: Comments.deleted_by > Users.id
 
@@ -912,10 +1020,8 @@ Ref: PostMediaMap.post_id > Posts.id [delete: cascade]
 Ref: PostMediaMap.media_id > Media.id [delete: cascade]
 
 Ref: ModerationLogs.performed_by > Users.id
-
 Ref: PostLikes.post_id > Posts.id [delete: cascade]
 Ref: PostLikes.user_id > Users.id [delete: cascade]
-
 Ref: PostViews.post_id > Posts.id [delete: cascade]
 Ref: PostViews.user_id > Users.id [delete: set null]
 
@@ -924,11 +1030,9 @@ Ref: NotebookVocabItems.notebook_id > Notebooks.id [delete: cascade]
 Ref: NotebookVocabItems.vocab_id > Vocabulary.id [delete: restrict]
 
 Ref: AILessons.user_id > Users.id [delete: cascade]
-
 Ref: AdminLogs.user_id > Users.id [delete: set null]
 
 Ref: Reports.reporter_id > Users.id [delete: set null]
-Ref: Reports.assigned_to > Users.id [delete: set null]
 Ref: Reports.resolved_by > Users.id [delete: set null]
 Ref: Reports.related_violation_id > Violations.id [delete: set null]
 
@@ -937,19 +1041,18 @@ Ref: Appeals.user_id > Users.id [delete: cascade]
 Ref: Appeals.resolved_by > Users.id [delete: set null]
 
 Ref: Violations.user_id > Users.id [delete: cascade]
+Ref: ViolationRules.violation_id > Violations.id [delete: cascade]
+Ref: ViolationRules.rule_id > CommunityRules.id [delete: cascade]
 
 Ref: MockTestSections.test_id > MockTests.id [delete: cascade]
 Ref: MockTestQuestions.section_id > MockTestSections.id [delete: cascade]
 Ref: MockTestQuestions.media_id > Media.id [delete: set null]
-
 Ref: MockTests.created_by > Users.id [delete: set null]
 
 Ref: UserTestScores.user_id > Users.id [delete: cascade]
 Ref: UserTestScores.test_id > MockTests.id [delete: cascade]
-
 Ref: UserTestAttempts.user_id > Users.id [delete: cascade]
 Ref: UserTestAttempts.test_id > MockTests.id [delete: cascade]
-
 Ref: UserTestAnswers.attempt_id > UserTestAttempts.id [delete: cascade]
 Ref: UserTestAnswers.question_id > MockTestQuestions.id [delete: cascade]
 
@@ -957,9 +1060,8 @@ Ref: Tips.created_by > Users.id [delete: set null]
 Ref: Media.uploaded_by > Users.id [delete: set null]
 Ref: TranslationHistory.user_id > Users.id [delete: cascade]
 Ref: UserUsage.user_id > Users.id [delete: cascade]
-
 Ref: Notifications.recipient_id > Users.id [delete: set null]
-
 Ref: RefreshTokens.user_id > Users.id [delete: cascade]
+
 Ref: VocabularyWordType.vocab_id > Vocabulary.id [delete: cascade]
 Ref: VocabularyWordType.word_type > WordType.code [delete: cascade]

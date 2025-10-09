@@ -73,7 +73,6 @@ Table Reports {
   status varchar(20) [default: 'pending', note: "Enum: 'pending','in_progress','resolved','dismissed'"]
   resolution text [note: "Kết quả xử lý hoặc ghi chú của admin"]
   
-  assigned_to uuid [note: "Admin được giao xử lý (optional)"]
   resolved_by uuid [note: "Admin đã xử lý xong"]
   resolved_at timestamptz
   created_at timestamptz [default: `CURRENT_TIMESTAMP`]
@@ -158,7 +157,6 @@ Table Appeals {
 // Relationships
 Ref: AdminLogs.user_id > Users.id [delete: set null]
 Ref: Reports.reporter_id > Users.id [delete: set null]
-Ref: Reports.assigned_to > Users.id [delete: set null]
 Ref: Reports.resolved_by > Users.id [delete: set null]
 Ref: Reports.related_violation_id > Violations.id [delete: set null]
 Ref: Appeals.violation_id > Violations.id [delete: cascade]

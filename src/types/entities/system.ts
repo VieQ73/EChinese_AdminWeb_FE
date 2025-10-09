@@ -66,19 +66,39 @@ export interface Report {
   updated_at: Timestamp;
 }
 
+// Community Rule
+export interface CommunityRule {
+  id: string;
+  title: string;                 // Tên quy tắc (vd: "Công kích cá nhân")
+  description: string;           // Mô tả chi tiết
+  severity_default: 'low' | 'medium' | 'high';
+  created_at: string;
+  updated_at?: string;
+}
+
+// Violation (vi phạm)
 export interface Violation {
-  id: UUID;
-  user_id: UUID;
+  id: string;
+  user_id: string;               // Người vi phạm
   target_type: 'post' | 'comment';
-  target_id: UUID;
-  rule: string;
+  target_id: string;
   severity: 'low' | 'medium' | 'high';
   detected_by: 'admin' | 'auto_ai';
   handled: boolean;
-  created_at: Timestamp;
-  resolved_at?: Timestamp | null;
-  resolution?: string | null;
+  created_at: string;
+  resolved_at?: string;
+  resolution?: string;
+  // Optional joined fields
+  rules?: CommunityRule[];       // Các quy tắc liên quan
 }
+
+// Bảng trung gian giữa Violation và CommunityRule
+export interface ViolationRule {
+  id: string;
+  violation_id: string;
+  rule_id: string;
+}
+
 
 
 export interface Appeal {

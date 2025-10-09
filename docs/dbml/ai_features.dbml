@@ -24,6 +24,7 @@ Table Tips {
   }
 }
 
+
 // Table AILessons
 Table AILessons {
   id uuid [primary key, default: `uuid_generate_v4()`]
