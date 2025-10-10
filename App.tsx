@@ -12,6 +12,7 @@ import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/users/UserManagement';
 import CommunityManagement from './pages/community/CommunityManagement';
 import MockTestManagement from './pages/tests/MockTestManagement';
+import { TestDetailPage } from './pages/tests/TestDetailPage';
 import ContentManagementPage from './pages/content/ContentManagementPage';
 import SubscriptionManagement from './pages/monetization/SubscriptionManagement';
 import AchievementManagement from './pages/settings/AchievementManagement';
@@ -63,6 +64,8 @@ const MainApp: React.FC = () => {
                     {/* <Route path="/badges" element={<BadgeManagement />} /> */}
                     <Route path="/rules" element={<RuleManagementPage />} />
                     <Route path="/mock-tests" element={<MockTestManagement />} />
+                    <Route path="/tests" element={<MockTestManagement />} />
+                    <Route path="/tests/:id" element={<TestDetailPage />} />
                     <Route path="/tips" element={<TipsManagementPage />} />
                     <Route path="/media" element={<MediaManagement />} />
                     <Route path="/system" element={<SystemManagement />} />
