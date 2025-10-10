@@ -11,7 +11,7 @@ import Modal from '../../../components/Modal';
 import FloatingBulkActionsBar from '../../../components/FloatingBulkActionsBar';
 import { useNotebookSelection } from './useNotebookSelection';
 import NotebooksToolbar from './NotebooksToolbar';
-import NotebooksTable from './NotebooksTable';
+import NotebookCardGrid from './NotebookCardGrid';
 import AddEditNotebookModal from './AddEditNotebookModal';
 import { Pagination } from '../../../components/ui/pagination';
 // FIX: Import Loader2 from lucide-react instead of constants
@@ -143,7 +143,7 @@ const NotebooksTab: React.FC = () => {
                 {loading ? (
                     <div className="flex justify-center items-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary-600"/></div>
                 ) : (
-                    <NotebooksTable notebooks={notebooks} selectedNotebooks={selectedNotebooks} onSelect={handleSelect} onSelectAll={handleSelectAll} onEdit={handleOpenEditModal} onNavigate={(id) => navigate(`/notebooks/${id}`)}/>
+                    <NotebookCardGrid notebooks={notebooks} selectedNotebooks={selectedNotebooks} onSelect={handleSelect} onSelectAll={handleSelectAll} onEdit={handleOpenEditModal} onNavigate={(id) => navigate(`/notebooks/${id}`)}/>
                 )}
 
                  {pageCount > 1 && !loading && (
