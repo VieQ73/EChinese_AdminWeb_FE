@@ -10,7 +10,6 @@ export * from './base';
 // --- Domain Modules ---
 export * from './user';
 export * from './subscription';
-export * from './mocktest';
 export * from './vocab';
 export * from './content';
 export * from './community';

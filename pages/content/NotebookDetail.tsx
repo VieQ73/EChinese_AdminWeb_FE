@@ -13,6 +13,7 @@ import { useVocabSelection } from './vocabulary/hooks/useVocabSelection';
 import VocabCardGrid from './vocabulary/components/VocabCardGrid';
 import VocabDetailModal from './vocabulary/modals/VocabDetailModal';
 import BulkAddVocabModal from './vocabulary/modals/BulkAddVocabModal';
+import NotebookDetailToolbar from './notebooks/NotebookDetailToolbar';
 
 const NotebookDetail: React.FC = () => {
     const { notebookId } = useParams<{ notebookId: string }>();
@@ -23,6 +24,8 @@ const NotebookDetail: React.FC = () => {
     const [loading, setLoading] = useState(true);
     
     const [searchTerm, setSearchTerm] = useState('');
+    const [levelFilter, setLevelFilter] = useState<string>('all');
+    const [wordTypeFilter, setWordTypeFilter] = useState<string>('all');
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isBulkAddModalOpen, setIsBulkAddModalOpen] = useState(false);
@@ -54,12 +57,24 @@ const NotebookDetail: React.FC = () => {
 
 
     const filteredVocab = useMemo(() => {
-        return vocabItems.filter(v => 
-            v.hanzi.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            v.pinyin.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            v.meaning.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [vocabItems, searchTerm]);
+        return vocabItems.filter(vocab => {
+            // Search filter
+            const matchesSearch = searchTerm === '' || 
+                vocab.hanzi.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                vocab.pinyin.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                vocab.meaning.toLowerCase().includes(searchTerm.toLowerCase());
+            
+            // Level filter
+            const matchesLevel = levelFilter === 'all' || 
+                vocab.level.some(level => level === levelFilter);
+            
+            // Word type filter
+            const matchesWordType = wordTypeFilter === 'all' || 
+                vocab.word_types.some(type => type === wordTypeFilter);
+            
+            return matchesSearch && matchesLevel && matchesWordType;
+        });
+    }, [vocabItems, searchTerm, levelFilter, wordTypeFilter]);
     
     const { selectedVocabs, handleSelect, handleSelectAll, clearSelection } = useVocabSelection(filteredVocab);
 
@@ -150,17 +165,23 @@ const NotebookDetail: React.FC = () => {
                         <h1 className="text-3xl font-bold text-gray-900">{notebook.name}</h1>
                         <p className="text-sm text-gray-500 mt-1">Tổng số: {notebook.vocab_count} từ vựng</p>
                     </div>
-                     <div className="mt-4 flex items-center space-x-2 md:mt-0">
-                         <button onClick={handleOpenAddModal} className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium text-sm"><PlusIcon className="w-5 h-5 mr-2"/>Thêm từ</button>
-                        <button onClick={() => setIsBulkAddModalOpen(true)} className="flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm"><UploadIcon className="w-5 h-5 mr-2"/>Thêm hàng loạt</button>
-                    </div>
                 </div>
             </div>
 
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-                 <div className="flex justify-between items-center mb-4">
-                     <input type="text" placeholder="Tìm bằng Hán tự, Pinyin, hoặc nghĩa..." className="w-full md:w-1/3 p-2.5 border border-gray-300 rounded-lg bg-white focus:ring-primary-500 focus:border-primary-500" onChange={(e) => setSearchTerm(e.target.value)}/>
-                 </div>
+                 <NotebookDetailToolbar
+                    searchTerm={searchTerm}
+                    onSearchChange={setSearchTerm}
+                    levelFilter={levelFilter}
+                    onLevelFilterChange={setLevelFilter}
+                    wordTypeFilter={wordTypeFilter}
+                    onWordTypeFilterChange={setWordTypeFilter}
+                    onAdd={handleOpenAddModal}
+                    onBulkAdd={() => setIsBulkAddModalOpen(true)}
+                    isSelectable={true}
+                    isAllSelected={filteredVocab.length > 0 && selectedVocabs.size === filteredVocab.length}
+                    onSelectAll={handleSelectAll}
+                 />
                  <VocabCardGrid vocabItems={filteredVocab} selectedVocabs={selectedVocabs} onSelect={handleSelect} onSelectAll={handleSelectAll} onViewDetails={handleViewDetails}/>
             </div>
             

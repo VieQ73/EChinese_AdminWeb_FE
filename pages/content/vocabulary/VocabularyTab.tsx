@@ -19,6 +19,7 @@ const VocabularyTab: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [levelFilter, setLevelFilter] = useState<string>('all');
+    const [wordTypeFilter, setWordTypeFilter] = useState<string>('all');
     
     // Modal states
     const [viewingVocab, setViewingVocab] = useState<Vocabulary | null>(null);
@@ -27,13 +28,34 @@ const VocabularyTab: React.FC = () => {
     const [isAddToNotebookModalOpen, setIsAddToNotebookModalOpen] = useState(false);
     const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState(false);
     
-    const { selectedVocabs, handleSelect, handleSelectAll, clearSelection } = useVocabSelection(vocabList);
+    // Filter vocabulary list based on all filters
+    const filteredVocabList = useMemo(() => {
+        return vocabList.filter(vocab => {
+            // Search filter
+            const matchesSearch = searchTerm === '' || 
+                vocab.hanzi.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                vocab.pinyin.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                vocab.meaning.toLowerCase().includes(searchTerm.toLowerCase());
+            
+            // Level filter
+            const matchesLevel = levelFilter === 'all' || 
+                vocab.level.some(level => level === levelFilter);
+            
+            // Word type filter
+            const matchesWordType = wordTypeFilter === 'all' || 
+                vocab.word_types.some(type => type === wordTypeFilter);
+            
+            return matchesSearch && matchesLevel && matchesWordType;
+        });
+    }, [vocabList, searchTerm, levelFilter, wordTypeFilter]);
+    
+    const { selectedVocabs, handleSelect, handleSelectAll, clearSelection } = useVocabSelection(filteredVocabList);
 
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
             const [vocabRes, notebookRes] = await Promise.all([
-                api.fetchVocabularies({ search: searchTerm, level: levelFilter, limit: 1000 }), // Tạm thời tải tất cả
+                api.fetchVocabularies({ limit: 1000 }), // Load all vocabulary and filter client-side
                 api.fetchNotebooks({ limit: 1000 }) // Tải tất cả sổ tay cho modal
             ]);
             setVocabList(vocabRes.data);
@@ -43,7 +65,7 @@ const VocabularyTab: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [searchTerm, levelFilter]);
+    }, []);
 
     useEffect(() => {
         loadData();
@@ -111,12 +133,24 @@ const VocabularyTab: React.FC = () => {
             </Modal>
 
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-                <VocabularyToolbar searchTerm={searchTerm} onSearchChange={setSearchTerm} levelFilter={levelFilter} onLevelFilterChange={setLevelFilter} onAdd={handleOpenAddModal} onImport={() => alert('Chức năng Import sẽ được phát triển sau!')}/>
+                <VocabularyToolbar 
+                    searchTerm={searchTerm} 
+                    onSearchChange={setSearchTerm} 
+                    levelFilter={levelFilter} 
+                    onLevelFilterChange={setLevelFilter}
+                    wordTypeFilter={wordTypeFilter}
+                    onWordTypeFilterChange={setWordTypeFilter}
+                    onAdd={handleOpenAddModal} 
+                    onImport={() => alert('Chức năng Import sẽ được phát triển sau!')}
+                    isSelectable={true}
+                    isAllSelected={filteredVocabList.length > 0 && selectedVocabs.size === filteredVocabList.length}
+                    onSelectAll={handleSelectAll}
+                />
                 
                 {loading ? (
                      <div className="flex justify-center items-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary-600"/></div>
                 ) : (
-                    <VocabCardGrid vocabItems={vocabList} selectedVocabs={selectedVocabs} onSelect={handleSelect} onSelectAll={handleSelectAll} onViewDetails={setViewingVocab} isSelectable={true}/>
+                    <VocabCardGrid vocabItems={filteredVocabList} selectedVocabs={selectedVocabs} onSelect={handleSelect} onSelectAll={handleSelectAll} onViewDetails={setViewingVocab} isSelectable={true}/>
                 )}
             </div>
 

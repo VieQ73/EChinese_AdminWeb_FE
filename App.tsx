@@ -11,12 +11,10 @@ import ForgotPassword from './pages/auth/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/users/UserManagement';
 import CommunityManagement from './pages/community/CommunityManagement';
-import MockTestManagement from './pages/tests/MockTestManagement';
-import { TestDetailPage } from './pages/tests/TestDetailPage';
+//import MockTestManagement from './pages/tests/MockTestManagement';
 import ContentManagementPage from './pages/content/ContentManagementPage';
 import SubscriptionManagement from './pages/monetization/SubscriptionManagement';
 import AchievementManagement from './pages/settings/AchievementManagement';
-// import BadgeManagement from './pages/settings/BadgeManagement';
 import ModerationCenter from './pages/moderation/ReportManagement';
 import TipsManagementPage from './pages/tips/TipsManagementPage';
 import MediaManagement from './pages/media/MediaManagement';
@@ -61,11 +59,7 @@ const MainApp: React.FC = () => {
                     <Route path="/reports" element={<ModerationCenter />} />
                     <Route path="/subscriptions" element={<SubscriptionManagement />} />
                     <Route path="/achievements" element={<AchievementManagement />} />
-                    {/* <Route path="/badges" element={<BadgeManagement />} /> */}
                     <Route path="/rules" element={<RuleManagementPage />} />
-                    <Route path="/mock-tests" element={<MockTestManagement />} />
-                    <Route path="/tests" element={<MockTestManagement />} />
-                    <Route path="/tests/:id" element={<TestDetailPage />} />
                     <Route path="/tips" element={<TipsManagementPage />} />
                     <Route path="/media" element={<MediaManagement />} />
                     <Route path="/system" element={<SystemManagement />} />

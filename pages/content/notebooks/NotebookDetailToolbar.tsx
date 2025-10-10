@@ -1,8 +1,8 @@
 import React from 'react';
-import { PlusIcon, UploadIcon } from '../../../../constants';
-import Checkbox from '../../../../ui/Checkbox';
+import { PlusIcon, UploadIcon } from '../../../constants';
+import Checkbox from '../../../ui/Checkbox';
 
-interface VocabularyToolbarProps {
+interface NotebookDetailToolbarProps {
     searchTerm: string;
     onSearchChange: (value: string) => void;
     levelFilter: string;
@@ -10,14 +10,14 @@ interface VocabularyToolbarProps {
     wordTypeFilter: string;
     onWordTypeFilterChange: (value: string) => void;
     onAdd: () => void;
-    onImport: () => void;
+    onBulkAdd: () => void;
     // Select all props
     isSelectable?: boolean;
     isAllSelected?: boolean;
     onSelectAll?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-const VocabularyToolbar: React.FC<VocabularyToolbarProps> = ({
+const NotebookDetailToolbar: React.FC<NotebookDetailToolbarProps> = ({
     searchTerm,
     onSearchChange,
     levelFilter,
@@ -25,7 +25,7 @@ const VocabularyToolbar: React.FC<VocabularyToolbarProps> = ({
     wordTypeFilter,
     onWordTypeFilterChange,
     onAdd,
-    onImport,
+    onBulkAdd,
     isSelectable = true,
     isAllSelected = false,
     onSelectAll,
@@ -48,9 +48,9 @@ const VocabularyToolbar: React.FC<VocabularyToolbarProps> = ({
                             <Checkbox
                                 onChange={onSelectAll}
                                 checked={isAllSelected}
-                                id="select-all-vocabs"
+                                id="select-all-vocabs-notebook"
                             />
-                            <label htmlFor="select-all-vocabs" className="ml-2 text-sm font-medium text-gray-700">
+                            <label htmlFor="select-all-vocabs-notebook" className="ml-2 text-sm font-medium text-gray-700">
                                 Chọn tất cả
                             </label>
                         </div>
@@ -60,7 +60,7 @@ const VocabularyToolbar: React.FC<VocabularyToolbarProps> = ({
                     <div className="flex gap-2 w-full sm:w-auto">
                         <input
                             type="text"
-                            placeholder="Tìm theo Hán tự, nghĩa..."
+                            placeholder="Tìm bằng Hán tự, Pinyin, hoặc nghĩa..."
                             value={searchTerm}
                             onChange={(e) => onSearchChange(e.target.value)}
                             className="w-full sm:w-64 h-10 px-3 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-400 transition"
@@ -101,10 +101,10 @@ const VocabularyToolbar: React.FC<VocabularyToolbarProps> = ({
                         <PlusIcon className="w-5 h-5 mr-2" /> Thêm từ
                     </button>
                     <button
-                        onClick={onImport}
+                        onClick={onBulkAdd}
                         className="flex items-center justify-center h-10 px-4 whitespace-nowrap bg-white border border-gray-300 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-50 transition"
                     >
-                        <UploadIcon className="w-5 h-5 mr-2" /> Import
+                        <UploadIcon className="w-5 h-5 mr-2" /> Thêm hàng loạt
                     </button>
                 </div>
             </div>
@@ -112,4 +112,4 @@ const VocabularyToolbar: React.FC<VocabularyToolbarProps> = ({
     );
 };
 
-export default VocabularyToolbar;
+export default NotebookDetailToolbar;

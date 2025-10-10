@@ -20,22 +20,8 @@ const VocabCard: React.FC<VocabCardProps> = ({ vocab, isSelected, onSelect, onVi
             }`}
             onClick={() => onSelect ? onSelect(vocab.id) : onViewDetails(vocab)}
         >
-            {/* Header với checkbox và image */}
+            {/* Header với image */}
             <div className="relative">
-                {/* Checkbox */}
-                {onSelect && (
-                    <div 
-                        className="absolute top-3 left-3 z-10"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <Checkbox 
-                            checked={isSelected} 
-                            onChange={() => onSelect(vocab.id)} 
-                            id={`vocab-${vocab.id}`}
-                        />
-                    </div>
-                )}
-                
                 {/* More actions button */}
                 <button 
                     className="absolute top-3 right-3 z-10 p-2 text-gray-400 hover:text-blue-600 hover:bg-white hover:shadow-md rounded-full opacity-0 group-hover:opacity-100 transition-all"
@@ -60,10 +46,10 @@ const VocabCard: React.FC<VocabCardProps> = ({ vocab, isSelected, onSelect, onVi
 
             {/* Content */}
             <div className="p-4 space-y-3">
-                {/* Hanzi (main word) */}
+                {/* Hanzi (main word) - Reduced size */}
                 <div className="text-center">
-                    <h3 className="text-2xl font-bold text-gray-900 mb-1">{vocab.hanzi}</h3>
-                    <p className="text-lg text-blue-600 font-medium">{vocab.pinyin}</p>
+                    <h3 className="text-xl font-bold text-gray-900 mb-1">{vocab.hanzi}</h3>
+                    <p className="text-base text-blue-600 font-medium">{vocab.pinyin}</p>
                 </div>
                 
                 {/* Meaning */}
@@ -117,6 +103,20 @@ const VocabCard: React.FC<VocabCardProps> = ({ vocab, isSelected, onSelect, onVi
                     </div>
                 )}
             </div>
+
+            {/* Checkbox moved to bottom-right corner */}
+            {onSelect && (
+                <div 
+                    className="absolute bottom-3 right-3 z-10"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <Checkbox 
+                        checked={isSelected} 
+                        onChange={() => onSelect(vocab.id)} 
+                        id={`vocab-${vocab.id}`}
+                    />
+                </div>
+            )}
         </div>
     );
 };

@@ -20,22 +20,8 @@ const VocabCardGrid: React.FC<VocabCardGridProps> = ({
     onViewDetails,
     isSelectable = true,
 }) => {
-    const isAllSelected = vocabItems.length > 0 && selectedVocabs.size === vocabItems.length;
-
     return (
         <div>
-            {isSelectable && (
-                <div className="p-4 border-b border-gray-200">
-                    <Checkbox
-                        onChange={onSelectAll}
-                        checked={isAllSelected}
-                        id="select-all-vocabs"
-                    />
-                    <label htmlFor="select-all-vocabs" className="ml-2 text-sm font-medium text-gray-700">
-                        Chọn tất cả
-                    </label>
-                </div>
-            )}
             {vocabItems.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 p-6">
                     {vocabItems.map(item => (
