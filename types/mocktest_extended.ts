@@ -65,6 +65,9 @@ export interface ExamSummary extends Exam {
 // Dữ liệu cho trình chỉnh sửa (admin)
 export interface ExamEditorState extends ExamFull {
   isEditing?: boolean;
+
   expandedSectionIds?: string[];
   expandedSubsectionIds?: string[];
+  expandedPromptIds?: string[];
+  expandedQuestionIds?: string[];
 }

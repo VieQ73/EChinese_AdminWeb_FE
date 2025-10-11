@@ -14,3 +14,5 @@ export * from './vocab';
 export * from './content';
 export * from './community';
 export * from './system';
+export * from './mocktest';
+export * from './mocktest_extended'; // Mở rộng từ mocktest cho domain/API/UI

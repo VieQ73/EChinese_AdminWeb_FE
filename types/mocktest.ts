@@ -1,20 +1,20 @@
 // types/mocktest.ts
-// File này định nghĩa các interface TypeScript tương ứng 1:1 với cấu trúc trong DBML.
-// Đây là "nguồn chân lý" (source of truth) cho cấu trúc dữ liệu từ database.
+// Chuẩn hoá type theo base.ts (UUID, Timestamp, Json)
+// 1:1 với cấu trúc trong DBML
 
-export type Json = any;
+import type { UUID, Timestamp, Json } from './base';
 
 /**
  * Bảng: Exam_Types
  * Lưu các loại bài thi (HSK, HSKK, TOCFL, v.v.).
  */
 export interface ExamType {
-  id: string; // uuid
+  id: UUID;
   name: string;
   description?: string;
   is_active?: boolean;
-  created_at?: string; // timestamptz
-  updated_at?: string; // timestamptz
+  created_at?: Timestamp;
+  updated_at?: Timestamp;
   is_deleted?: boolean;
 }
 
@@ -23,12 +23,12 @@ export interface ExamType {
  * Lưu cấp độ của loại thi (ví dụ: HSK1-6, HSKK Sơ/Trung/Cao cấp).
  */
 export interface ExamLevel {
-  id: string; // uuid
-  exam_type_id: string; // uuid
+  id: UUID;
+  exam_type_id: UUID;
   name: string;
   order?: number;
-  created_at?: string; // timestamptz
-  updated_at?: string; // timestamptz
+  created_at?: Timestamp;
+  updated_at?: Timestamp;
   is_deleted?: boolean;
 }
 
@@ -37,37 +37,37 @@ export interface ExamLevel {
  * Lưu bài thi cụ thể.
  */
 export interface Exam {
-  id: string; // uuid
-  exam_type_id: string; // uuid
-  exam_level_id: string; // uuid
+  id: UUID;
+  exam_type_id: UUID;
+  exam_level_id: UUID;
   name: string;
-  description?: Json; // json -> Dùng string để lưu từ Rich Text Editor
+  description?: Json; // json từ RTE
   instructions?: string;
   total_time_minutes?: number;
   total_questions?: number;
   passing_score_total?: number;
   is_published?: boolean;
-  created_by: string; // uuid
-  created_at?: string; // timestamptz
-  updated_at?: string; // timestamptz
+  created_by: UUID;
+  created_at?: Timestamp;
+  updated_at?: Timestamp;
   is_deleted?: boolean;
 }
 
 /**
  * Bảng: Sections
- * Phần lớn trong bài thi (Nghe, Đọc, Viết).
+ * Phần lớn trong bài thi (Nghe, Đọc, Viết...).
  */
 export interface Section {
-  id: string; // uuid
-  exam_id: string; // uuid
+  id: UUID;
+  exam_id: UUID;
   name: string;
   order?: number;
   time_minutes?: number;
   passing_score?: number;
-  description?: string; // json -> Dùng string để lưu từ Rich Text Editor
+  description?: Json;
   audio_url?: string;
-  created_at?: string; // timestamptz
-  updated_at?: string; // timestamptz
+  created_at?: Timestamp;
+  updated_at?: Timestamp;
   is_deleted?: boolean;
 }
 
@@ -76,13 +76,13 @@ export interface Section {
  * Phần con trong section (ví dụ: Phần 1-4 trong Nghe HSK1).
  */
 export interface Subsection {
-  id: string; // uuid
-  section_id: string; // uuid
+  id: UUID;
+  section_id: UUID;
   name: string;
   order?: number;
   description?: string;
-  created_at?: string; // timestamptz
-  updated_at?: string; // timestamptz
+  created_at?: Timestamp;
+  updated_at?: Timestamp;
   is_deleted?: boolean;
 }
 
@@ -91,15 +91,15 @@ export interface Subsection {
  * Đề chung cho nhóm câu hỏi.
  */
 export interface Prompt {
-  id: string; // uuid
-  subsection_id: string; // uuid
-  content?: Json; // json -> Dùng string để lưu từ Rich Text Editor
-  image?: Json; // json -> Dùng string để lưu cấu trúc JSON của ảnh
-  //  - Ví dụ cho lưu nhiều ảnh tại Prompt: [{ "type": "image", "url": "A.png", "label": "A" }, { "type": "image", "url": "B.png", "label": "B" },... - 5 đáp án]
+  id: UUID;
+  subsection_id: UUID;
+  content?: Json;
+  image?: Json;
+  // - Ví dụ cho lưu nhiều ảnh tại Prompt: [{ "type": "image", "url": "A.png", "label": "A" }, { "type": "image", "url": "B.png", "label": "B" },... - 5 đáp án]
   audio_url?: string;
   order?: number;
-  created_at?: string; // timestamptz
-  updated_at?: string; // timestamptz
+  created_at?: Timestamp;
+  updated_at?: Timestamp;
   is_deleted?: boolean;
 }
 
@@ -108,13 +108,13 @@ export interface Prompt {
  * Định nghĩa các loại câu hỏi.
  */
 export interface QuestionType {
-  id: string; // uuid
+  id: UUID;
   name: string;
   description?: string;
   num_options?: number;
   has_prompt?: boolean;
-  created_at?: string; // timestamptz
-  updated_at?: string; // timestamptz
+  created_at?: Timestamp;
+  updated_at?: Timestamp;
   is_deleted?: boolean;
 }
 
@@ -123,36 +123,39 @@ export interface QuestionType {
  * Lưu câu hỏi cá nhân.
  */
 export interface Question {
-  id: string; // uuid
-  subsection_id: string; // uuid
-  question_type_id: string; // uuid
+  id: UUID;
+  subsection_id: UUID;
+  question_type_id: UUID;
   order?: number;
   content?: string;
   image_url?: string;
   audio_url?: string;
   correct_answer?: string;
   points?: number;
-  created_at?: string; // timestamptz
-  updated_at?: string; // timestamptz
+  created_at?: Timestamp;
+  updated_at?: Timestamp;
   is_deleted?: boolean;
 }
 
 /**
  * Bảng: Prompt_Questions
- * Bảng trung gian cho quan hệ N-N giữa prompts và questions.
+ * Quan hệ N-N giữa prompts và questions.
  */
 export interface PromptQuestion {
-  prompt_id: string; // uuid
-  question_id: string; // uuid
+  prompt_id: UUID;
+  question_id: UUID;
 }
 
 /**
  * Bảng: Options
  * Lưu đáp án cho câu hỏi.
- */
+ * 
+ * - Với loại câu hỏi Sắp xếp từ (arrange_words) Questions.content: Có thể là phần dẫn hoặc null Options: mỗi thẻ là một từ (hoặc cụm từ nhỏ). order = thứ tự hiển thị ngẫu nhiên khi render. correct_order = thứ tự đúng để chấm điểm. User_Answers.user_response: lưu danh sách từ người dùng sắp xếp, ví dụ: ["我", "喜欢", "喝", "茶"] → Khi chấm điểm: so sánh mảng này với danh sách Options sắp theo correct_order. - Sắp xếp câu (arrange_sentences) Questions.content: có thể có phần dẫn “Sắp xếp các câu sau thành đoạn hoàn chỉnh” hoặc null Options: mỗi dòng là một câu A, B, C... label = "A", "B", "C" content = nội dung câu correct_order = 1, 2, 3 (thứ tự đúng) User_Answers.user_response: lưu chuỗi các label user chọn theo thứ tự: ["B", "A", "C"] → Khi chấm: kiểm tra label có khớp với thứ tự correct_order. 
+ * 
+ * */
 export interface Option {
-  id: string; // uuid
-  question_id: string; // uuid
+  id: UUID;
+  question_id: UUID;
   label?: string;
   content?: string;
   image_url?: string;
@@ -160,27 +163,9 @@ export interface Option {
   is_correct?: boolean;
   order?: number;
   correct_order?: number;
-  created_at?: string; // timestamptz
-  updated_at?: string; // timestamptz
+  created_at?: Timestamp;
+  updated_at?: Timestamp;
   is_deleted?: boolean;
-
-  /*  - Với loại câu hỏi Sắp xếp từ (arrange_words)
-  Questions.content: Có thể là phần dẫn hoặc null
-  Options: mỗi thẻ là một từ (hoặc cụm từ nhỏ).
-  order = thứ tự hiển thị ngẫu nhiên khi render.
-  correct_order = thứ tự đúng để chấm điểm.
-  User_Answers.user_response: lưu danh sách từ người dùng sắp xếp, ví dụ: ["我", "喜欢", "喝", "茶"]
-  → Khi chấm điểm: so sánh mảng này với danh sách Options sắp theo correct_order.
-
-  - Sắp xếp câu (arrange_sentences)
-  Questions.content: có thể có phần dẫn “Sắp xếp các câu sau thành đoạn hoàn chỉnh” hoặc null
-  Options: mỗi dòng là một câu A, B, C...
-  label = "A", "B", "C"
-  content = nội dung câu
-  correct_order = 1, 2, 3 (thứ tự đúng)
-  User_Answers.user_response: lưu chuỗi các label user chọn theo thứ tự: ["B", "A", "C"]
-  → Khi chấm: kiểm tra label có khớp với thứ tự correct_order.
-  */
 }
 
 /**
@@ -188,10 +173,10 @@ export interface Option {
  * Lưu giải thích cho câu hỏi.
  */
 export interface Explanation {
-  id: string; // uuid
-  question_id: string; // uuid
+  id: UUID;
+  question_id: UUID;
   content: string;
-  created_at?: string; // timestamptz
-  updated_at?: string; // timestamptz
+  created_at?: Timestamp;
+  updated_at?: Timestamp;
   is_deleted?: boolean;
 }
