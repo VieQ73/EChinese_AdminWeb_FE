@@ -8,7 +8,7 @@ export type Json = any;
  * Bảng: Exam_Types
  * Lưu các loại bài thi (HSK, HSKK, TOCFL, v.v.).
  */
-export interface DBExamType {
+export interface ExamType {
   id: string; // uuid
   name: string;
   description?: string;
@@ -22,7 +22,7 @@ export interface DBExamType {
  * Bảng: Exam_Levels
  * Lưu cấp độ của loại thi (ví dụ: HSK1-6, HSKK Sơ/Trung/Cao cấp).
  */
-export interface DBExamLevel {
+export interface ExamLevel {
   id: string; // uuid
   exam_type_id: string; // uuid
   name: string;
@@ -36,7 +36,7 @@ export interface DBExamLevel {
  * Bảng: Exams
  * Lưu bài thi cụ thể.
  */
-export interface DBExam {
+export interface Exam {
   id: string; // uuid
   exam_type_id: string; // uuid
   exam_level_id: string; // uuid
@@ -57,7 +57,7 @@ export interface DBExam {
  * Bảng: Sections
  * Phần lớn trong bài thi (Nghe, Đọc, Viết).
  */
-export interface DBSection {
+export interface Section {
   id: string; // uuid
   exam_id: string; // uuid
   name: string;
@@ -75,7 +75,7 @@ export interface DBSection {
  * Bảng: Subsections
  * Phần con trong section (ví dụ: Phần 1-4 trong Nghe HSK1).
  */
-export interface DBSubsection {
+export interface Subsection {
   id: string; // uuid
   section_id: string; // uuid
   name: string;
@@ -90,7 +90,7 @@ export interface DBSubsection {
  * Bảng: Prompts
  * Đề chung cho nhóm câu hỏi.
  */
-export interface DBPrompt {
+export interface Prompt {
   id: string; // uuid
   subsection_id: string; // uuid
   content?: Json; // json -> Dùng string để lưu từ Rich Text Editor
@@ -107,7 +107,7 @@ export interface DBPrompt {
  * Bảng: Question_Types
  * Định nghĩa các loại câu hỏi.
  */
-export interface DBQuestionType {
+export interface QuestionType {
   id: string; // uuid
   name: string;
   description?: string;
@@ -122,7 +122,7 @@ export interface DBQuestionType {
  * Bảng: Questions
  * Lưu câu hỏi cá nhân.
  */
-export interface DBQuestion {
+export interface Question {
   id: string; // uuid
   subsection_id: string; // uuid
   question_type_id: string; // uuid
@@ -141,7 +141,7 @@ export interface DBQuestion {
  * Bảng: Prompt_Questions
  * Bảng trung gian cho quan hệ N-N giữa prompts và questions.
  */
-export interface DBPromptQuestion {
+export interface PromptQuestion {
   prompt_id: string; // uuid
   question_id: string; // uuid
 }
@@ -150,7 +150,7 @@ export interface DBPromptQuestion {
  * Bảng: Options
  * Lưu đáp án cho câu hỏi.
  */
-export interface DBOption {
+export interface Option {
   id: string; // uuid
   question_id: string; // uuid
   label?: string;
@@ -187,7 +187,7 @@ export interface DBOption {
  * Bảng: Explanations
  * Lưu giải thích cho câu hỏi.
  */
-export interface DBExplanation {
+export interface Explanation {
   id: string; // uuid
   question_id: string; // uuid
   content: string;
