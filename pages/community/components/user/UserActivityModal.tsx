@@ -6,8 +6,8 @@ import { mockBadges } from '../../../../mock/settings';
 import RemovedContentTab from '../moderation/RemovedContentTab';
 //  Corrected import from PostFeed (list component) to PostCard (single item component).
 import PostFeedCard from '../feed/PostCard';
-import { useAppData } from '../../../../contexts/appData/context'; // Thêm import
-import { ShieldExclamationIcon } from '../../../../constants'; // Thêm import icon
+import { useAppData } from '../../../../contexts/appData/context'; 
+import { ShieldExclamationIcon } from '../../../../constants'; 
 
 interface UserActivityModalProps {
     isOpen: boolean;

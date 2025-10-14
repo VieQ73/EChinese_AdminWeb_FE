@@ -10,7 +10,7 @@ const Login: React.FC = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const [isLoading, setIsLoading] = useState(false); // Thêm trạng thái loading
+    const [isLoading, setIsLoading] = useState(false); // trạng thái loading
     const navigate = useNavigate();
     const authContext = useContext(AuthContext);
 

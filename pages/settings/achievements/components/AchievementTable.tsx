@@ -9,7 +9,7 @@ interface AchievementTableProps {
     onEdit: (achievement: Achievement) => void;
     onDelete: (achievement: Achievement) => void;
     onViewUsers: (achievement: Achievement) => void;
-    onToggleActive: (achievement: Achievement, isActive: boolean) => void; // Thêm prop mới
+    onToggleActive: (achievement: Achievement, isActive: boolean) => void; 
 }
 
 const AchievementTable: React.FC<AchievementTableProps> = ({ achievements, loading, onEdit, onDelete, onViewUsers, onToggleActive }) => {

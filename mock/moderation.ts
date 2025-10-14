@@ -433,7 +433,7 @@ export const mockModerationLogs: ModerationLog[] = [
         performed_by: 'admin-user-id',
         created_at: '2025-10-06T12:01:00Z',
     },
-    // Thêm nhiều log để test infinite scroll
+    // test infinite scroll
     ...Array.from({ length: 50 }, (_, i) => ({
         id: `ml_extra_${i + 1}`,
         target_type: (i % 2 === 0 ? 'post' : 'comment') as 'post' | 'comment',

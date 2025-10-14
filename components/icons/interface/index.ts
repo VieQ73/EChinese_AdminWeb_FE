@@ -12,4 +12,4 @@ export * from './SparklesIcon';
 export * from './XCircleIcon';
 export * from './XIcon';
 export * from './GripVerticalIcon';
-export * from './HistoryIcon'; // Thêm export mới
+export * from './HistoryIcon';

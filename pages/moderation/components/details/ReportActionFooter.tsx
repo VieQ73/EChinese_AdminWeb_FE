@@ -7,7 +7,7 @@ interface ReportActionFooterProps {
   report: Report;
   view: 'details' | 'resolve' | 'dismiss';
   isActionable: boolean;
-  canStartProcessing: boolean; // Thêm prop mới
+  canStartProcessing: boolean; 
   onStartProcessing: () => void;
   onDismiss: () => void;
   onResolve: () => void;

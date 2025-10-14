@@ -5,7 +5,7 @@ import type { User } from '../../types';
 import { AuthContext } from '../../contexts/AuthContext';
 import { fetchUserDetailData, UserDetailData } from './userApi';
 import { useUserActions } from './hooks/useUserActions';
-import { useAppData } from '../../contexts/appData/context'; // Thêm import
+import { useAppData } from '../../contexts/appData/context'; // 
 
 import UserHeader from './components/UserHeader';
 import UserTabs from './components/UserTabs';

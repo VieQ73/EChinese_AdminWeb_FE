@@ -7,7 +7,7 @@ interface FormData {
 interface RestoreActionFormProps {
     data: FormData;
     onChange: (updatedData: Partial<FormData>) => void;
-    isSelfAction: boolean; // Thêm prop này
+    isSelfAction: boolean; 
 }
 
 const RestoreActionForm: React.FC<RestoreActionFormProps> = ({ data, onChange, isSelfAction }) => {

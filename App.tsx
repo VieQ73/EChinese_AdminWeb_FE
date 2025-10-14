@@ -3,7 +3,7 @@ import React, { useContext } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router';
 import { HashRouter } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './contexts/AuthContext';
-//  Corrected import path for AppDataProvider. The file was previously missing.
+// FIX: Corrected import path for AppDataProvider. The file was previously missing.
 import { AppDataProvider } from './contexts/appData/provider';
 import Layout from './components/Layout';
 import Login from './pages/auth/Login';
@@ -21,7 +21,8 @@ import UserDetail from './pages/users/UserDetail';
 import NotebookDetail from './pages/content/NotebookDetail';
 import RuleManagementPage from './pages/rules/RuleManagementPage';
 import MockTestManagementPage from './pages/tests/MockTestManagementPage';
-import ExamCreatePage from './pages/tests/create/ExamCreatePage'; // Thêm import
+import ExamCreatePage from './pages/tests/create/ExamCreatePage'; 
+import ExamTypeDetailPage from './pages/tests/exam/ExamTypeDetailPage';
 
 const ProtectedRoute: React.FC = () => {
     const authContext = useContext(AuthContext);
@@ -64,6 +65,7 @@ const MainApp: React.FC = () => {
                     <Route path="/mock-tests" element={<MockTestManagementPage />} />
                     <Route path="/mock-tests/create" element={<ExamCreatePage />} />
                     <Route path="/mock-tests/edit/:examId" element={<ExamCreatePage />} />
+                    <Route path="/mock-tests/type/:examTypeId" element={<ExamTypeDetailPage />} />
                     <Route path="/system" element={<SystemManagement />} />
                 </Route>
                 

@@ -90,7 +90,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
     }
   };
 
-  // ✅ ĐÃ SỬA: toggle mở / đóng ô phản hồi
+  // toggle mở / đóng ô phản hồi
   const handleStartReply = () => {
     if (!canInteract) return;
 

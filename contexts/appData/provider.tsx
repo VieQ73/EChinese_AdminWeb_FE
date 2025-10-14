@@ -11,9 +11,9 @@ import {
     useUserActions,
     useLogActions,
     useExamActions,
-    useContentActions,       // Thêm mới
-    useMonetizationActions,  // Thêm mới
-    useTipsActions,          // Thêm mới
+    useContentActions,       
+    useMonetizationActions, 
+    useTipsActions,          
 } from './actions';
 import { User } from '../../types';
 import { AuthContext } from '../AuthContext';

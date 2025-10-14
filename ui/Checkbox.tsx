@@ -1,7 +1,6 @@
 import React from 'react';
 
 interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> {
-    // Không cần thêm props tùy chỉnh cho bây giờ
 }
 
 const Checkbox: React.FC<CheckboxProps> = ({ checked, onChange, ...rest }) => {

@@ -85,11 +85,9 @@ export const useAppDataState = () => {
     const [achievements, setAchievements] = useState<Achievement[]>([...mockAchievements]);
     const [adminLogs, setAdminLogs] = useState<AdminLog[]>(() => [...mockAdminLogs]);
     
-    // Thêm state cho dữ liệu gamification để theo dõi
     const [userStreaks, setUserStreaks] = useState<UserStreak[]>([...mockUserStreaks]);
     const [userUsage, setUserUsage] = useState<UserUsage[]>([...mockUserUsage]);
     
-    // Thêm state cho các module mới
     const [notebooks, setNotebooks] = useState<Notebook[]>([...mockNotebooks]);
     const [vocabularies, setVocabularies] = useState<Vocabulary[]>([...mockVocab]);
     const [tips, setTips] = useState<Tip[]>([...mockTips]);
@@ -99,7 +97,6 @@ export const useAppDataState = () => {
     const [userSubscriptions, setUserSubscriptions] = useState<EnrichedUserSubscription[]>([]); // Sẽ được fetch
     const [exams, setExams] = useState<Exam[]>([...MOCK_EXAMS]);
     
-    // Thêm state cho dữ liệu quản lý bài thi
     const [examTypes, setExamTypes] = useState<ExamType[]>([...MOCK_EXAM_TYPES]);
     const [examLevels, setExamLevels] = useState<ExamLevel[]>([...MOCK_EXAM_LEVELS]);
     const [questionTypes, setQuestionTypes] = useState<QuestionType[]>([...MOCK_QUESTION_TYPES]);

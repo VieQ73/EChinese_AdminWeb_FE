@@ -17,7 +17,6 @@ const EditorIcon: React.FC<{ children: React.ReactNode, onClick: (e: React.Mouse
     onMouseDown={onClick}
     title={title}
     type="button" // Ngăn chặn form submit
-    // Sử dụng bg-gray-300 khi active, thêm transition-colors
     className={`p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors ${active ? 'bg-gray-300' : ''}`}
   >
     {children}
@@ -62,16 +61,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         editorRef.current.innerHTML = initialContent;
       }
     }
-    // Lưu ý: Hàm này chỉ chạy khi initialContent thay đổi, không nên chạy khi contentEditable đang focus
   }, [initialContent]);
 
   return (
-    // Loại bỏ div className="space-y-2" và label. Áp dụng className tại đây.
     <div className={`border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 ${className}`}>
       <div
         ref={editorRef}
         contentEditable
-        // Thêm class cho placeholder styling: empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400
         className="p-3 min-h-[120px] bg-white text-gray-800 focus:outline-none focus:ring-0 prose prose-sm max-w-none empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
         onInput={handleContentInput}
         suppressContentEditableWarning={true}

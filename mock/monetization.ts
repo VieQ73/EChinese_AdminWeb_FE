@@ -156,7 +156,7 @@ export let mockRefunds: Refund[] = [
         processed_at: d(1),
         notes: "Yêu cầu hoàn tiền đã quá 7 ngày theo chính sách.",
     },
-    // Thêm refund cho kịch bản mới
+    // refund cho kịch bản mới
     { 
         id: 'ref4', 
         payment_id: 'pay10', 

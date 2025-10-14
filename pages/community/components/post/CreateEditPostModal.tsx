@@ -126,7 +126,7 @@ const CreateEditPostModal: React.FC<CreateEditPostModalProps> = ({ isOpen, onClo
                         key={editorKey}
                         initialContent={content}
                         onChange={setContent}
-                        // Thêm placeholder để tùy chỉnh thông báo.
+                        // placeholder để tùy chỉnh thông báo.
                         placeholder="Hãy nhập nội dung bài viết..." 
                     />
                 
