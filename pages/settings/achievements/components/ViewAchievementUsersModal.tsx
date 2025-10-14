@@ -4,7 +4,7 @@ import { Achievement, UserAchievement, User } from '../../../../types';
 import * as api from '../api';
 import { Pagination } from '../../../../components/ui/pagination';
 import { Loader2, UserPlus } from 'lucide-react';
-import { useAppData } from '../../../../contexts/AppDataContext';
+import { useAppData } from '../../../../contexts/appData/context';
 
 interface ViewAchievementUsersModalProps {
     isOpen: boolean;

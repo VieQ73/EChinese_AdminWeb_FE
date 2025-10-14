@@ -7,7 +7,7 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   footer?: ReactNode;
-  // FIX: Add optional className prop for custom styling.
+  //  Add optional className prop for custom styling.
   className?: string;
 }
 
@@ -22,7 +22,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
       role="dialog"
     >
       <div
-        // FIX: Use the provided className to allow overrides. Defaults to 'max-w-md'.
+        //  Use the provided className to allow overrides. Defaults to 'max-w-md'.
         className={`bg-white rounded-xl shadow-xl w-full m-4 ${className || 'max-w-md'}`}
         onClick={(e) => e.stopPropagation()} // Ngăn việc click bên trong modal đóng nó lại
       >

@@ -39,7 +39,7 @@ const VocabDetailModal: React.FC<VocabDetailModalProps> = ({ vocab, onClose, onE
             onClose={onClose}
             title="Chi tiết từ vựng"
             footer={footer}
-            // FIX: Pass className to the Modal component.
+            //  Pass className to the Modal component.
             className="max-w-3xl" // mở rộng modal ra
         >
             <div className="flex flex-col md:flex-row gap-8">

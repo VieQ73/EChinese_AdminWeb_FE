@@ -4,7 +4,7 @@ import type { User, Violation } from '../../../types';
 import Modal from '../../../components/Modal';
 import BanUserForm from './forms/BanUserForm';
 import UnbanUserForm from './forms/UnbanUserForm';
-import { useAppData } from '../../../contexts/AppDataContext';
+import { useAppData } from '../../../contexts/appData/context';
 
 interface FormData {
     logReason: string;

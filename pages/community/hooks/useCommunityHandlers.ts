@@ -114,17 +114,23 @@ export const useCommunityHandlers = ({ currentUser, state, setters, context, ref
         if (!currentUser) return;
         try {
             if (state.editingPost) {
-                await api.updatePost(state.editingPost.id, postData);
+                const updatedPost = await api.updatePost(state.editingPost.id, postData);
+                // Cập nhật context để đồng bộ chỉ số
+                context.updatePost(state.editingPost.id, updatedPost);
+                refreshData();
             } else {
-                await api.createPost(postData, currentUser);
+                const newRawPost = await api.createPost(postData, currentUser);
+                // Cập nhật context để đồng bộ chỉ số ở Dashboard và StatsDisplay
+                context.addPost(newRawPost);
+                // Tải lại feed để hiển thị bài mới nhất ở đầu trang
+                refreshData(); 
             }
             setters.setCreateEditModalOpen(false);
-            refreshData(); // Tải lại dữ liệu
         } catch (error) {
              console.error("Failed to save post", error);
              alert("Lưu bài viết thất bại.");
         }
-    }, [currentUser, state.editingPost, setters, refreshData]);
+    }, [currentUser, state.editingPost, setters, refreshData, context]);
 
     const handleToggleLike = useCallback(async (postId: string) => {
         if (!currentUser) return;
@@ -165,7 +171,6 @@ export const useCommunityHandlers = ({ currentUser, state, setters, context, ref
         handleOpenModerationModal,
         handleConfirmModerationAction,
         handleSavePost,
-        // handleAddComment is removed as it's now handled by the modal + context
         handleToggleLike,
         handleToggleView,
         handlePostSelectFromActivity,

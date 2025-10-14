@@ -1,5 +1,5 @@
 import React from 'react';
-// FIX: Changed import of `useNavigate` from `react-router-dom` to `react-router` to resolve module export error.
+//  Changed import of `useNavigate` from `react-router-dom` to `react-router` to resolve module export error.
 import { useNavigate } from 'react-router';
 import Modal from '../../../../components/Modal';
 import { Notification } from '../../../../types';

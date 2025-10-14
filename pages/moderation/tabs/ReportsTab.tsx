@@ -5,6 +5,7 @@ import ReportCardList from '../components/cards/ReportCardList';
 import { Pagination } from '../../../components/ui/pagination';
 import { useCardPagination } from '../hooks/useDynamicPagination';
 import * as api from '../api';
+import DateRangePicker, { DateRange } from '../components/shared/DateRangePicker';
 
 interface ReportsTabProps {
     reportsData: PaginatedResponse<Report> | null;
@@ -23,6 +24,7 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ reportsData, onOpenReport, load
         status: 'all',
         targetType: 'all',
     });
+    const [dates, setDates] = useState<DateRange>({ start: null, end: null });
     const [currentPage, setCurrentPage] = useState(1);
     
     // Sử dụng reportsData từ props để tính toán
@@ -32,6 +34,18 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ reportsData, onOpenReport, load
 
         // Filtering
         processedReports = processedReports.filter(report => {
+            // Date filtering
+            if (dates.start) {
+                const startDate = new Date(dates.start);
+                startDate.setHours(0, 0, 0, 0);
+                if (new Date(report.created_at) < startDate) return false;
+            }
+            if (dates.end) {
+                const endDate = new Date(dates.end);
+                endDate.setHours(23, 59, 59, 999);
+                if (new Date(report.created_at) > endDate) return false;
+            }
+
             const lowerSearch = searchTerm.toLowerCase();
             const matchesSearch = report.reporter?.name?.toLowerCase().includes(lowerSearch) ||
                 report.reason.toLowerCase().includes(lowerSearch) ||
@@ -44,12 +58,12 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ reportsData, onOpenReport, load
         });
         
         return processedReports;
-    }, [reportsData, searchTerm, filters]);
+    }, [reportsData, searchTerm, filters, dates]);
     
     // Reset page khi filter thay đổi
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, filters]);
+    }, [searchTerm, filters, dates]);
 
     const paginatedReports = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;
@@ -65,6 +79,8 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ reportsData, onOpenReport, load
                 onSearchChange={setSearchTerm}
                 filters={filters}
                 onFilterChange={setFilters}
+                dates={dates}
+                onDatesChange={setDates}
             />
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <ReportCardList

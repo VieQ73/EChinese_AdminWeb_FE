@@ -1,6 +1,6 @@
 import React from 'react';
 import { BadgeLevel } from '../../../../types';
-import { useAppData } from '../../../../contexts/AppDataContext';
+import { useAppData } from '../../../../contexts/appData/context';
 import { BadgeIcon } from '../../../../constants';
 
 interface BadgeProps {

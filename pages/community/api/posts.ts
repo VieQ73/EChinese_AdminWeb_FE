@@ -34,10 +34,7 @@ interface FetchPostsParams {
     topic?: string;
 }
 
-/**
- * Tải danh sách bài viết với filter và phân trang.
- * Đã loại bỏ filter theo search và status.
- */
+
 export const fetchPosts = (params: FetchPostsParams): Promise<PaginatedResponse<Post>> => {
     if (USE_MOCK_API) {
         return new Promise(resolve => {
@@ -90,7 +87,7 @@ export const fetchPostById = (postId: string): Promise<Post | null> => {
 /**
  * Tạo một bài viết mới.
  */
-export const createPost = (postData: Omit<RawPost, 'id' | 'created_at' | 'user_id' | 'likes' | 'views'>, currentUser: User): Promise<Post> => {
+export const createPost = (postData: Omit<RawPost, 'id' | 'created_at' | 'user_id' | 'likes' | 'views'>, currentUser: User): Promise<RawPost> => {
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -102,8 +99,9 @@ export const createPost = (postData: Omit<RawPost, 'id' | 'created_at' | 'user_i
                     likes: 0,
                     views: 0,
                 };
+                // Cập nhật "database" giả lập
                 mockPosts.unshift(newPost);
-                resolve(enrichPost(newPost));
+                resolve(newPost);
             }, 300);
         });
     }

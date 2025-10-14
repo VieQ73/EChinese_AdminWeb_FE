@@ -1,6 +1,7 @@
 import React from 'react';
 import { PAYMENT_STATUSES, PAYMENT_METHODS, PAYMENT_CHANNELS } from '../../constants';
 import { DownloadIcon } from '../../../../constants';
+import DateRangePicker, { DateRange } from '../../../moderation/components/shared/DateRangePicker';
 
 interface PaymentToolbarProps {
     filters: {
@@ -10,12 +11,14 @@ interface PaymentToolbarProps {
         channel: string;
     };
     onFilterChange: (name: keyof PaymentToolbarProps['filters'], value: string) => void;
+    dates: DateRange;
+    onDatesChange: (dates: DateRange) => void;
 }
 
-const PaymentToolbar: React.FC<PaymentToolbarProps> = ({ filters, onFilterChange }) => {
+const PaymentToolbar: React.FC<PaymentToolbarProps> = ({ filters, onFilterChange, dates, onDatesChange }) => {
     return (
-        <div className="p-4 bg-gray-50 border-b border-gray-200">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="p-4 bg-gray-50 border-b border-gray-200 text-sm">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 flex-wrap">
                 {/* Filters */}
                 <div className="flex flex-col sm:flex-row flex-wrap items-center gap-4">
                     <input
@@ -25,6 +28,7 @@ const PaymentToolbar: React.FC<PaymentToolbarProps> = ({ filters, onFilterChange
                         onChange={(e) => onFilterChange('search', e.target.value)}
                         className="w-full sm:w-auto md:w-64 p-2.5 border border-gray-300 rounded-lg bg-white focus:ring-primary-500 focus:border-primary-500"
                     />
+                    <DateRangePicker dates={dates} onDatesChange={onDatesChange} />
                     <select value={filters.status} onChange={(e) => onFilterChange('status', e.target.value)} className="w-full sm:w-auto p-2.5 border border-gray-300 rounded-lg bg-white focus:ring-primary-500 focus:border-primary-500">
                         {Object.entries(PAYMENT_STATUSES).map(([key, value]) => <option key={key} value={key}>{value}</option>)}
                     </select>

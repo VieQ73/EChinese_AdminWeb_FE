@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { Achievement } from '../../../types';
 import { AuthContext } from '../../../contexts/AuthContext';
-import { useAppData } from '../../../contexts/AppDataContext';
+import { useAppData } from '../../../contexts/appData/context';
 import { Pagination } from '../../../components/ui/pagination';
 import ConfirmationModal from '../../monetization/components/ConfirmationModal';
 import AchievementsToolbar from './components/AchievementsToolbar';

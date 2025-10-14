@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-// FIX: Separated imports. `useNavigate` is from the core `react-router` library, while `Link` is from `react-router-dom`.
+//  Separated imports. `useNavigate` is from the core `react-router` library, while `Link` is from `react-router-dom`.
 import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router';
 import { AuthContext } from '../../contexts/AuthContext';

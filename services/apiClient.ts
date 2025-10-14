@@ -3,7 +3,7 @@
 // Đọc base URL của API thật từ biến môi trường.
 // File .env ở gốc dự án sẽ chứa: VITE_API_BASE_URL=http://localhost:8080/api/admin
 // Cung cấp một giá trị dự phòng để tránh lỗi runtime nếu biến môi trường không được định nghĩa.
-// FIX: Cast import.meta to any to resolve TypeScript error regarding 'env' property,
+//  Cast import.meta to any to resolve TypeScript error regarding 'env' property,
 // as the vite/client types are not available in this context.
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || '';
 
@@ -52,6 +52,6 @@ export const apiClient = {
   get: <T>(endpoint: string, config?: RequestInit) => client<T>(endpoint, { ...config, method: 'GET' }),
   post: <T>(endpoint: string, body: any, config?: RequestInit) => client<T>(endpoint, { ...config, body, method: 'POST' }),
   put: <T>(endpoint: string, body: any, config?: RequestInit) => client<T>(endpoint, { ...config, body, method: 'PUT' }),
-  // FIX: Added a body parameter to the delete helper to support DELETE requests with a body, making it consistent with post and put.
+  //  Added a body parameter to the delete helper to support DELETE requests with a body, making it consistent with post and put.
   delete: <T>(endpoint: string, body?: any, config?: RequestInit) => client<T>(endpoint, { ...config, body, method: 'DELETE' }),
 };

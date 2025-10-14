@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Notification } from '../../../../../types';
 import { Pagination } from '../../../../../components/ui/pagination';
@@ -7,6 +6,7 @@ import FloatingBulkActionsBar from '../../../../../components/FloatingBulkAction
 import { CheckCircleIcon, XCircleIcon } from '../../../../../constants';
 import NotificationCardList from '../../cards/NotificationCardList';
 import { useCardPagination } from '../../../hooks/useDynamicPagination';
+import { DateRange } from '../../shared/DateRangePicker';
 
 interface ReceivedNotificationsViewProps {
     notifications: Notification[];
@@ -20,6 +20,7 @@ const ReceivedNotificationsView: React.FC<ReceivedNotificationsViewProps> = ({ n
     
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({ type: 'all', status: 'all' });
+    const [dates, setDates] = useState<DateRange>({ start: null, end: null });
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -29,13 +30,25 @@ const ReceivedNotificationsView: React.FC<ReceivedNotificationsViewProps> = ({ n
 
     const filtered = useMemo(() => {
         return sortedNotifications.filter(n => {
+            // Date filtering
+            if (dates.start) {
+                const startDate = new Date(dates.start);
+                startDate.setHours(0, 0, 0, 0);
+                if (new Date(n.created_at) < startDate) return false;
+            }
+            if (dates.end) {
+                const endDate = new Date(dates.end);
+                endDate.setHours(23, 59, 59, 999);
+                if (new Date(n.created_at) > endDate) return false;
+            }
+
             const lowerSearch = searchTerm.toLowerCase();
             const status = n.read_at ? 'read' : 'unread';
             return n.title.toLowerCase().includes(lowerSearch) &&
                    (filters.type === 'all' || n.type === filters.type) &&
                    (filters.status === 'all' || status === filters.status);
         });
-    }, [sortedNotifications, searchTerm, filters]);
+    }, [sortedNotifications, searchTerm, filters, dates]);
 
     const paginated = useMemo(() => filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [filtered, currentPage, itemsPerPage]);
     const pageCount = Math.ceil(filtered.length / itemsPerPage);
@@ -44,7 +57,7 @@ const ReceivedNotificationsView: React.FC<ReceivedNotificationsViewProps> = ({ n
     useEffect(() => {
         setCurrentPage(1);
         setSelectedIds(new Set());
-    }, [searchTerm, filters]);
+    }, [searchTerm, filters, dates]);
 
     const handleSelect = useCallback((id: string) => {
         setSelectedIds(prev => {
@@ -66,9 +79,16 @@ const ReceivedNotificationsView: React.FC<ReceivedNotificationsViewProps> = ({ n
     };
 
     return (
-        <>
-            <ReceivedNotificationsToolbar searchTerm={searchTerm} onSearchChange={setSearchTerm} filters={filters} onFilterChange={setFilters} />
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="space-y-4">
+            <ReceivedNotificationsToolbar 
+                searchTerm={searchTerm} 
+                onSearchChange={setSearchTerm} 
+                filters={filters} 
+                onFilterChange={setFilters}
+                dates={dates}
+                onDatesChange={setDates}
+            />
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden p-4">
                 <NotificationCardList
                     notifications={paginated}
                     loading={false}
@@ -101,7 +121,7 @@ const ReceivedNotificationsView: React.FC<ReceivedNotificationsViewProps> = ({ n
                       Đánh dấu chưa đọc
                   </button>
               </FloatingBulkActionsBar>
-        </>
+        </div>
     );
 };
 

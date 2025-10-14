@@ -37,7 +37,7 @@ const NotebookDetailToolbar: React.FC<NotebookDetailToolbarProps> = ({
     ];
 
     return (
-        <div className="space-y-4 mb-4">
+        <div className="space-y-4 mb-4 text-sm">
             {/* Top row: Select all checkbox aligned with filters and buttons */}
             <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
                 {/* Left side: Select all and filters */}

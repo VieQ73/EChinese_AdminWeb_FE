@@ -7,7 +7,7 @@ interface UserSubscriptionToolbarProps {
 
 const UserSubscriptionToolbar: React.FC<UserSubscriptionToolbarProps> = ({ searchTerm, onSearchChange }) => {
     return (
-        <div className="p-4 bg-gray-50 border-b border-gray-200">
+        <div className="p-4 bg-gray-50 border-b border-gray-200 text-sm">
             <input
                 type="text"
                 placeholder="Tìm theo tên, email, user ID..."

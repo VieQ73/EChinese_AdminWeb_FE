@@ -16,6 +16,14 @@ import {
   Explanation,
 } from './mocktest';
 
+export type { Option, Explanation };
+
+export interface PromptImage {
+  type: 'image';
+  label: string;
+  url: string | File; 
+}
+
 /**
  * ================================
  * EXAM DETAIL STRUCTURE (FULL)
@@ -60,6 +68,7 @@ export interface ExamSummary extends Exam {
   exam_level_name?: string;
   section_count?: number;
   question_count?: number;
+  sections?: Section[];
 }
 
 // Dữ liệu cho trình chỉnh sửa (admin)

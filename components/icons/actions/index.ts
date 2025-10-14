@@ -6,3 +6,6 @@ export * from './PlusIcon';
 export * from './RestoreIcon';
 export * from './TrashIcon';
 export * from './UploadIcon';
+export * from './CopyIcon';
+export * from './PublishIcon';
+export * from './UnpublishIcon';

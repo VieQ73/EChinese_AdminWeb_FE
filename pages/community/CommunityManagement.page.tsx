@@ -3,7 +3,7 @@ import React, { useMemo, useContext, useState, useEffect, useCallback } from 're
 
 // Contexts & Hooks
 import { AuthContext } from '../../contexts/AuthContext';
-import { useAppData } from '../../contexts/AppDataContext';
+import { useAppData } from '../../contexts/appData/context';
 import { useCommunityState } from './hooks/useCommunityState';
 import { useCommunityHandlers } from './hooks/useCommunityHandlers';
 import { useCommunityEffects } from './hooks/useCommunityEffects';

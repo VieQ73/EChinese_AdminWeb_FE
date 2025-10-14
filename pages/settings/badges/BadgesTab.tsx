@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAppData } from '../../../contexts/AppDataContext';
+import { useAppData } from '../../../contexts/appData/context';
 import { BadgeLevel } from '../../../types';
 import BadgesTable from './components/BadgesTable';
 import EditBadgeModal from './components/EditBadgeModal';

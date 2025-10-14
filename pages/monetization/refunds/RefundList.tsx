@@ -6,6 +6,7 @@ import { Pagination } from '../../../components/ui/pagination';
 import RefundToolbar from './components/RefundToolbar';
 import RefundCardList from './components/RefundCardList';
 import RefundDetailModal from './components/RefundDetailModal';
+import { DateRange } from '../../moderation/components/shared/DateRangePicker';
 
 const RefundList: React.FC = () => {
     const { user: currentUser } = useContext(AuthContext)!;
@@ -19,6 +20,7 @@ const RefundList: React.FC = () => {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [filters, setFilters] = useState<{ search: string; status: 'all' | 'pending' | 'completed' | 'rejected' }>({ search: '', status: 'all' });
+    const [dates, setDates] = useState<DateRange>({ start: null, end: null });
     
     // State cho Modal
     const [selectedRefund, setSelectedRefund] = useState<Refund | null>(null);
@@ -28,7 +30,7 @@ const RefundList: React.FC = () => {
     const loadRefunds = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await fetchRefunds({ ...filters, page, limit: 12 });
+            const response = await fetchRefunds({ ...filters, page, limit: 12, startDate: dates.start, endDate: dates.end });
             setRefunds(response.data);
             setTotalPages(response.meta.totalPages);
         } catch (err) {
@@ -36,13 +38,13 @@ const RefundList: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [page, filters]);
+    }, [page, filters, dates]);
 
     useEffect(() => {
         loadRefunds();
     }, [loadRefunds]);
 
-    useEffect(() => { setPage(1); }, [filters]);
+    useEffect(() => { setPage(1); }, [filters, dates]);
     
     // Handler cho việc xử lý hoàn tiền
     const handleProcessRefund = async (payload: Omit<ProcessRefundPayload, 'adminId'>) => {
@@ -67,6 +69,8 @@ const RefundList: React.FC = () => {
                 filters={filters} 
                 onSearchChange={(search) => setFilters(f => ({ ...f, search }))}
                 onStatusChange={(status) => setFilters(f => ({ ...f, status }))}
+                dates={dates}
+                onDatesChange={setDates}
             />
             {error ? (
                 <div className="p-4 text-red-600">{error}</div>

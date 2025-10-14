@@ -1,75 +1,139 @@
+import React, { useMemo } from 'react';
+import { useAppData } from '../contexts/appData/context';
 
-import React from 'react';
-import { UsersIcon, DocumentTextIcon, CurrencyDollarIcon, ChatAlt2Icon } from '../constants';
+import StatCard from './dashboard/components/StatCard';
+import AnalyticsCard from './dashboard/components/AnalyticsCard';
+import RecentAdminLogs from './dashboard/components/RecentAdminLogs';
+import CommunityActivityFeed from './dashboard/components/CommunityActivityFeed';
+import { generateDailyRevenue, generateDailyReports, generateDailyViolations, generateDailyNewUsers } from './dashboard/utils';
+import TrendingContentCard from './dashboard/components/TrendingContentCard';
 
-const StatCard: React.FC<{ title: string; value: string; icon: React.FC<any> }> = ({ title, value, icon: Icon }) => (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center hover:shadow-md hover:border-primary-300 transition-all duration-300">
-        <div className="bg-blue-50 p-3 rounded-lg mr-4">
-            <Icon className="h-6 w-6 text-primary-600" />
-        </div>
-        <div>
-            <p className="text-sm font-medium text-gray-500">{title}</p>
-            <p className="text-2xl font-bold text-gray-900">{value}</p>
-        </div>
-    </div>
-);
+import { UsersIcon, CurrencyDollarIcon, ChatAlt2Icon, DocumentTextIcon } from '../constants';
 
 const Dashboard: React.FC = () => {
+    // Lấy dữ liệu toàn cục từ context, thêm appeals và notifications
+    const { users, payments, adminLogs, posts, reports, violations, comments, postLikes, appeals, notifications } = useAppData();
+
+    // Sử dụng useMemo để tính toán các chỉ số mà không cần render lại không cần thiết
+    const stats = useMemo(() => {
+        const now = new Date();
+        const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        const todayStart = new Date(now.setHours(0, 0, 0, 0));
+
+        // --- Thống kê cơ bản ---
+        const monthlyRevenue = payments
+            .filter(p => {
+                const date = new Date(p.transaction_date);
+                return p.status === 'successful' && date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+            })
+            .reduce((sum, p) => sum + p.amount, 0);
+
+        const activeUsers = users.filter(u => u.is_active).length;
+        const pendingReports = reports.filter(r => r.status === 'pending').length;
+        const newPostsToday = posts.filter(p => new Date(p.created_at) >= todayStart).length;
+
+        // --- Thống kê mới cho Community Activity ---
+        const pendingAppeals = appeals.filter(a => a.status === 'pending').length;
+        const unreadAdminNotifications = notifications.filter(n => (n.audience === 'admin' || n.from_system) && !n.read_at).length;
+        
+        const recentLogs = adminLogs.slice(0, 10);
+
+        const recentUsers = users
+            .filter(u => new Date(u.created_at) >= new Date(Date.now() - 3 * 24 * 60 * 60 * 1000))
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            .slice(0, 5);
+
+        // --- Dữ liệu cho các biểu đồ ---
+        const dailyRevenue = generateDailyRevenue(payments, 7);
+        const dailyReports = generateDailyReports(reports, 7);
+        const dailyViolations = generateDailyViolations(violations, 7);
+        const dailyNewUsers = generateDailyNewUsers(users, 7);
+        
+        // Tính toán người dùng nổi bật ---
+        const userActivity = new Map<string, { posts: number, comments: number, likes: number, score: number }>();
+        
+        const processItems = <T extends { user_id: string, created_at: string }>(items: T[], type: 'posts' | 'comments' | 'likes') => {
+            items.filter(item => new Date(item.created_at) >= oneWeekAgo).forEach(item => {
+                const activity = userActivity.get(item.user_id) || { posts: 0, comments: 0, likes: 0, score: 0 };
+                activity[type]++;
+                userActivity.set(item.user_id, activity);
+            });
+        };
+        
+        processItems(posts, 'posts');
+        processItems(comments.filter(c => !c.deleted_at), 'comments');
+        processItems(postLikes, 'likes');
+
+        userActivity.forEach((activity, userId) => {
+            activity.score = activity.posts * 3 + activity.comments * 1 + activity.likes * 0.5;
+            userActivity.set(userId, activity);
+        });
+
+        const sortedUsers = Array.from(userActivity.entries())
+            .sort(([, a], [, b]) => b.score - a.score)
+            .slice(0, 5)
+            .map(([userId, activity]) => ({ user: users.find(u => u.id === userId), ...activity }));
+            
+        const maxScore = sortedUsers.length > 0 ? sortedUsers[0].score : 0;
+        const topUsers = sortedUsers.filter(u => u.user).map(u => ({ ...u, scorePercent: maxScore > 0 ? (u.score / maxScore) * 100 : 0 }));
+
+        // --- Tính toán chủ đề sôi nổi ---
+        const topicCounts = new Map<string, number>();
+        const postsLastWeek = posts.filter(p => new Date(p.created_at) >= oneWeekAgo);
+
+        postsLastWeek.forEach(p => {
+            topicCounts.set(p.topic, (topicCounts.get(p.topic) || 0) + 1);
+        });
+        
+        const topTopics = Array.from(topicCounts.entries())
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 5)
+            .map(([topic, count]) => ({
+                topic,
+                count,
+                percent: postsLastWeek.length > 0 ? (count / postsLastWeek.length) * 100 : 0
+            }));
+
+        return { 
+            monthlyRevenue, activeUsers, pendingReports, newPostsToday, recentLogs, recentUsers, 
+            dailyRevenue, dailyReports, dailyViolations, dailyNewUsers,
+            topUsers, topTopics,
+            pendingAppeals, unreadAdminNotifications // Thêm vào kết quả trả về
+        };
+    }, [users, payments, adminLogs, posts, reports, violations, comments, postLikes, appeals, notifications]); // Thêm dependencies
+
+    const formatCurrency = (amount: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+
     return (
         <div className="space-y-8">
-            <h1 className="text-3xl font-bold text-gray-900">Bảng điều khiển</h1>
-            
+            <h1 className="text-3xl font-bold text-gray-900">Tổng quan</h1>
+
+            {/* Hàng trên: 4 thẻ thống kê chính */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Tổng số người dùng" value="1,234" icon={UsersIcon} />
-                <StatCard title="Tổng số bài viết" value="5,678" icon={DocumentTextIcon} />
-                <StatCard title="Doanh thu tháng" value="28,450,000₫" icon={CurrencyDollarIcon} />
-                <StatCard title="Báo cáo chờ xử lý" value="12" icon={ChatAlt2Icon} />
+                <StatCard title="Doanh thu tháng này" value={formatCurrency(stats.monthlyRevenue)} icon={CurrencyDollarIcon} />
+                <StatCard title="Người dùng hoạt động" value={stats.activeUsers.toLocaleString()} icon={UsersIcon} />
+                <StatCard title="Báo cáo chờ xử lý" value={stats.pendingReports.toLocaleString()} icon={ChatAlt2Icon} />
+                <StatCard title="Bài viết mới hôm nay" value={stats.newPostsToday.toLocaleString()} icon={DocumentTextIcon} />
             </div>
 
+            {/* Thay đổi layout thành lưới 2x2 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Hoạt động gần đây</h2>
-                    <ul className="divide-y divide-gray-200">
-                        <li className="py-3">
-                            <p className="text-gray-800">Người dùng mới <span className="font-semibold text-primary-600">John Doe</span> đã đăng ký.</p>
-                            <p className="text-sm text-gray-500">2 phút trước</p>
-                        </li>
-                         <li className="py-3">
-                            <p className="text-gray-800">Bài viết "<span className="font-semibold text-primary-600">Hành trình HSK 5 của tôi</span>" đã bị báo cáo.</p>
-                            <p className="text-sm text-gray-500">15 phút trước</p>
-                        </li>
-                         <li className="py-3">
-                            <p className="text-gray-800">Gói đăng ký <span className="font-semibold text-primary-600">Premium Năm</span> đã được cập nhật.</p>
-                            <p className="text-sm text-gray-500">1 giờ trước</p>
-                        </li>
-                    </ul>
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Tình trạng hệ thống</h2>
-                     <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                            <p className="text-gray-800">Trạng thái API</p>
-                            <div className="flex items-center">
-                                <div className="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div>
-                                <span className="text-green-600 font-semibold text-sm">Đang hoạt động</span>
-                            </div>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <p className="text-gray-800">Kết nối cơ sở dữ liệu</p>
-                             <div className="flex items-center">
-                                <div className="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div>
-                                <span className="text-green-600 font-semibold text-sm">Tốt</span>
-                            </div>
-                        </div>
-                          <div className="flex justify-between items-center">
-                            <p className="text-gray-800">Sao lưu hàng ngày</p>
-                            <div className="flex items-center">
-                                <div className="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div>
-                                <span className="text-green-600 font-semibold text-sm">Thành công</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <AnalyticsCard 
+                    dailyRevenue={stats.dailyRevenue}
+                    dailyReports={stats.dailyReports}
+                    dailyViolations={stats.dailyViolations}
+                    dailyNewUsers={stats.dailyNewUsers}
+                />
+                <RecentAdminLogs logs={stats.recentLogs} />
+                <TrendingContentCard topUsers={stats.topUsers} topTopics={stats.topTopics} />
+                <CommunityActivityFeed 
+                    recentUsers={stats.recentUsers} 
+                    pendingReportsCount={stats.pendingReports} 
+                    pendingAppealsCount={stats.pendingAppeals}
+                    unreadNotificationsCount={stats.unreadAdminNotifications}
+                />
             </div>
         </div>
     );

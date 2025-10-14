@@ -20,7 +20,7 @@ import {
     mockUserSubscriptions
 } from '../../mock';
 
-// FIX: Cast import.meta to any to resolve TypeScript error regarding 'env' property,
+//  Cast import.meta to any to resolve TypeScript error regarding 'env' property,
 // as the vite/client types are not available in this context.
 const USE_MOCK_API = (import.meta as any).env?.VITE_USE_MOCK_API !== 'false';
 

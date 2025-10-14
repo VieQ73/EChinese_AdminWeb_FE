@@ -1,6 +1,6 @@
 // types/mocktest.ts
 // Chuẩn hoá type theo base.ts (UUID, Timestamp, Json)
-// 1:1 với cấu trúc trong DBML
+// 1:1 với cấu trúc trong DBML, không thể sửa đổi ở nguồn chân lý này.
 
 import type { UUID, Timestamp, Json } from './base';
 

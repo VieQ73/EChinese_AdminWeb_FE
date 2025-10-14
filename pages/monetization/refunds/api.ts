@@ -13,6 +13,8 @@ interface FetchRefundsParams {
     limit?: number;
     search?: string; // by user name/email
     status?: 'all' | 'pending' | 'completed' | 'rejected';
+    startDate?: string | null;
+    endDate?: string | null;
 }
 
 export interface ProcessRefundPayload {
@@ -40,7 +42,7 @@ export const fetchRefunds = (params: FetchRefundsParams = {}): Promise<Paginated
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
-                const { page = 1, limit = 12, search, status } = params;
+                const { page = 1, limit = 12, search, status, startDate, endDate } = params;
                 let filtered = mockRefunds.map(enrichRefund);
                 if (search) {
                     const lowerSearch = search.toLowerCase();
@@ -48,6 +50,22 @@ export const fetchRefunds = (params: FetchRefundsParams = {}): Promise<Paginated
                 }
                 if (status && status !== 'all') {
                     filtered = filtered.filter(r => r.status === status);
+                }
+                if (startDate || endDate) {
+                    filtered = filtered.filter(r => {
+                        const createdDate = new Date(r.created_at);
+                        if (startDate) {
+                            const start = new Date(startDate);
+                            start.setHours(0, 0, 0, 0);
+                            if (createdDate < start) return false;
+                        }
+                        if (endDate) {
+                            const end = new Date(endDate);
+                            end.setHours(23, 59, 59, 999);
+                            if (createdDate > end) return false;
+                        }
+                        return true;
+                    });
                 }
                 filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
                 const total = filtered.length;

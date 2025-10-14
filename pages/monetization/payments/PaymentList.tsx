@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useContext, useMemo } from 'react';
 import { Payment } from '../../../types';
 import { AuthContext } from '../../../contexts/AuthContext';
@@ -7,6 +6,7 @@ import { Pagination } from '../../../components/ui/pagination';
 import FloatingBulkActionsBar from '../../../components/FloatingBulkActionsBar';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { CheckCircleIcon, TrashIcon } from '../../../constants';
+import { DateRange } from '../../moderation/components/shared/DateRangePicker';
 
 import PaymentToolbar from './components/PaymentToolbar';
 import PaymentCardList from './components/PaymentCardList';
@@ -24,6 +24,7 @@ const PaymentList: React.FC = () => {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [filters, setFilters] = useState({ search: '', status: 'all', method: 'all', channel: 'all' });
+    const [dates, setDates] = useState<DateRange>({ start: null, end: null });
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     
     // State cho Modals
@@ -36,7 +37,7 @@ const PaymentList: React.FC = () => {
         setLoading(true);
         setSelectedIds(new Set());
         try {
-            const response = await fetchPayments({ ...filters, page, limit: 12 });
+            const response = await fetchPayments({ ...filters, page, limit: 12, startDate: dates.start, endDate: dates.end });
             setPayments(response.data);
             setTotalPages(response.meta.totalPages);
         } catch (err) {
@@ -44,13 +45,13 @@ const PaymentList: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [page, filters]);
+    }, [page, filters, dates]);
 
     useEffect(() => {
         loadPayments();
     }, [loadPayments]);
 
-    useEffect(() => { setPage(1); }, [filters]);
+    useEffect(() => { setPage(1); }, [filters, dates]);
     
     const handleFilterChange = (name: keyof typeof filters, value: string) => {
         setFilters(f => ({ ...f, [name]: value }));
@@ -122,6 +123,8 @@ const PaymentList: React.FC = () => {
             <PaymentToolbar 
                 filters={filters} 
                 onFilterChange={handleFilterChange}
+                dates={dates}
+                onDatesChange={setDates}
             />
             {error ? (
                 <div className="p-4 text-red-600">{error}</div>

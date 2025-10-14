@@ -30,7 +30,7 @@ export interface ForgotPasswordResponse {
 // Biến môi trường để bật/tắt chế độ giả lập
 // File .env ở gốc dự án sẽ chứa: VITE_USE_MOCK_API=false để dùng API thật.
 // Mặc định sẽ là true nếu không được định nghĩa, giúp an toàn cho môi trường dev.
-// FIX: Cast import.meta to any to resolve TypeScript error regarding 'env' property,
+//  Cast import.meta to any to resolve TypeScript error regarding 'env' property,
 // as the vite/client types are not available in this context.
 const USE_MOCK_API = (import.meta as any).env?.VITE_USE_MOCK_API !== 'false';
 

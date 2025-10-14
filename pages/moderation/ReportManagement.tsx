@@ -12,7 +12,7 @@ import * as api from './api'; // Import API mới
 import ReportDetailModal from './components/details/ReportDetailModal';
 import ViolationDetailModal from './components/details/ViolationDetailModal';
 import AppealDetailModal from './components/details/AppealDetailModal';
-import { useAppData } from '../../contexts/AppDataContext';
+import { useAppData } from '../../contexts/appData/context';
 
 
 type ActiveTab = 'reports' | 'violations' | 'appeals' | 'notifications';

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useContext, useMemo } from 'react';
 import { CommunityRule, User } from '../../types';
 import { AuthContext } from '../../contexts/AuthContext';
-import { useAppData } from '../../contexts/AppDataContext';
+import { useAppData } from '../../contexts/appData/context';
 import { RulePayload } from './api';
 import { Loader2, RefreshCw } from 'lucide-react';
 import RulesToolbar from './components/RulesToolbar';

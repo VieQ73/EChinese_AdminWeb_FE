@@ -13,7 +13,7 @@ const CommunityTools: React.FC<CommunityToolsProps> = ({ topic, onTopicChange, o
     return (
         <div className="space-y-6">
             {/* Phần tìm kiếm người dùng */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 text-sm">
                 <UserSearch onUserSelect={onUserSelect} />
             </div>
 

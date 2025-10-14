@@ -122,15 +122,3 @@ export interface Appeal {
   user?: Partial<User>;
   violation?: Violation;
 }
-
-export interface Media {
-  id: UUID;
-  original_name: string;
-  display_name: string;
-  s3_path: string;
-  mime_type: string;
-  size_bytes: number;
-  uploaded_by: UUID;
-  usage_type: 'mocktest_audio' | 'vocab_image' | 'user_avatar' | 'system';
-  created_at: Timestamp;
-}

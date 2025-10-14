@@ -3,7 +3,7 @@ import { Post, CommentWithUser, Violation } from '../../../../types';
 import Modal from '../../../../components/Modal';
 import RemoveActionForm from '../../../moderation/components/details/forms/RemoveActionForm';
 import RestoreActionForm from '../../../moderation/components/details/forms/RestoreActionForm';
-import { useAppData } from '../../../../contexts/AppDataContext';
+import { useAppData } from '../../../../contexts/appData/context';
 
 type ModerationAction = {
     action: 'remove' | 'restore';

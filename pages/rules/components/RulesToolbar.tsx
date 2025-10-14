@@ -2,7 +2,7 @@
 import React from 'react';
 import { PlusIcon } from '../../../components/icons';
 
-// FIX: Update prop types for filters to be more specific, ensuring type safety.
+//  Update prop types for filters to be more specific, ensuring type safety.
 interface RulesToolbarProps {
     filters: {
         search: string;
@@ -19,13 +19,13 @@ interface RulesToolbarProps {
 
 const RulesToolbar: React.FC<RulesToolbarProps> = ({ filters, onFiltersChange, onCreate }) => {
     const handleFilterChange = (field: keyof typeof filters, value: string) => {
-        // FIX: Cast value to `any` to satisfy the stricter type from the parent component.
+        //  Cast value to `any` to satisfy the stricter type from the parent component.
         // This is safe as the values come from a controlled select input.
         onFiltersChange({ ...filters, [field]: value as any });
     };
 
     return (
-        <div className="p-4 bg-gray-50 border-b border-gray-200">
+        <div className="p-4 bg-gray-50 border-b border-gray-200 text-sm">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div className="flex items-center gap-4 flex-1">
                     <input

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-// FIX: Changed imports of `useLocation` and `useNavigate` from `react-router-dom` to `react-router` to resolve module export errors.
+//  Changed imports of `useLocation` and `useNavigate` from `react-router-dom` to `react-router` to resolve module export errors.
 import { useLocation, useNavigate } from 'react-router';
 import { mockUsers } from '../../../mock';
 import { Post } from '../../../types';

@@ -7,6 +7,7 @@ interface ReportActionFormProps {
     severity: 'low' | 'medium' | 'high';
     setSeverity: (value: 'low' | 'medium' | 'high') => void;
     isAiReport: boolean;
+    reportType: 'post' | 'comment' | 'user' | 'bug' | 'other';
 }
 
 const ReportActionForm: React.FC<ReportActionFormProps> = ({
@@ -16,13 +17,15 @@ const ReportActionForm: React.FC<ReportActionFormProps> = ({
     severity,
     setSeverity,
     isAiReport,
+    reportType,
 }) => {
 
     const showResolutionInput = !(view === 'resolve' && isAiReport);
+    const showSeverityInput = view === 'resolve' && !isAiReport && !['bug', 'other'].includes(reportType);
 
     return (
         <div className="space-y-4 mt-2">
-            {view === 'resolve' && !isAiReport && (
+            {showSeverityInput && (
                 <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Mức độ vi phạm</label>
                     <select

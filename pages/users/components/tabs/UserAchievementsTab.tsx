@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useAppData } from '../../../../contexts/AppDataContext';
+import { useAppData } from '../../../../contexts/appData/context';
 import { Achievement } from '../../../../types';
 
 interface UserAchievementsTabProps {

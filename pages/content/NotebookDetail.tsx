@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-// FIX: Changed imports of `useParams` and `useNavigate` from `react-router-dom` to `react-router` to resolve module export errors.
+//  Changed imports of `useParams` and `useNavigate` from `react-router-dom` to `react-router` to resolve module export errors.
 import { useParams, useNavigate } from 'react-router';
 import { Notebook, Vocabulary, PaginatedResponse } from '../../types';
 import * as api from './api';
-// FIX: Import Loader2 from lucide-react instead of constants
+//  Import Loader2 from lucide-react instead of constants
 import { ArrowLeftIcon, PlusIcon, TrashIcon, UploadIcon } from '../../constants';
 import { Loader2 } from 'lucide-react';
 import Modal from '../../components/Modal';

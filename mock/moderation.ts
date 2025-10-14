@@ -438,7 +438,7 @@ export const mockModerationLogs: ModerationLog[] = [
         id: `ml_extra_${i + 1}`,
         target_type: (i % 2 === 0 ? 'post' : 'comment') as 'post' | 'comment',
         target_id: `extra_target_${i + 1}`,
-        // FIX: The 'action' property must be either 'remove' or 'restore'. Changed from Vietnamese equivalents.
+        //  The 'action' property must be either 'remove' or 'restore'. Changed from Vietnamese equivalents.
         action: (i % 3 === 0 ? 'restore' : 'remove') as 'restore' | 'remove',
         reason: `Lý do tự động ${i + 1}.`,
         performed_by: i % 5 === 0 ? 'superadmin-user-id' : 'admin-user-id',

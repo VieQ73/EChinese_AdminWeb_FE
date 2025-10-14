@@ -6,6 +6,7 @@ import FloatingBulkActionsBar from '../../../../../components/FloatingBulkAction
 import { TrashIcon, SendIcon } from '../../../../../constants';
 import NotificationCardList from '../../cards/NotificationCardList';
 import { useCardPagination } from '../../../hooks/useDynamicPagination';
+import { DateRange } from '../../shared/DateRangePicker';
 
 interface SentNotificationsViewProps {
     notifications: Notification[];
@@ -21,6 +22,7 @@ const SentNotificationsView: React.FC<SentNotificationsViewProps> = ({ notificat
     
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({ audience: 'all_audience', type: 'all', status: 'all' });
+    const [dates, setDates] = useState<DateRange>({ start: null, end: null });
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -30,13 +32,25 @@ const SentNotificationsView: React.FC<SentNotificationsViewProps> = ({ notificat
 
     const filtered = useMemo(() => {
         return sortedNotifications.filter(n => {
+            // Date filtering
+            if (dates.start) {
+                const startDate = new Date(dates.start);
+                startDate.setHours(0, 0, 0, 0);
+                if (new Date(n.created_at) < startDate) return false;
+            }
+            if (dates.end) {
+                const endDate = new Date(dates.end);
+                endDate.setHours(23, 59, 59, 999);
+                if (new Date(n.created_at) > endDate) return false;
+            }
+
             const lowerSearch = searchTerm.toLowerCase();
             const status = n.is_push_sent ? 'published' : 'draft';
             return n.title.toLowerCase().includes(lowerSearch) &&
                    (filters.audience === 'all_audience' || n.audience === filters.audience) &&
                    (filters.status === 'all' || status === filters.status);
         });
-    }, [sortedNotifications, searchTerm, filters]);
+    }, [sortedNotifications, searchTerm, filters, dates]);
 
     const paginated = useMemo(() => filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [filtered, currentPage, itemsPerPage]);
     const pageCount = Math.ceil(filtered.length / itemsPerPage);
@@ -45,7 +59,7 @@ const SentNotificationsView: React.FC<SentNotificationsViewProps> = ({ notificat
     useEffect(() => {
         setCurrentPage(1);
         setSelectedIds(new Set());
-    }, [searchTerm, filters]);
+    }, [searchTerm, filters, dates]);
 
     const handleSelect = useCallback((id: string) => {
         setSelectedIds(prev => {
@@ -69,9 +83,17 @@ const SentNotificationsView: React.FC<SentNotificationsViewProps> = ({ notificat
     const canPublish = selectedItems.length > 0 && selectedItems.some(n => !n.is_push_sent);
 
     return (
-        <>
-            <SentNotificationsToolbar searchTerm={searchTerm} onSearchChange={setSearchTerm} filters={filters} onFilterChange={setFilters} onCreate={onCreate} />
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="space-y-4">
+            <SentNotificationsToolbar 
+                searchTerm={searchTerm} 
+                onSearchChange={setSearchTerm} 
+                filters={filters} 
+                onFilterChange={setFilters} 
+                onCreate={onCreate}
+                dates={dates}
+                onDatesChange={setDates}
+            />
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden p-4">
                 <NotificationCardList
                     notifications={paginated}
                     loading={false}
@@ -88,7 +110,7 @@ const SentNotificationsView: React.FC<SentNotificationsViewProps> = ({ notificat
                 {canDelete && <button onClick={() => onDelete(Array.from(selectedIds))} className="flex items-center text-xs font-medium text-red-600 hover:text-black"><TrashIcon className="w-4 h-4 mr-1.5"/> Xóa</button>}
                 {!canDelete && selectedIds.size > 0 && <span className="text-xs text-gray-400 italic">Chỉ có thể xóa thông báo nháp.</span>}
             </FloatingBulkActionsBar>
-        </>
+        </div>
     );
 };
 

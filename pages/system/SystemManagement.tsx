@@ -1,37 +1,85 @@
+// pages/system/SystemManagement.tsx
+import React, { useState, useMemo } from 'react';
+import { useAppData } from '../../contexts/appData/context';
+import LogToolbar from './components/LogToolbar';
+import LogList from './components/LogList';
 
-import React from 'react';
-import { mockAdminLogs } from '../../mock';
+// Add DateRange type
+interface DateRange {
+    start: string | null;
+    end: string | null;
+}
 
 const SystemManagement: React.FC = () => {
+    // Lấy dữ liệu từ context
+    const { adminLogs, users } = useAppData();
+    
+    // State cục bộ để quản lý các bộ lọc
+    const [filters, setFilters] = useState({
+        search: '',
+        adminId: 'all',
+        actionType: 'all'
+    });
+    const [dates, setDates] = useState<DateRange>({ start: null, end: null });
+
+    // Lấy danh sách admin để hiển thị trong bộ lọc
+    const adminUsers = useMemo(() => 
+        users.filter(u => u.role === 'admin' || u.role === 'super admin'), 
+    [users]);
+
+    // Lấy danh sách các loại hành động đã xảy ra để hiển thị trong bộ lọc
+    const actionTypes = useMemo(() => 
+        [...new Set(adminLogs.map(log => log.action_type))].sort(),
+    [adminLogs]);
+
+    // Lọc danh sách log dựa trên state của các bộ lọc
+    const filteredLogs = useMemo(() => {
+        return adminLogs.filter(log => {
+            const searchLower = filters.search.toLowerCase();
+            const matchesSearch = log.description.toLowerCase().includes(searchLower) 
+                || (log.target_id && log.target_id.toLowerCase().includes(searchLower))
+                || (log.adminName && log.adminName.toLowerCase().includes(searchLower));
+            const matchesAdmin = filters.adminId === 'all' || log.user_id === filters.adminId;
+            const matchesAction = filters.actionType === 'all' || log.action_type === filters.actionType;
+
+            // Date filtering logic
+            const matchesDate = (() => {
+                if (!dates.start && !dates.end) return true;
+                const logDate = new Date(log.created_at);
+                if (dates.start) {
+                    const startDate = new Date(dates.start);
+                    startDate.setHours(0, 0, 0, 0);
+                    if (logDate < startDate) return false;
+                }
+                if (dates.end) {
+                    const endDate = new Date(dates.end);
+                    endDate.setHours(23, 59, 59, 999);
+                    if (logDate > endDate) return false;
+                }
+                return true;
+            })();
+            
+            return matchesSearch && matchesAdmin && matchesAction && matchesDate;
+        });
+    }, [adminLogs, filters, dates]);
+
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-gray-900">Quản lý Hệ thống</h1>
-            <div>
-                <h2 className="text-2xl font-semibold text-gray-800 mb-4">Nhật ký Admin</h2>
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mô tả</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thời gian</th>
-                            </tr>
-                        </thead>
-                         <tbody className="bg-white divide-y divide-gray-200">
-                           {mockAdminLogs.map(log => (
-                               <tr key={log.id} className="hover:bg-gray-50 transition-colors">
-                                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{log.adminName}</td>
-                                   <td className="px-6 py-4 whitespace-nowrap">
-                                       <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">{log.action_type}</span>
-                                   </td>
-                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.description}</td>
-                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(log.created_at).toLocaleString()}</td>
-                               </tr>
-                           ))}
-                        </tbody>
-                    </table>
-                </div>
+            <h1 className="text-3xl font-bold text-gray-900">Nhật ký Hệ thống</h1>
+            
+            {/* Thanh công cụ chứa các bộ lọc */}
+            <LogToolbar
+                filters={filters}
+                onFiltersChange={setFilters}
+                dates={dates}
+                onDatesChange={setDates}
+                admins={adminUsers}
+                actionTypes={actionTypes}
+            />
+            
+            {/* Danh sách các thẻ log */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                 <LogList logs={filteredLogs} />
             </div>
         </div>
     );

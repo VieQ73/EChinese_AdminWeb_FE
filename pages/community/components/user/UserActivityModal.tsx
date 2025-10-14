@@ -4,9 +4,9 @@ import Modal from '../../../../components/Modal';
 import Badge from '../ui/Badge';
 import { mockBadges } from '../../../../mock/settings';
 import RemovedContentTab from '../moderation/RemovedContentTab';
-// FIX: Corrected import from PostFeed (list component) to PostCard (single item component).
+//  Corrected import from PostFeed (list component) to PostCard (single item component).
 import PostFeedCard from '../feed/PostCard';
-import { useAppData } from '../../../../contexts/AppDataContext'; // Thêm import
+import { useAppData } from '../../../../contexts/appData/context'; // Thêm import
 import { ShieldExclamationIcon } from '../../../../constants'; // Thêm import icon
 
 interface UserActivityModalProps {

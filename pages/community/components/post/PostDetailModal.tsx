@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { AuthContext } from '../../../../contexts/AuthContext';
 import type { Post, CommentWithUser, User, Comment } from '../../../../types';
 import * as api from '../../api'; // Import API
-import { useAppData } from '../../../../contexts/AppDataContext'; // ADD THIS
+import { useAppData } from '../../../../contexts/appData/context'; // ADD THIS
 import { getEnrichedCommentsByPostId } from '../../../../mock/community'; // ADD THIS
 import CommentItem from './CommentItem';
 import ClickableUser from '../user/ClickableUser';

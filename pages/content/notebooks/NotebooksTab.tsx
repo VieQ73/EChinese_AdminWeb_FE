@@ -1,7 +1,7 @@
 
 
 import React, { useState, useMemo, useContext, useEffect, useCallback } from 'react';
-// FIX: Changed import of `useNavigate` from `react-router-dom` to `react-router` to resolve module export error.
+//  Changed import of `useNavigate` from `react-router-dom` to `react-router` to resolve module export error.
 import { useNavigate } from 'react-router';
 import { Notebook, PaginatedResponse } from '../../../types';
 import { AuthContext } from '../../../contexts/AuthContext';
@@ -14,7 +14,7 @@ import NotebooksToolbar from './NotebooksToolbar';
 import NotebookCardGrid from './NotebookCardGrid';
 import AddEditNotebookModal from './AddEditNotebookModal';
 import { Pagination } from '../../../components/ui/pagination';
-// FIX: Import Loader2 from lucide-react instead of constants
+//  Import Loader2 from lucide-react instead of constants
 import { CheckCircleIcon, XCircleIcon, TrashIcon } from '../../../constants';
 import { Loader2 } from 'lucide-react';
 

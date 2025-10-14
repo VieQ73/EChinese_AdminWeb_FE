@@ -18,7 +18,7 @@ const NotebooksToolbar: React.FC<NotebooksToolbarProps> = ({
 }) => {
     return (
         <div className="mb-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-sm">
                 
                 {/* Ô tìm kiếm */}
                 <input

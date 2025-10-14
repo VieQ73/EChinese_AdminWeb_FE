@@ -1,101 +1,157 @@
+// contexts/appData/types.ts
+
 import {
-    Report,
-    RawPost,
-    Comment,
-    Post,
-    User,
-    CommentWithUser,
-    ModerationLog,
-    PostLike,
-    PostView,
-    Violation,
-    Appeal,
-    ViolationRule,
-    CommunityRule,
-    Notification,
-    UserAchievement,
-    BadgeLevel,
-    Achievement,
-    UserUsage,
+    User, Post, Comment, ModerationLog, Violation, CommunityRule,
+    Notification, Report, Appeal, UserAchievement, BadgeLevel, Achievement,
+    AdminLog, UserStreak, UserUsage, ExamType, ExamLevel, QuestionType, RawPost,
+    PostLike, PostView, CommentWithUser, Notebook, Vocabulary, Tip, Subscription, Payment, Refund, EnrichedUserSubscription, Exam
 } from '../../types';
-import * as badgeApi from '../../pages/settings/badges/api';
 import { RulePayload } from '../../pages/rules/api';
 import { AchievementPayload } from '../../pages/settings/achievements/api';
+import { BadgePayload } from '../../pages/settings/badges/api';
+import { ExamTypePayload, ExamLevelPayload } from '../../pages/tests/api';
+import { NotebookPayload } from '../../pages/content/api/notebooksApi';
+import { VocabPayload } from '../../pages/content/api/vocabularyApi';
+import { TipPayload } from '../../pages/tips/tipApi';
+import { SubscriptionPayload, ProcessRefundPayload, UpdateUserSubscriptionDetailsPayload } from '../../pages/monetization/api';
+import { ExamPayload } from '../../pages/tests/api/examsApi';
 
-/**
- * Định nghĩa payload cho việc thêm mới một vi phạm.
- * Bao gồm các thông tin cần thiết để tạo bản ghi vi phạm và liên kết với các quy tắc.
- */
-export type AddViolationPayload = Omit<Violation, 'id' | 'created_at' | 'handled' | 'rules'> & { ruleIds?: string[] };
 
-/**
- * Định nghĩa cấu trúc đầy đủ của AppDataContext.
- * Bao gồm tất cả state và các hàm action để tương tác với state trên toàn ứng dụng.
- */
+// Payload for adding a violation
+export interface AddViolationPayload {
+    user_id: string;
+    target_type: 'post' | 'comment' | 'user';
+    target_id: string;
+    ruleIds: string[];
+    severity: Violation['severity'];
+    resolution: string;
+    detected_by: 'admin' | 'super admin' | 'auto_ai';
+}
+
+// Payload for adding a moderation log
+export interface AddModerationLogPayload {
+    target_type: 'post' | 'comment' | 'user';
+    target_id: string;
+    action: 'remove' | 'restore';
+    reason: string;
+    performed_by: string;
+}
+
+// Payload for adding an admin log
+export interface AddAdminLogPayload {
+    action_type: string;
+    target_id?: string;
+    description: string;
+}
+
+// Main context type
 export interface AppDataContextType {
-    // --- States ---
+    // --- State ---
     users: User[];
-    reports: Report[];
     posts: Post[];
     comments: Comment[];
-    postLikes: PostLike[];
-    postViews: PostView[];
     moderationLogs: ModerationLog[];
     violations: Violation[];
-    appeals: Appeal[];
     communityRules: CommunityRule[];
     notifications: Notification[];
+    reports: Report[];
+    appeals: Appeal[];
     userAchievements: UserAchievement[];
     badges: BadgeLevel[];
     achievements: Achievement[];
+    adminLogs: AdminLog[];
+    userStreaks: UserStreak[];
     userUsage: UserUsage[];
+    examTypes: ExamType[];
+    examLevels: ExamLevel[];
+    questionTypes: QuestionType[];
+    postLikes: PostLike[];
+    postViews: PostView[];
+    notebooks: Notebook[];
+    vocabularies: Vocabulary[];
+    tips: Tip[];
+    subscriptions: Subscription[];
+    payments: Payment[];
+    refunds: Refund[];
+    userSubscriptions: EnrichedUserSubscription[];
+    exams: Exam[];
+    
+    // --- Getters (Selectors) ---
+    getPostsByUserId: (userId: string) => Post[];
+    getLikedPostsByUserId: (userId: string) => Post[];
+    getViewedPostsByUserId: (userId: string) => Post[];
+    getCommentedPostsByUserId: (userId: string) => Post[];
+    getRemovedPostsByUserId: (userId: string) => Post[];
+    getRemovedCommentsByUserId: (userId: string) => CommentWithUser[];
 
     // --- Actions ---
-    // User Actions
-    updateUser: (userId: string, updatedData: Partial<User>) => void;
-    updateUserUsage: (userId: string, feature: 'ai_lesson' | 'ai_translate', updatedData: Partial<UserUsage>) => void;
-    
-    // Report/Appeal Actions
-    updateReport: (reportId: string, updatedData: Partial<Report>) => void;
-    updateAppeal: (appealId: string, updatedData: Partial<Appeal>, currentUser: User) => void;
-
-    // Community Actions
-    addPost: (postData: Omit<RawPost, 'id' | 'created_at' | 'user_id' | 'likes' | 'views'>, currentUser: User) => void;
-    updatePost: (postId: string, postData: Partial<Omit<RawPost, 'id'>>) => void;
+    // Community
+    addPost: (post: RawPost) => void;
+    updatePost: (postId: string, updates: Partial<RawPost>) => void;
     addComment: (comment: Comment) => void;
-    updateComment: (commentId: string, updatedData: Partial<Comment>) => void;
+    updateComment: (commentId: string, updates: Partial<Comment>) => void;
     toggleLike: (postId: string, userId: string) => void;
     toggleView: (postId: string, userId: string) => void;
-    
-    // Moderation Actions
-    addModerationLog: (log: Omit<ModerationLog, 'id' | 'created_at'>) => void;
+
+    // Moderation
     addViolation: (payload: AddViolationPayload) => void;
     removeViolationByTarget: (targetType: 'post' | 'comment' | 'user', targetId: string) => void;
+    addModerationLog: (payload: AddModerationLogPayload) => void;
 
-    // Notification Actions
-    addNotification: (notificationData: Omit<Notification, 'id' | 'created_at'>) => void;
-    publishNotifications: (notificationIds: string[]) => void;
-    deleteNotifications: (notificationIds: string[]) => void;
-    markNotificationsAsRead: (notificationIds: string[], asRead: boolean) => void;
-
-    // Achievement & Badge Actions
-    grantAchievementToUser: (userId: string, achievementId: string) => Promise<UserAchievement>;
-    createBadge: (payload: badgeApi.BadgePayload) => Promise<void>;
-    updateBadge: (badgeId: string, payload: Partial<badgeApi.BadgePayload>) => Promise<void>;
-    deleteBadge: (badgeId: string) => Promise<void>;
-    resyncAllUserBadges: () => Promise<void>;
-    createAchievement: (payload: AchievementPayload) => Promise<void>;
-    updateAchievement: (achievementId: string, payload: Partial<AchievementPayload>) => Promise<void>;
-    deleteAchievement: (achievementId: string) => Promise<void>;
-    
-    // Rule Actions
+    // Rules
     createRule: (payload: RulePayload) => Promise<void>;
-    updateRule: (ruleId: string, payload: Partial<RulePayload>) => Promise<void>;
-    deleteRule: (ruleId: string) => Promise<void>;
+    updateRule: (id: string, payload: Partial<RulePayload>) => Promise<void>;
+    deleteRule: (id: string) => Promise<void>;
 
-    // --- Getters ---
-    getLikedPostsByUserId: (userId: string) => Post[];
-    getCommentedPostsByUserId: (userId: string) => Post[];
-    getViewedPostsByUserId: (userId: string) => Post[];
-    getRemovedCommentsByUserId: (userId: string) => CommentWithUser[];
+    // Settings
+    createAchievement: (payload: AchievementPayload) => Promise<void>;
+    updateAchievement: (id: string, payload: Partial<AchievementPayload>) => Promise<void>;
+    deleteAchievement: (id: string) => Promise<void>;
+    grantAchievementToUser: (userId: string, achievementId: string) => Promise<void>;
+    createBadge: (payload: BadgePayload) => Promise<void>;
+    updateBadge: (id: string, payload: Partial<BadgePayload>) => Promise<void>;
+    deleteBadge: (id: string) => Promise<void>;
+    resyncAllUserBadges: () => Promise<void>;
+
+    // User
+    updateUser: (userId: string, updates: Partial<User>) => void;
+    updateUserUsage: (userId: string, feature: 'ai_lesson' | 'ai_translate', updates: Partial<UserUsage>) => void;
+
+    // Admin Log
+    addAdminLog: (payload: AddAdminLogPayload) => void;
+
+    // Exam Config
+    createExamType: (payload: ExamTypePayload) => Promise<void>;
+    deleteExamType: (id: string) => Promise<void>;
+    createExamLevel: (payload: ExamLevelPayload) => Promise<void>;
+    deleteExamLevel: (id: string) => Promise<void>;
+    createExam: (payload: ExamPayload) => Promise<Exam>;
+    updateExam: (id: string, payload: Partial<ExamPayload>) => Promise<Exam>;
+    deleteExam: (id: string) => Promise<void>;
+    duplicateExam: (id: string, newName: string) => Promise<void>;
+
+    // Content
+    createNotebook: (payload: NotebookPayload) => Promise<void>;
+    updateNotebook: (id: string, payload: Partial<NotebookPayload>) => Promise<void>;
+    deleteNotebooks: (ids: string[]) => Promise<void>;
+    bulkUpdateNotebookStatus: (ids: string[], status: 'published' | 'draft') => Promise<void>;
+    createOrUpdateVocabs: (payloads: Partial<Vocabulary>[]) => Promise<void>;
+    deleteVocabularies: (ids: string[]) => Promise<void>;
+    addVocabsToNotebook: (notebookId: string, vocabIds: string[]) => Promise<void>;
+    removeVocabsFromNotebook: (notebookId: string, vocabIds: string[]) => Promise<void>;
+
+    // Tips
+    createTip: (payload: TipPayload) => Promise<void>;
+    updateTip: (id: string, payload: Partial<TipPayload>) => Promise<void>;
+    deleteTip: (id: string) => Promise<void>;
+    bulkUploadTips: (tips: TipPayload[]) => Promise<void>;
+
+    // Monetization
+    createSubscription: (payload: SubscriptionPayload) => Promise<void>;
+    updateSubscription: (id: string, payload: Partial<SubscriptionPayload>) => Promise<void>;
+    deleteSubscription: (id: string) => Promise<void>;
+    updatePaymentStatus: (id: string, status: 'manual_confirmed' | 'failed') => Promise<void>;
+    bulkUpdatePaymentStatus: (ids: string[], status: 'manual_confirmed') => Promise<void>;
+    processRefund: (id: string, payload: Omit<ProcessRefundPayload, 'adminId'>) => Promise<void>;
+    updateUserSubscriptionDetails: (id: string, payload: UpdateUserSubscriptionDetailsPayload) => Promise<void>;
 }

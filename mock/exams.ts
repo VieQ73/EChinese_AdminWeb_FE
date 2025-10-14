@@ -1,4 +1,3 @@
-// mock_exams.ts
 import { ExamFull } from '../types/mocktest_extended'
 import type { UUID, Timestamp } from '../types/base'
 
@@ -6,11 +5,51 @@ const now: Timestamp = new Date().toISOString() as Timestamp
 
 export const MOCK_EXAMS: ExamFull[] = [
   {
+    id: 'exam-hsk2-2025' as UUID,
+    exam_type_id: 'hsk' as UUID,
+    exam_level_id: 'hsk2' as UUID,
+    name: 'Bài thi HSK 2 - Tổng hợp 01',
+    description: { html: '<p>Bài thi tổng hợp HSK 2 dành cho người học ở trình độ sơ cấp.</p>' },
+    instructions: '<p>Hoàn thành tất cả các phần thi trong thời gian quy định.</p>',
+    total_time_minutes: 55,
+    total_questions: 60,
+    passing_score_total: 120,
+    is_published: true,
+    created_by: 'admin-user' as UUID,
+    created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() as Timestamp, // 2 days ago
+    updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() as Timestamp,
+    is_deleted: false,
+    sections: [
+      { id: 'sec-hsk2-1' as UUID, exam_id: 'exam-hsk2-2025' as UUID, name: 'Nghe hiểu', order: 1, time_minutes: 25, is_deleted: false },
+      { id: 'sec-hsk2-2' as UUID, exam_id: 'exam-hsk2-2025' as UUID, name: 'Đọc hiểu', order: 2, time_minutes: 30, is_deleted: false },
+    ],
+  },
+  {
+    id: 'exam-hsk1-draft' as UUID,
+    exam_type_id: 'hsk' as UUID,
+    exam_level_id: 'hsk1' as UUID,
+    name: 'Đề HSK 1 - Nháp số 2',
+    description: { html: '<p>Bài thi nháp HSK 1 đang trong quá trình soạn thảo.</p>' },
+    instructions: '<p>Nội dung có thể thay đổi.</p>',
+    total_time_minutes: 40,
+    total_questions: 40,
+    passing_score_total: 120,
+    is_published: false,
+    created_by: 'admin-user' as UUID,
+    created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() as Timestamp, // 1 day ago
+    updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() as Timestamp,
+    is_deleted: false,
+    sections: [
+      { id: 'sec-hsk1-draft-1' as UUID, exam_id: 'exam-hsk1-draft' as UUID, name: 'Nghe', order: 1, time_minutes: 20, is_deleted: false },
+      { id: 'sec-hsk1-draft-2' as UUID, exam_id: 'exam-hsk1-draft' as UUID, name: 'Đọc', order: 2, time_minutes: 20, is_deleted: false },
+    ],
+  },
+  {
     id: 'exam-hsk1-2025' as UUID,
     exam_type_id: 'hsk' as UUID,
     exam_level_id: 'hsk1' as UUID,
-    name: 'Đề thi thử HSK 1 - 2025',
-    description: '<p>Đề thi mô phỏng cấu trúc mới nhất của kỳ thi HSK 1.</p>',
+    name: 'Bài thi HSK 1 - Mẫu 2025',
+    description: { html: '<p>Bài thi mô phỏng cấu trúc mới nhất của kỳ thi HSK 1.</p>' },
     instructions: '<p>Hoàn thành tất cả các phần thi trong thời gian quy định.</p>',
     total_time_minutes: 40,
     total_questions: 60,
@@ -18,6 +57,7 @@ export const MOCK_EXAMS: ExamFull[] = [
     is_published: true,
     created_by: 'admin-user' as UUID,
     created_at: now,
+    updated_at: now,
     is_deleted: false,
     sections: [
       { id: 'sec-hsk1-1' as UUID, exam_id: 'exam-hsk1-2025' as UUID, name: 'Nghe hiểu', order: 1, time_minutes: 20, is_deleted: false },
@@ -28,8 +68,8 @@ export const MOCK_EXAMS: ExamFull[] = [
     id: 'exam-tocfl-a' as UUID,
     exam_type_id: 'tocfl' as UUID,
     exam_level_id: 'tocfl_band_a' as UUID,
-    name: 'TOCFL Band A - Đề mẫu 2025',
-    description: '<p>Đề thi thử năng lực Hoa ngữ TOCFL cấp độ Band A.</p>',
+    name: 'Đề TOCFL Band A - 01',
+    description: { html: '<p>Bài thi thử năng lực Hoa ngữ TOCFL cấp độ Band A.</p>' },
     instructions: '<p>Hãy đọc kỹ hướng dẫn trước khi bắt đầu.</p>',
     total_time_minutes: 60,
     total_questions: 80,
@@ -37,6 +77,7 @@ export const MOCK_EXAMS: ExamFull[] = [
     is_published: false,
     created_by: 'admin-user' as UUID,
     created_at: now,
+    updated_at: now,
     is_deleted: false,
     sections: [
       { id: 'sec-tocfl-a-1' as UUID, exam_id: 'exam-tocfl-a' as UUID, name: 'Nghe hiểu', order: 1, time_minutes: 30, is_deleted: false },
@@ -46,15 +87,16 @@ export const MOCK_EXAMS: ExamFull[] = [
   {
     id: 'exam-hskk-basic' as UUID,
     exam_type_id: 'hskk' as UUID,
-    exam_level_id: 'hskk_basic' as UUID,
-    name: 'HSKK Sơ cấp - Đề mẫu 2025',
-    description: '<p>Bài thi thử HSKK sơ cấp gồm 3 phần: Nghe, Nói và Ghi âm.</p>',
+    exam_level_id: 'hskk_so_cap' as UUID,
+    name: 'Đề HSKK Sơ cấp - 01',
+    description: { html: '<p>Bài thi thử HSKK sơ cấp gồm 3 phần: Nghe, Nói và Ghi âm.</p>' },
     instructions: '<p>Chuẩn bị tai nghe và micro trước khi làm bài.</p>',
     total_time_minutes: 25,
     total_questions: 30,
     is_published: true,
     created_by: 'admin-user' as UUID,
     created_at: now,
+    updated_at: now,
     is_deleted: false,
     sections: [
       { id: 'sec-hskk-basic-1' as UUID, exam_id: 'exam-hskk-basic' as UUID, name: 'Nghe và lặp lại', order: 1, time_minutes: 10, is_deleted: false },
@@ -62,4 +104,4 @@ export const MOCK_EXAMS: ExamFull[] = [
       { id: 'sec-hskk-basic-3' as UUID, exam_id: 'exam-hskk-basic' as UUID, name: 'Nói tự do', order: 3, time_minutes: 5, is_deleted: false },
     ],
   },
-]
+];

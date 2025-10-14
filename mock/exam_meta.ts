@@ -1,11 +1,9 @@
-// mock_exam_meta.ts
 import { ExamType, ExamLevel, QuestionType } from '../types';
 
 export const MOCK_EXAM_TYPES: ExamType[] = [
   { id: 'hsk', name: 'HSK' },
   { id: 'hskk', name: 'HSKK' },
   { id: 'tocfl', name: 'TOCFL' },
-  { id: 'd4', name: 'D4' },
 ];
 
 export const MOCK_EXAM_LEVELS: ExamLevel[] = [
@@ -27,9 +25,6 @@ export const MOCK_EXAM_LEVELS: ExamLevel[] = [
   { id: 'tocfl_band_a', exam_type_id: 'tocfl', name: 'Band A' },
   { id: 'tocfl_band_b', exam_type_id: 'tocfl', name: 'Band B' },
   { id: 'tocfl_band_c', exam_type_id: 'tocfl', name: 'Band C' },
-
-  // D4
-  { id: 'd4_level_1', exam_type_id: 'd4', name: 'Đề thi kiểu cũ' },
 ];
 
 export const MOCK_QUESTION_TYPES: QuestionType[] = [

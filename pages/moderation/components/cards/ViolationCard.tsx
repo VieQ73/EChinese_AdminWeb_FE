@@ -15,8 +15,12 @@ const ViolationCard: React.FC<ViolationCardProps> = ({ violation, onViewDetails 
     };
 
     // Lấy tên người phát hiện vi phạm
+    //  Correctly handle the string union type of 'detected_by'.
     const getDetectedBy = () => {
-        return violation.detected_by?.name || 'Hệ thống';
+        if (violation.detected_by === 'auto_ai') return 'Hệ thống AI';
+        if (violation.detected_by === 'admin') return 'Admin';
+        if (violation.detected_by === 'super admin') return 'Super Admin';
+        return 'Hệ thống';
     };
 
     // Lấy màu theo mức độ nghiêm trọng
@@ -61,12 +65,13 @@ const ViolationCard: React.FC<ViolationCardProps> = ({ violation, onViewDetails 
 
                 {/* Lý do vi phạm */}
                 <div className="mb-3">
+                    {/*  Replaced incorrect 'reason' and 'details' properties with 'rules' and 'resolution' from the Violation type. */}
                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                        {violation.reason}
+                        {violation.rules?.map(r => r.title).join(', ') || 'Vi phạm không xác định'}
                     </h3>
-                    {violation.details && (
-                        <p className="text-xs text-gray-600 line-clamp-2" title={violation.details}>
-                            {violation.details}
+                    {violation.resolution && (
+                        <p className="text-xs text-gray-600 line-clamp-2" title={violation.resolution}>
+                            {violation.resolution}
                         </p>
                     )}
                 </div>

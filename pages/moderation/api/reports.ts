@@ -68,8 +68,9 @@ export const updateReportStatus = (reportId: string, payload: UpdateReportStatus
                     report.resolution = payload.resolution;
                 }
                 
-                // If resolved, create a violation record
-                if (payload.status === 'resolved' && payload.severity) {
+                // If resolved, create a violation record ONLY for user-content reports
+                const isUserContentReport = !['bug', 'other'].includes(report.target_type);
+                if (payload.status === 'resolved' && payload.severity && isUserContentReport) {
                     const newViolationId = `v-from-r${report.id}`;
                     report.related_violation_id = newViolationId;
 

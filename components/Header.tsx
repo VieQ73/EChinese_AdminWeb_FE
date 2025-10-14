@@ -1,9 +1,12 @@
-
 import React, { useContext, useState } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
-import { LogoutIcon, ChevronDownIcon } from '../constants';
+import { LogoutIcon, ChevronDownIcon, MenuIcon } from '../constants';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+    toggleSidebar: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
     const authContext = useContext(AuthContext);
     const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -12,8 +15,14 @@ const Header: React.FC = () => {
 
     return (
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0">
-            <div>
-                {/* Thanh tìm kiếm có thể đặt ở đây */}
+            <div className="flex items-center">
+                 <button 
+                    onClick={toggleSidebar} 
+                    className="p-2 -ml-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-800 focus:outline-none"
+                    aria-label="Toggle sidebar"
+                >
+                    <MenuIcon className="w-6 h-6" />
+                </button>
             </div>
             <div className="relative">
                 <button 

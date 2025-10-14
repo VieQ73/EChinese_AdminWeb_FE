@@ -162,6 +162,6 @@ export const removeVocabsFromNotebook = (notebookId: string, vocabIds: string[])
             }, 300);
         });
     }
-    // FIX: Changed the call to apiClient.delete to pass the body as the second argument, matching the updated helper signature.
+    //  Changed the call to apiClient.delete to pass the body as the second argument, matching the updated helper signature.
     return apiClient.delete(`/content/notebooks/${notebookId}/vocabularies`, { vocabIds });
 };

@@ -1,14 +1,14 @@
 
 import React from 'react';
-// FIX: Changed import of `useNavigate` from `react-router-dom` to `react-router` to resolve module export error.
+//  Changed import of `useNavigate` from `react-router-dom` to `react-router` to resolve module export error.
 import { useNavigate } from 'react-router';
-// FIX: Import RawPost and Comment types to correctly handle targetContent
+//  Import RawPost and Comment types to correctly handle targetContent
 import { Violation, Appeal, RawPost, Comment, User } from '../../../../types';
 import Modal from '../../../../components/Modal';
 import StatusBadge from '../ui/StatusBadge';
 import ClickableTarget from '../shared/ClickableTarget';
 import { AlertCircle, User as UserIcon, Clock, ShieldCheck, MessageSquare } from 'lucide-react';
-import { useAppData } from '../../../../contexts/AppDataContext';
+import { useAppData } from '../../../../contexts/appData/context';
 
 interface ViolationDetailModalProps {
   isOpen: boolean;

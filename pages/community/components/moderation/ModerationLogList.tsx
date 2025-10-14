@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import type { ModerationLog, User } from '../../../../types';
 import { mockUsers } from '../../../../mock';
-import { useAppData } from '../../../../contexts/AppDataContext';
+import { useAppData } from '../../../../contexts/appData/context';
 import { RestoreIcon, TrashIcon } from '../../../../constants';
 import { Loader2 } from 'lucide-react';
 

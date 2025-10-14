@@ -3,7 +3,8 @@ import React, { useContext } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router';
 import { HashRouter } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './contexts/AuthContext';
-import { AppDataProvider } from './contexts/AppDataContext'; // Thêm import
+//  Corrected import path for AppDataProvider. The file was previously missing.
+import { AppDataProvider } from './contexts/appData/provider';
 import Layout from './components/Layout';
 import Login from './pages/auth/Login';
 import ForgotPassword from './pages/auth/ForgotPassword';
@@ -15,11 +16,12 @@ import SubscriptionManagement from './pages/monetization/SubscriptionManagement'
 import AchievementManagement from './pages/settings/AchievementManagement';
 import ModerationCenter from './pages/moderation/ReportManagement';
 import TipsManagementPage from './pages/tips/TipsManagementPage';
-import MediaManagement from './pages/media/MediaManagement';
 import SystemManagement from './pages/system/SystemManagement';
 import UserDetail from './pages/users/UserDetail';
 import NotebookDetail from './pages/content/NotebookDetail';
 import RuleManagementPage from './pages/rules/RuleManagementPage';
+import MockTestManagementPage from './pages/tests/MockTestManagementPage';
+import ExamCreatePage from './pages/tests/create/ExamCreatePage'; // Thêm import
 
 const ProtectedRoute: React.FC = () => {
     const authContext = useContext(AuthContext);
@@ -33,7 +35,7 @@ const ProtectedRoute: React.FC = () => {
 const App: React.FC = () => {
     return (
         <AuthProvider>
-            <AppDataProvider> {/* Bọc ứng dụng với AppDataProvider */}
+            <AppDataProvider>
                 <MainApp />
             </AppDataProvider>
         </AuthProvider>
@@ -59,7 +61,9 @@ const MainApp: React.FC = () => {
                     <Route path="/achievements" element={<AchievementManagement />} />
                     <Route path="/rules" element={<RuleManagementPage />} />
                     <Route path="/tips" element={<TipsManagementPage />} />
-                    <Route path="/media" element={<MediaManagement />} />
+                    <Route path="/mock-tests" element={<MockTestManagementPage />} />
+                    <Route path="/mock-tests/create" element={<ExamCreatePage />} />
+                    <Route path="/mock-tests/edit/:examId" element={<ExamCreatePage />} />
                     <Route path="/system" element={<SystemManagement />} />
                 </Route>
                 

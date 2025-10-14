@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-// FIX: Changed import of `useNavigate` from `react-router-dom` to `react-router` to resolve module export error.
+//  Changed import of `useNavigate` from `react-router-dom` to `react-router` to resolve module export error.
 import { useNavigate } from 'react-router';
 import { Report, RawPost, Comment } from '../../../../types';
 import Modal from '../../../../components/Modal';
@@ -9,7 +9,7 @@ import ClickableTarget from '../shared/ClickableTarget';
 import ReportActionFooter from './ReportActionFooter';
 import ReportActionForm from './ReportActionForm';
 import { AlertCircle, ClipboardList, User, Clock } from 'lucide-react';
-import { useAppData } from '../../../../contexts/AppDataContext';
+import { useAppData } from '../../../../contexts/appData/context';
 
 interface ReportDetailModalProps {
   isOpen: boolean;
@@ -127,11 +127,20 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({ isOpen, onClose, 
   const isActionable = updatedReport.status === 'pending' || updatedReport.status === 'in_progress';
   
   const handleConfirmAction = () => {
-    if (view === 'dismiss') {
-      onAction(updatedReport.id, 'dismiss', { resolution });
-    } else if (view === 'resolve') {
-      onAction(updatedReport.id, 'resolve', { resolution, severity });
+    if (view === 'details') return;
+
+    const isUserContentReport = !['bug', 'other'].includes(updatedReport.target_type);
+    
+    const payload: { resolution?: string; severity?: 'low' | 'medium' | 'high' } = {
+        resolution: resolution,
+    };
+    
+    // Chỉ thêm severity nếu là báo cáo về nội dung của người dùng
+    if (view === 'resolve' && isUserContentReport) {
+        payload.severity = severity;
     }
+
+    onAction(updatedReport.id, view, payload);
   };
 
   const getModalTitle = () => {
@@ -236,6 +245,7 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({ isOpen, onClose, 
           severity={severity}
           setSeverity={setSeverity}
           isAiReport={updatedReport.auto_flagged}
+          reportType={updatedReport.target_type}
         />
       )}
     </Modal>

@@ -1,9 +1,9 @@
 
+
 export * from './AchievementIcon';
 export * from './BadgeIcon';
 export * from './CommunityIcon';
 export * from './DashboardIcon';
-export * from './MediaIcon';
 export * from './MockTestIcon';
 export * from './NotebookIcon';
 export * from './ReportIcon';

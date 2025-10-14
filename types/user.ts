@@ -8,7 +8,7 @@ export interface User {
   name: string; // not null
   avatar_url?: string | null;
   email?: string | null;
-  // FIX: Resolved duplicate identifier 'provider'. It is now a single, required property.
+  //  Resolved duplicate identifier 'provider'. It is now a single, required property.
   provider: 'google' | 'apple' | 'local';
   provider_id?: string;
   role: 'user' | 'admin' | 'super admin';

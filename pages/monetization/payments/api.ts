@@ -15,6 +15,8 @@ interface FetchPaymentsParams {
     status?: string;
     method?: string;
     channel?: string;
+    startDate?: string | null;
+    endDate?: string | null;
 }
 
 /**
@@ -38,7 +40,7 @@ export const fetchPayments = (params: FetchPaymentsParams = {}): Promise<Paginat
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
-                const { page = 1, limit = 12, search, status, method, channel } = params;
+                const { page = 1, limit = 12, search, status, method, channel, startDate, endDate } = params;
                 
                 let filtered = mockPayments.map(enrichPayment);
 
@@ -57,6 +59,22 @@ export const fetchPayments = (params: FetchPaymentsParams = {}): Promise<Paginat
                 }
                 if (channel && channel !== 'all') {
                     filtered = filtered.filter(p => p.payment_channel === channel);
+                }
+                if (startDate || endDate) {
+                    filtered = filtered.filter(p => {
+                        const transactionDate = new Date(p.transaction_date);
+                        if (startDate) {
+                            const start = new Date(startDate);
+                            start.setHours(0, 0, 0, 0);
+                            if (transactionDate < start) return false;
+                        }
+                        if (endDate) {
+                            const end = new Date(endDate);
+                            end.setHours(23, 59, 59, 999);
+                            if (transactionDate > end) return false;
+                        }
+                        return true;
+                    });
                 }
 
                 filtered.sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());

@@ -6,7 +6,7 @@ import Modal from '../../../../components/Modal';
 interface BulkAddVocabModalProps {
     isOpen: boolean;
     onClose: () => void;
-    // FIX: Changed prop type to void to match parent's async handler. The parent will now handle alerts and closing.
+    //  Changed prop type to void to match parent's async handler. The parent will now handle alerts and closing.
     onAddVocabs: (vocabs: Vocabulary[]) => void;
 }
 
@@ -38,7 +38,7 @@ const BulkAddVocabModal: React.FC<BulkAddVocabModalProps> = ({ isOpen, onClose, 
         }
 
         if (vocabsToAdd.length > 0) {
-            // FIX: The parent component now handles the async logic, alerts, and closing the modal.
+            //  The parent component now handles the async logic, alerts, and closing the modal.
             onAddVocabs(vocabsToAdd);
         } else {
             alert("Không có từ vựng nào để thêm.");

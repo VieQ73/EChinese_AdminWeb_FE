@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { EnrichedUserSubscription, UserSubscriptionHistoryItem } from '../../../types';
 import { AuthContext } from '../../../contexts/AuthContext';
-import { useAppData } from '../../../contexts/AppDataContext';
+import { useAppData } from '../../../contexts/appData/context';
 import { fetchEnrichedUserSubscriptions, fetchUserSubscriptionHistory, updateUserSubscriptionDetails, UpdateUserSubscriptionDetailsPayload } from '../api';
 import { resetUserQuota } from '../../users/userApi'; // Import API reset quota
 
