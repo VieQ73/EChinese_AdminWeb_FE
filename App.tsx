@@ -1,6 +1,5 @@
 
 import React, { useContext } from 'react';
-// FIX: The core routing components are imported from `react-router` to resolve module export errors, while `HashRouter` is kept from `react-router-dom`.
 import { Routes, Route, Navigate, Outlet } from 'react-router';
 import { HashRouter } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './contexts/AuthContext';
@@ -11,7 +10,6 @@ import ForgotPassword from './pages/auth/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/users/UserManagement';
 import CommunityManagement from './pages/community/CommunityManagement';
-//import MockTestManagement from './pages/tests/MockTestManagement';
 import ContentManagementPage from './pages/content/ContentManagementPage';
 import SubscriptionManagement from './pages/monetization/SubscriptionManagement';
 import AchievementManagement from './pages/settings/AchievementManagement';
