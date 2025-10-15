@@ -132,7 +132,7 @@ export interface Question {
   image_url?: string;
   audio_url?: string;
   correct_answer?: string;
-  points?: number;
+  points?: number; //Mặc định 1 điểm thô, dùng để đếm số câu đúng
   created_at?: Timestamp;
   updated_at?: Timestamp;
   is_deleted?: boolean;
