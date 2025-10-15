@@ -65,7 +65,7 @@ export interface Section {
   time_minutes?: number;
   passing_score?: number;
   description?: Json;
-  audio_url?: string;
+  audio_url?: string; //Audio xuyên suốt phần nghe nếu không chọn cách up từng file nghe cho từng câu, nếu có file nghe riêng thì tại đây sẽ lưu phần giới thiệu chung cho cả section nghe
   created_at?: Timestamp;
   updated_at?: Timestamp;
   is_deleted?: boolean;
@@ -81,6 +81,7 @@ export interface Subsection {
   name: string;
   order?: number;
   description?: string;
+  audio_url?: string; //Audio phục vụ phần con bên trong section nghe, giới thiệu từng phần con nếu có.
   created_at?: Timestamp;
   updated_at?: Timestamp;
   is_deleted?: boolean;

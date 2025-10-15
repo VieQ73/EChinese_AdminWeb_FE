@@ -58,10 +58,9 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                         />
                     </FormField>
                 </div>
-                {/*  Changed prop 'onFileSelect' to 'onFileChange' and added required props. Removed FormField wrapper as FileInput has its own label. */}
                 <FileInput
                     id={`section-audio-${section.id}`}
-                    label="File âm thanh chung (nếu có)"
+                    label="File âm thanh chung/Giới thiệu (nếu có)"
                     value={section.audio_url}
                     onFileChange={file => onUpdate(section.id, { audio_url: file ? URL.createObjectURL(file) : undefined })}
                     accept="audio/*"

@@ -1,11 +1,11 @@
 import React from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import { Input } from '../../../../components/ui/Input';
 import { TextArea } from '../../../../components/ui/TextArea';
 import { Button } from '../../../../components/ui/Button';
 import { TrashIcon, PlusIcon } from 'lucide-react';
 import CollapsibleContainer from './shared/CollapsibleContainer';
 import { stripHtmlAndTruncate } from '../../../../utils/numbering';
+import FileInput from './shared/FileInput';
 
 import type { QuestionType, UUID } from '../../../../types';
 import type { FormSubsection, FormPrompt, FormQuestion } from '../hooks/useExamForm';
@@ -73,6 +73,14 @@ const SubsectionEditor: React.FC<SubsectionEditorProps> = ({
           placeholder="Mô tả ngắn gọn về yêu cầu của phần con này"
         />
         
+        <FileInput
+            id={`subsection-audio-${subsection.id}`}
+            label={`File âm thanh giới thiệu cho ${subsection.name || `Phần ${subsectionIndex + 1}`}`}
+            value={subsection.audio_url}
+            onFileChange={file => updateSubsection(subsection.id, { audio_url: file ? URL.createObjectURL(file) : undefined })}
+            accept="audio/*"
+        />
+
         {/* Render các prompts và các câu hỏi liên quan */}
         {subsection.prompts.map((prompt) => {
           const questionsForPrompt = subsection.questions.filter(q => q.prompt_id === prompt.id);
