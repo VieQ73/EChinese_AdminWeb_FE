@@ -12,7 +12,6 @@ import FileInput from './shared/FileInput';
 import { TrashIcon } from 'lucide-react';
 
 import type { QuestionType, Explanation } from '../../../../types';
-//  Import FormExplanation type.
 import type { FormQuestion, FormOption, FormExplanation } from '../hooks/useExamForm';
 
 import TrueFalseEditor from './options/TrueFalseEditor';
@@ -20,6 +19,7 @@ import MultipleChoiceEditor from './options/MultipleChoiceEditor';
 import ArrangeWordsEditor from './options/ArrangeWordsEditor';
 import ArrangeSentencesEditor from './options/ArrangeSentencesEditor';
 import ExplanationEditor from './ExplanationEditor';
+import WriteTextEditor from './options/WriteTextEditor'; 
 
 interface QuestionEditorProps {
   sectionIndex: number;
@@ -96,6 +96,7 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
         case 'arrange_sentences':
             return <ArrangeSentencesEditor question={question} onQuestionChange={onQuestionChange} />;
         case 'write_text':
+            return <WriteTextEditor question={question} onQuestionChange={onQuestionChange} />;
         default:
             return null;
     }
@@ -146,7 +147,6 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/*  Changed prop 'onFileSelect' to 'onFileChange' and added required props. */}
           <FileInput 
               id={`question-image-${question.id}`}
               label="Ảnh câu hỏi"

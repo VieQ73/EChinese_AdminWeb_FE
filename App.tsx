@@ -3,7 +3,6 @@ import React, { useContext } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router';
 import { HashRouter } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './contexts/AuthContext';
-// FIX: Corrected import path for AppDataProvider. The file was previously missing.
 import { AppDataProvider } from './contexts/appData/provider';
 import Layout from './components/Layout';
 import Login from './pages/auth/Login';
