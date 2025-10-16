@@ -19,7 +19,7 @@ import MultipleChoiceEditor from './options/MultipleChoiceEditor';
 import ArrangeWordsEditor from './options/ArrangeWordsEditor';
 import ArrangeSentencesEditor from './options/ArrangeSentencesEditor';
 import ExplanationEditor from './ExplanationEditor';
-import WriteTextEditor from './options/WriteTextEditor'; 
+import WriteTextEditor from './options/WriteTextEditor';
 
 interface QuestionEditorProps {
   sectionIndex: number;
@@ -61,6 +61,7 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
   const handleQuestionTypeChange = (typeId: string) => {
     const newType = questionTypes.find(qt => qt.id === typeId);
     let newOptions: FormOption[] = [];
+    let newCorrectAnswer = ''; 
 
     if (newType) {
         if (newType.id === 'true_false') {
@@ -76,10 +77,39 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
                 content: '',
                 is_correct: false,
             }));
+        } else if (newType.id === 'arrange_words' || newType.id === 'arrange_sentences') {
+            newCorrectAnswer = '[]'; // Initialize as empty JSON array for arrange types
         }
     }
-    onQuestionChange({ ...question, question_type_id: typeId, options: newOptions });
+    onQuestionChange({ ...question, question_type_id: typeId, options: newOptions, correct_answer: newCorrectAnswer });
   };
+  
+  const isArrangeType = selectedQuestionType?.id === 'arrange_words' || selectedQuestionType?.id === 'arrange_sentences';
+
+  const generatePreviewHtml = () => {
+    if (!isArrangeType) return '';
+
+    const options = question.options || [];
+
+    if (selectedQuestionType?.id === 'arrange_words') {
+        if (options.length === 0) return '<p class="text-slate-400">Thêm các từ/cụm từ ở phần "Các lựa chọn trả lời" bên dưới để xem trước.</p>';
+        return options.map(opt => 
+            `<span class="inline-block bg-slate-200 text-slate-800 text-sm font-medium mr-2 mb-2 px-3 py-1.5 rounded-full">${opt.content || '...'}</span>`
+        ).join('');
+    }
+
+    if (selectedQuestionType?.id === 'arrange_sentences') {
+        if (options.length === 0) return '<p class="text-slate-400">Thêm các câu ở phần "Các lựa chọn trả lời" bên dưới để xem trước.</p>';
+        return options.map(opt => 
+            `<div class="flex items-start gap-2 mb-2 p-2 border rounded-md bg-slate-100">
+                <span class="flex-shrink-0 font-bold text-slate-600">${opt.label}.</span>
+                <span class="text-slate-800">${opt.content || '...'}</span>
+            </div>`
+        ).join('');
+    }
+    return '';
+  };
+
 
   const renderOptions = () => {
     if (!selectedQuestionType) return null;
@@ -109,7 +139,7 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
         <>
           <span className="font-semibold">Câu hỏi {questionNumber}</span>
           <span className="ml-2 font-normal text-slate-500 truncate max-w-sm">
-            {stripHtmlAndTruncate(question.content) || 'Chưa có nội dung'}
+            {stripHtmlAndTruncate(question.content) || (isArrangeType ? 'Sắp xếp các mục bên dưới' : 'Chưa có nội dung')}
           </span>
         </>
       }
@@ -139,11 +169,18 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
         
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Nội dung câu hỏi</label>
-          <RichTextEditor
-              initialContent={question.content || ''}
-              onChange={(html) => handleFieldChange('content', html)}
-              placeholder="Nhập nội dung câu hỏi..."
-          />
+          {isArrangeType ? (
+              <div 
+                  className="p-3 min-h-[120px] bg-slate-100 border border-slate-200 rounded-lg"
+                  dangerouslySetInnerHTML={{ __html: generatePreviewHtml() }} 
+              />
+          ) : (
+              <RichTextEditor
+                  initialContent={question.content || ''}
+                  onChange={(html) => handleFieldChange('content', html)}
+                  placeholder="Nhập nội dung câu hỏi..."
+              />
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
