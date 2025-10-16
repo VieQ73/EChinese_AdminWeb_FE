@@ -1,5 +1,7 @@
 // pages/tests/create/hooks/examFormTypes.ts
-import type { Exam, Section, Subsection, Prompt, Question, Option, Explanation, UUID } from '../../../../types';
+import type { Exam, Section, Subsection, Prompt, Question, Option, Explanation, UUID, CorrectAnswer } from '../../../../types';
+
+export type { CorrectAnswer };
 
 /**
  * Định nghĩa kiểu dữ liệu cho hình ảnh trong một prompt.
@@ -22,6 +24,7 @@ export interface FormQuestion extends Question {
     options: FormOption[];
     explanation?: FormExplanation | null;
     prompt_id?: UUID;
+    correct_answers?: CorrectAnswer[]; // Thêm mảng cho các đáp án đúng phức tạp
 }
 export interface FormSubsection extends Subsection {
     prompts: FormPrompt[];

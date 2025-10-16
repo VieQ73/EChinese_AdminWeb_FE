@@ -1,11 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { FormQuestion, FormOption } from '../../hooks/useExamForm';
+import type { FormQuestion, FormOption, CorrectAnswer } from '../../hooks/useExamForm';
 import { Input } from '../../../../../components/ui/Input';
 import { Button } from '../../../../../components/ui/Button';
 import { TrashIcon, PlusIcon } from '../../../../../components/icons';
 import { X } from 'lucide-react';
-
 
 interface ArrangeSentencesEditorProps {
   question: FormQuestion;
@@ -15,14 +14,10 @@ interface ArrangeSentencesEditorProps {
 const ArrangeSentencesEditor: React.FC<ArrangeSentencesEditorProps> = ({ question, onQuestionChange }) => {
     const [currentAnswer, setCurrentAnswer] = useState<string[]>([]);
 
-    const correctAnswers = useMemo((): string[][] => {
-        try {
-            const parsed = JSON.parse(question.correct_answer || '[]');
-            return Array.isArray(parsed) ? parsed : [];
-        } catch {
-            return [];
-        }
-    }, [question.correct_answer]);
+    // Đọc trực tiếp chuỗi đáp án hoàn chỉnh, không cần parse JSON
+    const correctAnswers = useMemo((): string[] => {
+        return (question.correct_answers || []).map(ca => ca.answer);
+    }, [question.correct_answers]);
 
     const handleOptionChange = (optionId: string, field: keyof FormOption, value: any) => {
         const newOptions = question.options.map(opt =>
@@ -67,7 +62,7 @@ const ArrangeSentencesEditor: React.FC<ArrangeSentencesEditorProps> = ({ questio
     };
 
     const addLabelToCurrentAnswer = (label: string) => {
-        if (label && currentAnswer.length < question.options.length) {
+        if (label && currentAnswer.length < question.options.length && !currentAnswer.includes(label)) {
             setCurrentAnswer(prev => [...prev, label]);
         }
     };
@@ -76,30 +71,41 @@ const ArrangeSentencesEditor: React.FC<ArrangeSentencesEditorProps> = ({ questio
         setCurrentAnswer(prev => prev.filter((_, i) => i !== index));
     };
 
+    // Lưu chuỗi đáp án hiện tại thành một câu/đoạn văn hoàn chỉnh
     const saveCurrentAnswer = () => {
         if (currentAnswer.length === 0) return;
-        const newAnswers = [...correctAnswers, currentAnswer];
-        onQuestionChange({ ...question, correct_answer: JSON.stringify(newAnswers) });
+
+        // Ánh xạ các nhãn (labels) trong `currentAnswer` sang nội dung (content) tương ứng và ghép chúng lại
+        const answerSentence = currentAnswer.map(label => {
+            const option = question.options.find(opt => opt.label === label);
+            return option ? option.content?.trim() : '';
+        }).join(''); // Ghép các câu lại, không có khoảng trắng cho tiếng Trung
+
+        const newCorrectAnswer: CorrectAnswer = {
+            id: uuidv4(),
+            question_id: question.id,
+            answer: answerSentence, // Lưu câu hoàn chỉnh
+        };
+        const newCorrectAnswers = [...(question.correct_answers || []), newCorrectAnswer];
+        onQuestionChange({ ...question, correct_answers: newCorrectAnswers, correct_answer: undefined });
         setCurrentAnswer([]);
     };
 
     const deleteCorrectAnswer = (index: number) => {
-        const newAnswers = correctAnswers.filter((_, i) => i !== index);
-        onQuestionChange({ ...question, correct_answer: JSON.stringify(newAnswers) });
+        const newCorrectAnswers = (question.correct_answers || []).filter((_, i) => i !== index);
+        onQuestionChange({ ...question, correct_answers: newCorrectAnswers });
     };
-
 
     return (
         <div className="space-y-4">
             {/* Phần đáp án đúng */}
             <div>
                  <label className="text-sm font-medium text-slate-700 block mb-2">Đáp án đúng (nhấn vào các câu bên dưới để tạo):</label>
+                 {/* Hiển thị các đáp án đã lưu dưới dạng câu hoàn chỉnh */}
                  {correctAnswers.map((answer, index) => (
                     <div key={index} className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg mb-2">
-                        <div className="flex-grow flex flex-wrap gap-2">
-                            {answer.map((label, labelIndex) => (
-                                <div key={labelIndex} className="w-10 h-10 flex items-center justify-center bg-white border rounded-md font-semibold text-slate-800">{label}</div>
-                            ))}
+                        <div className="flex-grow p-2 bg-white rounded">
+                            <span className="text-sm text-slate-800">{answer}</span>
                         </div>
                         <Button type="button" variant="danger" size="sm" onClick={() => deleteCorrectAnswer(index)}>
                             <TrashIcon className="w-4 h-4" />
@@ -132,23 +138,31 @@ const ArrangeSentencesEditor: React.FC<ArrangeSentencesEditorProps> = ({ questio
             <div>
                  <label className="text-sm font-medium text-slate-700 block mb-2">Các câu (nhấn để chọn thứ tự đúng):</label>
                  <div className="space-y-3">
-                    {question.options.map((option) => (
-                        <div key={option.id} className="flex items-start gap-2">
-                             <div 
-                                onClick={() => addLabelToCurrentAnswer(option.label || '')}
-                                className="flex-grow p-3 border rounded-lg bg-white cursor-pointer hover:bg-slate-50 hover:border-slate-400"
-                            >
-                                <Input
-                                    label={`Câu ${option.label}`}
-                                    value={option.content || ''}
-                                    onChange={(e) => handleOptionChange(option.id, 'content', e.target.value)}
-                                />
-                             </div>
-                             <Button type="button" variant="danger" size="sm" onClick={() => removeOption(option.id)} className="mt-8">
-                                <TrashIcon className="w-4 h-4" />
-                            </Button>
-                        </div>
-                    ))}
+                    {question.options.map((option) => {
+                        const isSelected = currentAnswer.includes(option.label || '');
+                        return (
+                            <div key={option.id} className="flex items-start gap-2">
+                                <div 
+                                    onClick={() => !isSelected && addLabelToCurrentAnswer(option.label || '')}
+                                    className={`flex-grow p-3 border rounded-lg transition-colors ${
+                                        isSelected 
+                                        ? 'bg-slate-200 border-slate-300 opacity-60 cursor-not-allowed' 
+                                        : 'bg-white cursor-pointer hover:bg-slate-50 hover:border-slate-400'
+                                    }`}
+                                >
+                                    <Input
+                                        label={`Câu ${option.label}`}
+                                        value={option.content || ''}
+                                        onChange={(e) => handleOptionChange(option.id, 'content', e.target.value)}
+                                        disabled={isSelected} // Vô hiệu hóa input khi đã chọn
+                                    />
+                                </div>
+                                <Button type="button" variant="danger" size="sm" onClick={() => removeOption(option.id)} className="mt-8">
+                                    <TrashIcon className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        )
+                    })}
                     <Button type="button" variant="secondary" size="sm" onClick={addOption}>
                         <PlusIcon className="w-4 h-4 mr-2" /> Thêm câu
                     </Button>

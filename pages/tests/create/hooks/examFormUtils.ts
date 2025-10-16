@@ -39,6 +39,7 @@ export const normalizeExamData = (examData: ExamFull): FormExam => {
                     ...question,
                     options: question.options || [],
                     explanation: question.explanation || null,
+                    correct_answers: question.correct_answers || [], // Đảm bảo mảng này tồn tại
                 })) as FormQuestion[],
             })) as FormSubsection[],
         })) as FormSection[],

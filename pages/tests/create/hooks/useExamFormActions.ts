@@ -62,7 +62,17 @@ export const useExamFormActions = (
 
     // QUESTION handlers
     const addQuestion = useCallback((sectionId: UUID, subId: UUID, promptId?: UUID) => {
-        const newQ: FormQuestion = { id: uuidv4(), subsection_id: subId, question_type_id: '', content: '', points: 1, options: [], prompt_id: promptId, explanation: null };
+        const newQ: FormQuestion = { 
+            id: uuidv4(), 
+            subsection_id: subId, 
+            question_type_id: '', 
+            content: '', 
+            points: 1, 
+            options: [], 
+            prompt_id: promptId, 
+            explanation: null,
+            correct_answers: [], // Thêm thuộc tính này
+        };
          setExam(prev => ({ ...prev, sections: prev.sections.map(s => s.id === sectionId ? { ...s, subsections: s.subsections.map(sub => sub.id === subId ? { ...sub, questions: [...sub.questions, newQ] } : sub) } : s) }));
     }, [setExam]);
 

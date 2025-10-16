@@ -11,7 +11,7 @@ import CollapsibleContainer from './shared/CollapsibleContainer';
 import FileInput from './shared/FileInput';
 import { TrashIcon } from 'lucide-react';
 
-import type { QuestionType, Explanation } from '../../../../types';
+import type { QuestionType, CorrectAnswer } from '../../../../types';
 import type { FormQuestion, FormOption, FormExplanation } from '../hooks/useExamForm';
 
 import TrueFalseEditor from './options/TrueFalseEditor';
@@ -61,7 +61,8 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
   const handleQuestionTypeChange = (typeId: string) => {
     const newType = questionTypes.find(qt => qt.id === typeId);
     let newOptions: FormOption[] = [];
-    let newCorrectAnswer = ''; 
+    let newCorrectAnswer: string | undefined = ''; // Reset correct_answer
+    let newCorrectAnswers: CorrectAnswer[] | undefined = undefined; // Reset correct_answers
 
     if (newType) {
         if (newType.id === 'true_false') {
@@ -77,11 +78,14 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
                 content: '',
                 is_correct: false,
             }));
-        } else if (newType.id === 'arrange_words' || newType.id === 'arrange_sentences') {
-            newCorrectAnswer = '[]'; // Initialize as empty JSON array for arrange types
+        } else if (newType.id === 'arrange_words' || newType.id === 'arrange_sentences' || newType.id === 'write_text') {
+            // Các loại câu hỏi này sử dụng correct_answers
+            newCorrectAnswers = [];
+            newCorrectAnswer = undefined; // Dọn dẹp trường cũ
         }
     }
-    onQuestionChange({ ...question, question_type_id: typeId, options: newOptions, correct_answer: newCorrectAnswer });
+    // Cập nhật cả correct_answer và correct_answers
+    onQuestionChange({ ...question, question_type_id: typeId, options: newOptions, correct_answer: newCorrectAnswer, correct_answers: newCorrectAnswers });
   };
   
   const isArrangeType = selectedQuestionType?.id === 'arrange_words' || selectedQuestionType?.id === 'arrange_sentences';

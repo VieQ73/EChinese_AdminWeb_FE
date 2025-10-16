@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { FormQuestion, FormOption } from '../../hooks/useExamForm';
+import type { FormQuestion, FormOption, CorrectAnswer } from '../../hooks/useExamForm';
 import { Input } from '../../../../../components/ui/Input';
 import { Button } from '../../../../../components/ui/Button';
 import { TrashIcon, PlusIcon } from '../../../../../components/icons';
@@ -14,15 +14,10 @@ interface ArrangeWordsEditorProps {
 const ArrangeWordsEditor: React.FC<ArrangeWordsEditorProps> = ({ question, onQuestionChange }) => {
     const [currentAnswer, setCurrentAnswer] = useState<string[]>([]);
     
-    // Phân tích cú pháp chuỗi JSON từ correct_answer để hiển thị các đáp án đã lưu
-    const correctAnswers = useMemo((): string[][] => {
-        try {
-            const parsed = JSON.parse(question.correct_answer || '[]');
-            return Array.isArray(parsed) ? parsed : [];
-        } catch {
-            return [];
-        }
-    }, [question.correct_answer]);
+    // Đọc trực tiếp chuỗi đáp án hoàn chỉnh, không cần parse JSON
+    const correctAnswers = useMemo((): string[] => {
+        return (question.correct_answers || []).map(ca => ca.answer);
+    }, [question.correct_answers]);
 
     // Cập nhật một từ/cụm từ trong danh sách các lựa chọn
     const handleOptionContentChange = (optionId: string, content: string) => {
@@ -50,7 +45,9 @@ const ArrangeWordsEditor: React.FC<ArrangeWordsEditorProps> = ({ question, onQue
 
     // Thêm một từ vào chuỗi đáp án đang xây dựng
     const addWordToCurrentAnswer = (word: string) => {
-        if (word) setCurrentAnswer(prev => [...prev, word]);
+        if (word && !currentAnswer.includes(word)) { // Ngăn chặn thêm trùng lặp
+             setCurrentAnswer(prev => [...prev, word]);
+        }
     };
     
     // Xóa một từ khỏi chuỗi đáp án đang xây dựng
@@ -58,18 +55,23 @@ const ArrangeWordsEditor: React.FC<ArrangeWordsEditorProps> = ({ question, onQue
         setCurrentAnswer(prev => prev.filter((_, i) => i !== index));
     };
 
-    // Lưu chuỗi đáp án hiện tại vào danh sách các đáp án đúng
+    // Lưu chuỗi đáp án hiện tại thành một câu hoàn chỉnh
     const saveCurrentAnswer = () => {
         if (currentAnswer.length === 0) return;
-        const newAnswers = [...correctAnswers, currentAnswer];
-        onQuestionChange({ ...question, correct_answer: JSON.stringify(newAnswers) });
+        const newCorrectAnswer: CorrectAnswer = {
+            id: uuidv4(),
+            question_id: question.id,
+            answer: currentAnswer.join(''), // Ghép các từ thành một chuỗi duy nhất
+        };
+        const newCorrectAnswers = [...(question.correct_answers || []), newCorrectAnswer];
+        onQuestionChange({ ...question, correct_answers: newCorrectAnswers, correct_answer: undefined });
         setCurrentAnswer([]);
     };
     
     // Xóa một đáp án đúng đã lưu
     const deleteCorrectAnswer = (index: number) => {
-        const newAnswers = correctAnswers.filter((_, i) => i !== index);
-        onQuestionChange({ ...question, correct_answer: JSON.stringify(newAnswers) });
+        const newCorrectAnswers = (question.correct_answers || []).filter((_, i) => i !== index);
+        onQuestionChange({ ...question, correct_answers: newCorrectAnswers });
     };
 
     return (
@@ -98,13 +100,11 @@ const ArrangeWordsEditor: React.FC<ArrangeWordsEditorProps> = ({ question, onQue
             
             <div>
                  <label className="text-sm font-medium text-slate-700 block mb-2">Đáp án đúng (nhấn vào các từ bên dưới để tạo):</label>
-                 {/* Hiển thị các đáp án đã lưu */}
+                 {/* Hiển thị các đáp án đã lưu dưới dạng câu hoàn chỉnh */}
                  {correctAnswers.map((answer, index) => (
                     <div key={index} className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg mb-2">
-                        <div className="flex-grow flex flex-wrap gap-2">
-                            {answer.map((word, wordIndex) => (
-                                <span key={wordIndex} className="px-3 py-1 bg-white border rounded-full text-sm">{word}</span>
-                            ))}
+                        <div className="flex-grow p-2 bg-white rounded">
+                            <span className="text-sm text-slate-800">{answer}</span>
                         </div>
                         <Button type="button" variant="danger" size="sm" onClick={() => deleteCorrectAnswer(index)}>
                             <TrashIcon className="w-4 h-4" />
@@ -124,7 +124,12 @@ const ArrangeWordsEditor: React.FC<ArrangeWordsEditorProps> = ({ question, onQue
                     </div>
                      <div className="flex flex-wrap gap-2 pt-3 border-t border-dashed">
                         {question.options.map(option => (
-                           <button key={option.id} onClick={() => addWordToCurrentAnswer(option.content || '')} disabled={!option.content} className="px-3 py-1 bg-slate-200 rounded-full text-sm hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                           <button 
+                                key={option.id} 
+                                onClick={() => addWordToCurrentAnswer(option.content || '')} 
+                                disabled={!option.content || currentAnswer.includes(option.content)}
+                                className="px-3 py-1 bg-slate-200 rounded-full text-sm hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+                           >
                                {option.content || '...'}
                            </button>
                         ))}

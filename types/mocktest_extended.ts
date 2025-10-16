@@ -14,14 +14,15 @@ import {
   PromptQuestion,
   Option,
   Explanation,
+  CorrectAnswer, 
 } from './mocktest';
 
-export type { Option, Explanation };
+export type { Option, Explanation, CorrectAnswer };
 
 export interface PromptImage {
   type: 'image';
   label: string;
-  url: string | File; 
+  url: string | File;
 }
 
 /**
@@ -48,12 +49,18 @@ export interface SubsectionFull extends Subsection {
   questions?: QuestionFull[];
 }
 
-// Câu hỏi có type, options, explanation
+// Câu hỏi có type, options, explanation, và danh sách các đáp án đúng
 export interface QuestionFull extends Question {
   question_type?: QuestionType;
   options?: Option[];
   explanation?: Explanation | null;
   prompts?: Prompt[]; // nếu question thuộc prompt (qua bảng Prompt_Questions)
+  /**
+   * Mảng chứa tất cả các đáp án đúng được chấp nhận cho câu hỏi này.
+   * Dữ liệu được lấy từ bảng `Correct_Answers`.
+   * Rất quan trọng cho việc hiển thị đáp án hoặc cho admin chỉnh sửa.
+   */
+  correct_answers?: CorrectAnswer[];
 }
 
 /**

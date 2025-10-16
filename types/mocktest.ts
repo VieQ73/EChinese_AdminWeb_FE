@@ -65,7 +65,7 @@ export interface Section {
   time_minutes?: number;
   passing_score?: number;
   description?: Json;
-  audio_url?: string; //Audio xuyên suốt phần nghe nếu không chọn cách up từng file nghe cho từng câu, nếu có file nghe riêng thì tại đây sẽ lưu phần giới thiệu chung cho cả section nghe
+  audio_url?: string; // Audio xuyên suốt phần nghe nếu không chọn cách up từng file nghe cho từng câu.
   created_at?: Timestamp;
   updated_at?: Timestamp;
   is_deleted?: boolean;
@@ -81,7 +81,7 @@ export interface Subsection {
   name: string;
   order?: number;
   description?: string;
-  audio_url?: string; //Audio phục vụ phần con bên trong section nghe, giới thiệu từng phần con nếu có.
+  audio_url?: string; // Audio phục vụ phần con bên trong section nghe, giới thiệu từng phần con nếu có.
   created_at?: Timestamp;
   updated_at?: Timestamp;
   is_deleted?: boolean;
@@ -95,8 +95,7 @@ export interface Prompt {
   id: UUID;
   subsection_id: UUID;
   content?: Json;
-  image?: Json;
-  // - Ví dụ cho lưu nhiều ảnh tại Prompt: [{ "type": "image", "url": "A.png", "label": "A" }, { "type": "image", "url": "B.png", "label": "B" },... - 5 đáp án]
+  image?: Json; // Ví dụ: [{ "type": "image", "url": "A.png", "label": "A" }, ...]
   audio_url?: string;
   order?: number;
   created_at?: Timestamp;
@@ -122,6 +121,10 @@ export interface QuestionType {
 /**
  * Bảng: Questions
  * Lưu câu hỏi cá nhân.
+ * [MỚI] Quy tắc xác định đáp án đúng khi chấm bài:
+ * 1. Ưu tiên kiểm tra `correct_answer`. Nếu có giá trị, dùng nó để so sánh.
+ * 2. Nếu `correct_answer` là null, kiểm tra bảng `Correct_Answers` cho các đáp án dạng text phức tạp.
+ * 3. Nếu là câu trắc nghiệm/sắp xếp, kiểm tra logic trong `Option` (`is_correct` hoặc `correct_order`).
  */
 export interface Question {
   id: UUID;
@@ -131,8 +134,12 @@ export interface Question {
   content?: string;
   image_url?: string;
   audio_url?: string;
+  /** correct_anser: Dùng cho câu hỏi có 1 đáp án đúng dạng text (điền từ, trả lời ngắn).
+   * Sẽ là `null` nếu câu hỏi có nhiều đáp án đúng (lưu ở `CorrectAnswer`)
+   * hoặc là dạng trắc nghiệm (xác định bằng `Option.is_correct`).
+   */
   correct_answer?: string;
-  points?: number; //Mặc định 1 điểm thô, dùng để đếm số câu đúng
+  points?: number;
   created_at?: Timestamp;
   updated_at?: Timestamp;
   is_deleted?: boolean;
@@ -149,11 +156,14 @@ export interface PromptQuestion {
 
 /**
  * Bảng: Options
- * Lưu đáp án cho câu hỏi.
- * 
- * - Với loại câu hỏi Sắp xếp từ (arrange_words) Questions.content: Có thể là phần dẫn hoặc null Options: mỗi thẻ là một từ (hoặc cụm từ nhỏ). order = thứ tự hiển thị ngẫu nhiên khi render. correct_order = thứ tự đúng để chấm điểm. User_Answers.user_response: lưu danh sách từ người dùng sắp xếp, ví dụ: ["我", "喜欢", "喝", "茶"] → Khi chấm điểm: so sánh mảng này với danh sách Options sắp theo correct_order. - Sắp xếp câu (arrange_sentences) Questions.content: có thể có phần dẫn “Sắp xếp các câu sau thành đoạn hoàn chỉnh” hoặc null Options: mỗi dòng là một câu A, B, C... label = "A", "B", "C" content = nội dung câu correct_order = 1, 2, 3 (thứ tự đúng) User_Answers.user_response: lưu chuỗi các label user chọn theo thứ tự: ["B", "A", "C"] → Khi chấm: kiểm tra label có khớp với thứ tự correct_order. 
- * 
- * */
+ * Lưu các lựa chọn hoặc các thành phần được hiển thị cho người dùng.
+ *
+ * - Với câu hỏi Sắp xếp từ/câu:
+ * + Bảng này cung cấp các "mảnh ghép" (từ, câu) để người dùng thao tác.
+ * + Nếu chỉ có MỘT đáp án đúng, dùng `correct_order` để định nghĩa thứ tự.
+ * + Nếu có NHIỀU đáp án đúng, `correct_order` sẽ là `null`.
+ * Việc chấm điểm sẽ dựa trên việc so sánh kết quả người dùng ghép lại với các đáp án trong `CorrectAnswer`.
+ */
 export interface Option {
   id: UUID;
   question_id: UUID;
@@ -161,12 +171,25 @@ export interface Option {
   content?: string;
   image_url?: string;
   audio_url?: string;
-  is_correct?: boolean;
+  is_correct?: boolean; // Dùng cho câu trắc nghiệm chỉ có 1 lựa chọn đúng. 
   order?: number;
-  correct_order?: number;
+  correct_order?: number; // Thứ tự đúng cho bài sắp xếp chỉ có MỘT đáp án đúng. */
   created_at?: Timestamp;
   updated_at?: Timestamp;
   is_deleted?: boolean;
+}
+
+/**
+ * Bảng: Correct_Answers
+ * Lưu các đáp án đúng được chấp nhận cho một câu hỏi.
+ * Dùng cho các dạng bài có nhiều phương án trả lời đúng (ví dụ: sắp xếp câu).
+ */
+export interface CorrectAnswer {
+  id: UUID;
+  question_id: UUID;
+  answer: string;
+  explanation?: string;
+  created_at?: Timestamp;
 }
 
 /**
