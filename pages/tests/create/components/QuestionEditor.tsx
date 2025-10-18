@@ -20,6 +20,7 @@ import ArrangeWordsEditor from './options/ArrangeWordsEditor';
 import ArrangeSentencesEditor from './options/ArrangeSentencesEditor';
 import ExplanationEditor from './ExplanationEditor';
 import WriteTextEditor from './options/WriteTextEditor';
+import RecordAudioEditor from './options/RecordAudioEditor'; 
 
 interface QuestionEditorProps {
   sectionIndex: number;
@@ -78,10 +79,10 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
                 content: '',
                 is_correct: false,
             }));
-        } else if (newType.id === 'arrange_words' || newType.id === 'arrange_sentences' || newType.id === 'write_text') {
+        } else if (['arrange_words', 'arrange_sentences', 'write_text', 'record_audio'].includes(newType.id)) {
             // Các loại câu hỏi này sử dụng correct_answers
             newCorrectAnswers = [];
-            newCorrectAnswer = undefined; // Dọn dẹp trường cũ
+            newCorrectAnswer = undefined; 
         }
     }
     // Cập nhật cả correct_answer và correct_answers
@@ -131,6 +132,8 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
             return <ArrangeSentencesEditor question={question} onQuestionChange={onQuestionChange} />;
         case 'write_text':
             return <WriteTextEditor question={question} onQuestionChange={onQuestionChange} />;
+        case 'record_audio': // Thêm case mới
+            return <RecordAudioEditor question={question} onQuestionChange={onQuestionChange} />;
         default:
             return null;
     }

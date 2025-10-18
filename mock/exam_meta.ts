@@ -35,4 +35,5 @@ export const MOCK_QUESTION_TYPES: QuestionType[] = [
   { id: 'arrange_words', name: 'Sắp xếp từ', description: 'Sắp xếp các từ thành câu hoàn chỉnh', num_options: 0, has_prompt: false },
   { id: 'arrange_sentences', name: 'Sắp xếp câu', description: 'Sắp xếp các câu thành đoạn văn', num_options: 0, has_prompt: false },
   { id: 'write_text', name: 'Viết câu trả lời', description: 'Điền câu trả lời dạng văn bản', num_options: 0, has_prompt: false },
+  { id: 'record_audio', name: 'Trả lời bằng ghi âm', description: 'Ghi âm câu trả lời', num_options: 0, has_prompt: false },
 ];
