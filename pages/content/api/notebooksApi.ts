@@ -1,11 +1,15 @@
 import { apiClient } from '../../../services/apiClient';
-import { Notebook, PaginatedResponse } from '../../../types';
-import { mockNotebooks, mockNotebookVocabItems } from '../../../mock';
+import { Notebook, PaginatedResponse, Vocabulary } from '../../../types';
+import { mockNotebooks, mockNotebookVocabItems, mockVocab } from '../../../mock';
 
 const USE_MOCK_API = (import.meta as any).env?.VITE_USE_MOCK_API !== 'false';
 
 // Types
 export type NotebookPayload = Omit<Notebook, 'id' | 'created_at' | 'vocab_count'>;
+
+export interface NotebookDetail extends Notebook {
+    vocabularies: PaginatedResponse<Vocabulary>;
+}
 
 interface FetchNotebooksParams {
     page?: number;
@@ -17,7 +21,20 @@ interface FetchNotebooksParams {
 
 // API Functions
 
-export const fetchNotebooks = (params: FetchNotebooksParams): Promise<PaginatedResponse<Notebook>> => {
+export const fetchNotebooks = async (params: FetchNotebooksParams): Promise<PaginatedResponse<Notebook>> => {
+    
+    const queryParams = new URLSearchParams(params as any).toString();
+
+    type NotebookApiResponse = {
+        success: boolean;
+        data: PaginatedResponse<Notebook>;
+    }
+
+    const response = await apiClient.get<NotebookApiResponse>(`/admin/notebooks/system?${queryParams}`);
+        console.log(response.data);
+
+    return response.data;
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -43,33 +60,72 @@ export const fetchNotebooks = (params: FetchNotebooksParams): Promise<PaginatedR
                 const total = filtered.length;
                 const totalPages = Math.ceil(total / limit);
                 const data = filtered.slice((page - 1) * limit, page * limit);
-
+                
+                console.log({ data, meta: { total, page, limit, totalPages } });
+                
                 resolve({ data, meta: { total, page, limit, totalPages } });
             }, 300);
         });
     }
-    const queryParams = new URLSearchParams(params as any).toString();
-    return apiClient.get(`/content/notebooks?${queryParams}`);
+    
+
 };
 
-export const fetchNotebookById = (id: string): Promise<Notebook> => {
+export const fetchNotebookById = async (id: string): Promise<NotebookDetail> => {
+    type NotebookDetailResponse = {
+        success: boolean;
+        data: NotebookDetail;
+    }
+    const response = await apiClient.get<NotebookDetailResponse>(`/notebooks/${id}`);
+    return response.data;
+
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
              setTimeout(() => {
                 const notebook = mockNotebooks.find(nb => nb.id === id);
                 if (notebook) {
-                    const vocab_count = mockNotebookVocabItems.filter(item => item.notebook_id === id).length;
-                    resolve({ ...notebook, vocab_count });
+                    const vocabIdsInNotebook = new Set(mockNotebookVocabItems
+                        .filter(item => item.notebook_id === id)
+                        .map(item => item.vocab_id));
+                    
+                    const vocabularies = mockVocab.filter(v => vocabIdsInNotebook.has(v.id));
+
+                    const response: NotebookDetail = {
+                        ...notebook,
+                        vocab_count: vocabularies.length,
+                        vocabularies: {
+                            data: vocabularies,
+                            meta: {
+                                total: vocabularies.length,
+                                page: 1,
+                                limit: 10,
+                                totalPages: Math.ceil(vocabularies.length / 10),
+                            }
+                        }
+                    };
+                    resolve(response);
                 } else {
                     reject(new Error('Notebook not found'));
                 }
             }, 200);
         });
     }
-    return apiClient.get(`/content/notebooks/${id}`);
+    
+
 }
 
-export const createNotebook = (payload: NotebookPayload): Promise<Notebook> => {
+export const createNotebook = async (payload: NotebookPayload): Promise<Notebook> => {
+
+
+    type CreateNotebookResponse = {
+        success: boolean;
+        message: string;
+        data: Notebook;
+    }
+
+    const response = await apiClient.post<CreateNotebookResponse>('/notebooks', payload);
+    return response.data;
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -80,32 +136,58 @@ export const createNotebook = (payload: NotebookPayload): Promise<Notebook> => {
                     created_at: new Date().toISOString(),
                 };
                 mockNotebooks.unshift(newNotebook);
+                console.log(newNotebook);
+                
                 resolve(newNotebook);
             }, 300);
         });
     }
-    return apiClient.post('/content/notebooks', payload);
+
 };
 
-export const updateNotebook = (id: string, payload: Partial<NotebookPayload>): Promise<Notebook> => {
-     if (USE_MOCK_API) {
+export const updateNotebook = async (id: string, payload: Partial<NotebookPayload>): Promise<Notebook> => {
+    
+    type UpdateNotebookResponse = {
+        success: boolean;
+        message: string;
+        data: Notebook;
+    }
+
+    const response = await apiClient.put<UpdateNotebookResponse>(`/admin/notebooks/${id}`, payload);
+    return response.data;
+    
+    if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
                 const index = mockNotebooks.findIndex(nb => nb.id === id);
                 if (index === -1) return reject(new Error('Notebook not found'));
-                mockNotebooks[index] = { ...mockNotebooks[index], ...payload };
+                mockNotebooks[index] = { ...mockNotebooks[index], ...payload } as Notebook;
                 resolve(mockNotebooks[index]);
             }, 300);
         });
     }
-    return apiClient.put(`/content/notebooks/${id}`, payload);
+    
+
 };
 
-export const deleteNotebooks = (ids: string[]): Promise<{ success: boolean }> => {
+export const deleteNotebooks = async (ids: string[]): Promise<{ success: boolean; message: string; data: { deletedCount: number } }> => {
+    type DeleteNotebooksResponse = {
+        success: boolean;
+        message: string;
+        data: {
+            deletedCount: number;
+        }
+    }
+
+    // The user request implies the response is the full object, not just response.data
+    const response = await apiClient.post<DeleteNotebooksResponse>('/admin/notebooks/bulk-delete', { ids });
+    return response;
+    
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
                 const idsToDelete = new Set(ids);
+                const initialCount = mockNotebooks.length;
                 const newNotebooks = mockNotebooks.filter(nb => !idsToDelete.has(nb.id));
                 mockNotebooks.length = 0;
                 mockNotebooks.push(...newNotebooks);
@@ -113,26 +195,45 @@ export const deleteNotebooks = (ids: string[]): Promise<{ success: boolean }> =>
                 const newItems = mockNotebookVocabItems.filter(item => !idsToDelete.has(item.notebook_id));
                 mockNotebookVocabItems.length = 0;
                 mockNotebookVocabItems.push(...newItems);
-                resolve({ success: true });
+                
+                const deletedCount = initialCount - newNotebooks.length;
+                resolve({ 
+                    success: true, 
+                    message: `Đã xóa thành công ${deletedCount} notebook.`,
+                    data: { deletedCount }
+                });
             }, 300);
         });
     }
-    return apiClient.post('/content/notebooks/bulk-delete', { ids });
+
+
 };
 
-export const bulkUpdateNotebookStatus = (ids: string[], status: 'published' | 'draft'): Promise<{ success: boolean }> => {
+export const bulkUpdateNotebookStatus = async (ids: string[], status: 'published' | 'draft'): Promise<{ success: boolean; message: string }> => {
+    
+    type BulkUpdateResponse = {
+        success: boolean;
+        message: string;
+    };
+
+    const response = await apiClient.post<BulkUpdateResponse>('/admin/notebooks/bulk-status', { ids, status });
+    return response;
+    
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
+                let updatedCount = 0;
                 const idsToUpdate = new Set(ids);
                 mockNotebooks.forEach(nb => {
                     if (idsToUpdate.has(nb.id)) {
                         nb.status = status;
+                        updatedCount++;
                     }
                 });
-                resolve({ success: true });
+                resolve({ success: true, message: `Đã cập nhật trạng thái thành công cho ${updatedCount} notebook.` });
             }, 300);
         });
     }
-    return apiClient.post('/content/notebooks/bulk-status', { ids, status });
+    
+    
 }

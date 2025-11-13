@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import { ExamSummary } from '../../../../types/mocktest_extended';
-import { duplicateExam } from '../../api';
-import { MOCK_EXAMS } from '../../../../mock/exams';
+import { duplicateExam, trashExam, restoreExam, publishExam, unpublishExam, deleteExam } from '../../api';
 import { ActionState, InfoModalContent } from './useExamState';
 
 // Định nghĩa props cho hook
@@ -32,28 +31,10 @@ export const useExamActions = ({
     const handleCopyExam = useCallback(async (examToCopy: ExamSummary) => {
         setIsCopying(true);
         try {
-            // Xác định tên gốc và tạo tên mới cho bản sao
+            // The logic for determining the new name should ideally be on the backend,
+            // but we'll keep the frontend logic for mock API and as a fallback.
             const baseName = examToCopy.name.replace(/^\[Bản sao\]\s*/, '').replace(/\s*\[Bản sao\]\s*\(\d+\)$/, '').trim();
-            const existingVersions = MOCK_EXAMS.filter(e => e.name.includes(baseName));
-            
-            let newName = '';
-            const firstCopyName = `[Bản sao] ${baseName}`;
-            const hasFirstCopy = existingVersions.some(e => e.name === firstCopyName);
-
-            if (!hasFirstCopy) {
-                newName = firstCopyName;
-            } else {
-                const copyNumberRegex = /\[Bản sao\] \((\d+)\)$/;
-                let maxNumber = 1;
-                existingVersions.forEach(e => {
-                    const match = e.name.match(copyNumberRegex);
-                    if (match) {
-                        const num = parseInt(match[1], 10);
-                        if (num > maxNumber) maxNumber = num;
-                    }
-                });
-                newName = `${baseName} [Bản sao] (${maxNumber + 1})`;
-            }
+            const newName = `[Bản sao] ${baseName}`; // Simplified for real API
 
             const newExamSummary = await duplicateExam(examToCopy.id, newName);
             setAllExams(prev => [newExamSummary, ...prev]);
@@ -68,48 +49,56 @@ export const useExamActions = ({
     const handleAction = useCallback((action: 'copy' | 'publish' | 'unpublish' | 'delete' | 'restore' | 'delete-permanently', exam: ExamSummary) => {
         if (isCopying) return;
         
-        switch(action) {
-            case 'copy':
-                handleCopyExam(exam);
-                break;
-            case 'delete':
-                if (exam.is_published) {
-                    setInfoModalContent({
-                        title: 'Không thể xóa bài thi',
-                        message: 'Không thể xóa bài thi đã được xuất bản. Vui lòng thu hồi bài thi trước khi xóa.',
-                    });
-                    setIsInfoModalOpen(true);
-                } else {
-                    setActionState({ action, exam });
-                }
-                break;
-            case 'restore':
-            case 'delete-permanently':
-                setActionState({ action, exam });
-                break;
-            case 'publish':
-            case 'unpublish':
-                setAllExams(prev => prev.map(e => e.id === exam.id ? { ...e, is_published: !e.is_published } : e));
-                break;
-            default:
-                break;
-        }
-    }, [isCopying, handleCopyExam, setAllExams, setActionState, setInfoModalContent, setIsInfoModalOpen]);
+        // For all actions that require confirmation, just set the state
+        setActionState({ action, exam });
+
+    }, [isCopying]);
     
     // Xử lý khi người dùng xác nhận hành động trong modal
-    const handleConfirmAction = useCallback(() => {
+    const handleConfirmAction = useCallback(async () => {
         if (!actionState) return;
         const { action, exam } = actionState;
 
-        setAllExams(prev => {
-            if (action === 'delete') return prev.map(e => e.id === exam.id ? { ...e, is_deleted: true } : e);
-            if (action === 'restore') return prev.map(e => e.id === exam.id ? { ...e, is_deleted: false } : e);
-            if (action === 'delete-permanently') return prev.filter(e => e.id !== exam.id);
-            return prev;
-        });
-        
-        setActionState(null);
-    }, [actionState, setAllExams, setActionState]);
+        try {
+            let updatedExam: ExamSummary | null = null;
+            let shouldRemove = false;
+
+            switch (action) {
+                case 'delete':
+                    updatedExam = await trashExam(exam.id);
+                    break;
+                case 'restore':
+                    updatedExam = await restoreExam(exam.id);
+                    break;
+                case 'publish':
+                    updatedExam = await publishExam(exam.id);
+                    break;
+                case 'unpublish':
+                    updatedExam = await unpublishExam(exam.id);
+                    break;
+                case 'delete-permanently':
+                    await deleteExam(exam.id);
+                    shouldRemove = true;
+                    break;
+            }
+
+            if (shouldRemove) {
+                setAllExams(prev => prev.filter(e => e.id !== exam.id));
+            } else if (updatedExam) {
+                // Merge the updated fields into the existing exam object
+                setAllExams(prev => prev.map(e => e.id === updatedExam!.id ? { ...e, ...updatedExam } : e));
+            }
+
+        } catch (error) {
+            setInfoModalContent({
+                title: 'Thao tác thất bại',
+                message: `Đã có lỗi xảy ra: ${(error as Error).message}`,
+            });
+            setIsInfoModalOpen(true);
+        } finally {
+            setActionState(null);
+        }
+    }, [actionState, setAllExams, setActionState, setInfoModalContent, setIsInfoModalOpen]);
 
     // Lấy nội dung cho modal xác nhận dựa trên hành động
     const getConfirmModalContent = useCallback(() => {
@@ -133,6 +122,18 @@ export const useExamActions = ({
                     title: 'Xóa vĩnh viễn bài thi', 
                     content: `Bạn có chắc chắn muốn xóa vĩnh viễn bài thi "${exam.name}" không? Hành động này không thể hoàn tác.`,
                     confirmText: 'Xóa vĩnh viễn'
+                };
+            case 'publish':
+                return {
+                    title: 'Xuất bản bài thi',
+                    content: `Bạn có chắc chắn muốn xuất bản bài thi "${exam.name}"?`,
+                    confirmText: 'Xuất bản'
+                };
+            case 'unpublish':
+                return {
+                    title: 'Hủy xuất bản bài thi',
+                    content: `Bạn có chắc chắn muốn hủy xuất bản bài thi "${exam.name}"?`,
+                    confirmText: 'Hủy xuất bản'
                 };
             default:
                 return { title: '', content: '', confirmText: '' };

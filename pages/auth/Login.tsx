@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router';
 import { AuthContext } from '../../contexts/AuthContext';
 import { login } from './api';
+import { apiClient } from '../../services/apiClient';
 import { Loader2 } from 'lucide-react';
 
 const Login: React.FC = () => {
@@ -24,7 +25,9 @@ const Login: React.FC = () => {
         try {
             // Gọi hàm API đã được tách biệt
             const response = await login({ username, password });
-            authContext.login(response.user);
+            // Lưu token để dùng cho các API khác
+            apiClient.setTokens(response.token, response.refreshToken);
+            authContext.login(response.user ?? null, response.token, response.refreshToken);
             navigate('/');
         } catch (err) {
             // Xử lý lỗi từ API

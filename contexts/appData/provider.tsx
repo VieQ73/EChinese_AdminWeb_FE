@@ -1,5 +1,5 @@
 // contexts/appData/provider.tsx
-import React, { ReactNode, useMemo, useContext } from 'react';
+import React, { ReactNode, useMemo, useContext, useEffect } from 'react';
 import { AppDataContext } from './context';
 import { useAppDataState } from './state';
 import { useDerivedData, useGetters } from './selectors';
@@ -18,6 +18,9 @@ import {
 import { User } from '../../types';
 import { AuthContext } from '../AuthContext';
 import { AddViolationPayload } from './types';
+import { fetchExamTypes, fetchExamLevels } from '../../pages/tests/api/configApi';
+import { fetchExams } from '../../pages/tests/api/examsApi';
+import { fetchVocabularies } from '../../pages/content/api/vocabularyApi';
 
 interface AppDataProviderProps {
     children: ReactNode;
@@ -26,9 +29,42 @@ interface AppDataProviderProps {
 export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) => {
     const authContext = useContext(AuthContext);
     const currentUser = authContext?.user;
+    const isAuthenticated = authContext?.isAuthenticated;
 
     // 1. Raw State Management
     const state = useAppDataState();
+
+    useEffect(() => {
+        const loadInitialData = async () => {
+            console.log("Authenticated, loading initial data...");
+            try {
+                const [types, levels, examsResponse] = await Promise.all([
+                    fetchExamTypes(),
+                    fetchExamLevels(),
+                    fetchExams({ page: 1, limit: 1000 }), // Fetch a large number of exams initially
+                ]);
+                state.setExamTypes(types);
+                state.setExamLevels(levels);
+                state.setExams(examsResponse.data);
+            } catch (error) {
+                console.error("Failed to load initial app data:", error);
+            }
+        };
+
+        if (isAuthenticated) {
+            loadInitialData();
+        } else {
+            // Optional: Clear data on logout to prevent stale data showing up briefly on next login
+            console.log("Not authenticated, clearing initial data...");
+            state.setExamTypes([]);
+            state.setExamLevels([]);
+            state.setExams([]);
+            state.setVocabularies([]);
+        }
+    }, [isAuthenticated]); // Dependency array now listens to authentication status changes
+
+
+
 
     // 2. Memoized Derived Data (Selectors)
     const derivedData = useDerivedData({
@@ -145,7 +181,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     }, [
         state, derivedData, getters, communityActions, moderationActions, ruleActions, 
         settingsActions, userActions, logActions, examActions, contentActions, 
-        monetizationActions, tipsActions
+        monetizationActions, tipsActions, isAuthenticated
     ]);
 
     return (

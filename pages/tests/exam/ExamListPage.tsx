@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { MOCK_EXAMS } from '../../../mock/exams';
-import { MOCK_EXAM_TYPES } from '../../../mock/exam_meta';
+import { useAppData } from '../../../contexts/AppDataContext';
 import Modal from '../../../components/Modal';
 import ConfirmationModal from '../../monetization/components/ConfirmationModal';
 
@@ -15,6 +14,8 @@ import { useExamActions } from './hooks/useExamActions';
 
 const ExamListPage: React.FC = () => {
     const navigate = useNavigate();
+    const { exams: allExamsFromContext, examTypes } = useAppData();
+
     // 1. Hook quản lý State
     const {
         activeTab, setActiveTab,
@@ -25,16 +26,11 @@ const ExamListPage: React.FC = () => {
         infoModalContent, setInfoModalContent
     } = useExamState();
 
-    // Khởi tạo state với dữ liệu mock khi component được mount
+    // Khởi tạo state với dữ liệu từ context khi component được mount
     useEffect(() => {
-        const initialExams = MOCK_EXAMS.map(exam => ({
-            ...exam,
-            exam_type_name: MOCK_EXAM_TYPES.find(t => t.id === exam.exam_type_id)?.name || 'N/A',
-            exam_level_name: 'N/A', // Tên cấp độ sẽ được xử lý trong ExamTypeGroup
-            section_count: exam.sections?.length || 0,
-        }));
-        setAllExams(initialExams);
-    }, [setAllExams]);
+        // The data from context is already in ExamSummary format
+        setAllExams(allExamsFromContext);
+    }, [allExamsFromContext, setAllExams]);
 
     // 2. Hook xử lý dữ liệu (lọc, nhóm)
     const { groupedExams } = useExamData(allExams, activeTab);
@@ -85,7 +81,7 @@ const ExamListPage: React.FC = () => {
             {/* Exam Groups */}
             <div className="space-y-8">
                 {Object.entries(groupedExams).map(([typeId, exams]) => {
-                    const examType = MOCK_EXAM_TYPES.find(t => t.id === typeId);
+                    const examType = examTypes.find(t => t.id === typeId);
                     if (!examType) return null;
 
                     return (

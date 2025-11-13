@@ -5,7 +5,7 @@ import { MOCK_EXAM_TYPES } from '../../../../mock/exam_meta';
 
 // Định nghĩa kiểu dữ liệu cho state của modal xác nhận
 export interface ActionState {
-    action: 'delete' | 'restore' | 'delete-permanently';
+    action: 'copy' | 'publish' | 'unpublish' | 'delete' | 'restore' | 'delete-permanently';
     exam: ExamSummary;
 }
 

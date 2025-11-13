@@ -95,10 +95,10 @@ export const useAppDataState = () => {
     const [payments, setPayments] = useState<Payment[]>([...mockPayments]);
     const [refunds, setRefunds] = useState<Refund[]>([...mockRefunds]);
     const [userSubscriptions, setUserSubscriptions] = useState<EnrichedUserSubscription[]>([]); // Sẽ được fetch
-    const [exams, setExams] = useState<Exam[]>([...MOCK_EXAMS]);
+    const [exams, setExams] = useState<Exam[]>([]);
     
-    const [examTypes, setExamTypes] = useState<ExamType[]>([...MOCK_EXAM_TYPES]);
-    const [examLevels, setExamLevels] = useState<ExamLevel[]>([...MOCK_EXAM_LEVELS]);
+    const [examTypes, setExamTypes] = useState<ExamType[]>([]);
+    const [examLevels, setExamLevels] = useState<ExamLevel[]>([]);
     const [questionTypes, setQuestionTypes] = useState<QuestionType[]>([...MOCK_QUESTION_TYPES]);
 
 

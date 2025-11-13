@@ -143,19 +143,32 @@ const ArrangeSentencesEditor: React.FC<ArrangeSentencesEditorProps> = ({ questio
                         return (
                             <div key={option.id} className="flex items-start gap-2">
                                 <div 
-                                    onClick={() => !isSelected && addLabelToCurrentAnswer(option.label || '')}
                                     className={`flex-grow p-3 border rounded-lg transition-colors ${
                                         isSelected 
-                                        ? 'bg-slate-200 border-slate-300 opacity-60 cursor-not-allowed' 
-                                        : 'bg-white cursor-pointer hover:bg-slate-50 hover:border-slate-400'
+                                        ? 'bg-slate-200 border-slate-300 opacity-60' 
+                                        : 'bg-white'
                                     }`}
                                 >
-                                    <Input
-                                        label={`Câu ${option.label}`}
-                                        value={option.content || ''}
-                                        onChange={(e) => handleOptionChange(option.id, 'content', e.target.value)}
-                                        disabled={isSelected} // Vô hiệu hóa input khi đã chọn
-                                    />
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-grow">
+                                            <Input
+                                                label={`Câu ${option.label}`}
+                                                value={option.content || ''}
+                                                onChange={(e) => handleOptionChange(option.id, 'content', e.target.value)}
+                                                disabled={isSelected} // Vô hiệu hóa input khi đã chọn
+                                            />
+                                        </div>
+                                        <Button 
+                                            type="button" 
+                                            variant="secondary" 
+                                            size="sm"
+                                            onClick={() => !isSelected && addLabelToCurrentAnswer(option.label || '')}
+                                            disabled={isSelected}
+                                            className="mt-6"
+                                        >
+                                            Chọn
+                                        </Button>
+                                    </div>
                                 </div>
                                 <Button type="button" variant="danger" size="sm" onClick={() => removeOption(option.id)} className="mt-8">
                                     <TrashIcon className="w-4 h-4" />

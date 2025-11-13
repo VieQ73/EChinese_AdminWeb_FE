@@ -25,6 +25,13 @@ const FileInput: React.FC<FileInputProps> = ({
 
     useEffect(() => {
         let objectUrl: string | null = null;
+
+        const determineFileType = () => {
+            if (accept.startsWith('image/')) return 'image';
+            if (accept.startsWith('audio/')) return 'audio';
+            return 'other';
+        };
+
         if (value instanceof File) {
             objectUrl = URL.createObjectURL(value);
             setPreviewUrl(objectUrl);
@@ -35,10 +42,17 @@ const FileInput: React.FC<FileInputProps> = ({
         } else if (typeof value === 'string' && value) {
             setPreviewUrl(value);
             setFileName(value.split('/').pop() || 'File');
-             // Simple check for file type from URL extension
-            if (/\.(jpg|jpeg|png|gif|webp)$/i.test(value)) setFileType('image');
-            else if (/\.(mp3|wav|ogg)$/i.test(value)) setFileType('audio');
-            else setFileType('other');
+            
+            // If it's a blob, we can't know the type from the URL, so we infer from the 'accept' prop.
+            // This is more reliable.
+            if (value.startsWith('blob:')) {
+                setFileType(determineFileType());
+            } else {
+                // Fallback for regular URLs
+                if (/\.(jpg|jpeg|png|gif|webp)$/i.test(value)) setFileType('image');
+                else if (/\.(mp3|wav|ogg)$/i.test(value)) setFileType('audio');
+                else setFileType('other');
+            }
         } else {
             setPreviewUrl(null);
             setFileType(null);
@@ -50,7 +64,7 @@ const FileInput: React.FC<FileInputProps> = ({
                 URL.revokeObjectURL(objectUrl);
             }
         };
-    }, [value]);
+    }, [value, accept]);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0] || null;
@@ -96,7 +110,14 @@ const FileInput: React.FC<FileInputProps> = ({
             {previewUrl ? (
                 <div className={`${containerClasses} border-solid border-slate-300 p-0 overflow-hidden`}>
                      {fileType === 'image' && <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />}
-                     {fileType === 'audio' && <div className="p-2 flex flex-col items-center justify-center text-center"><Music size={variant === 'compact' ? 24 : 32} className="text-slate-500 mb-2"/><span className="break-all" title={fileName || 'Audio file'}>{fileName || 'Audio file'}</span></div>}
+                     {fileType === 'audio' && (
+                        <div className="p-2 flex flex-col items-center justify-center text-center w-full">
+                            <audio src={previewUrl} controls className="w-full">
+                                Your browser does not support the audio element.
+                            </audio>
+                            <span className="mt-2 text-xs break-all" title={fileName || 'Audio file'}>{fileName || 'Audio file'}</span>
+                        </div>
+                     )}
                      {fileType === 'other' && <div className="p-2 flex flex-col items-center justify-center text-center"><FileIcon size={variant === 'compact' ? 24 : 32} className="text-slate-500 mb-2"/><span className="break-all" title={fileName || 'File'}>{fileName || 'File'}</span></div>}
                      <button
                         type="button"

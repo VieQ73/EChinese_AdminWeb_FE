@@ -8,10 +8,22 @@ import VocabCardGrid from './components/VocabCardGrid';
 import VocabDetailModal from './modals/VocabDetailModal';
 import AddVocabularyModal from './modals/AddVocabularyModal';
 import AddToNotebookModal from './modals/AddToNotebookModal';
+import ErrorReportModal from './modals/ErrorReportModal'; // Import mới
+import { ImportVocabModal } from './modals/ImportVocabModal'; // Import mới
 import Modal from '../../../components/Modal';
 import FloatingBulkActionsBar from '../../../components/FloatingBulkActionsBar';
 import VocabularyToolbar from './components/VocabularyToolbar';
 import { Loader2 } from 'lucide-react';
+
+import { useAppData } from '../../../contexts/AppDataContext';
+
+// Định nghĩa kiểu cho lỗi chi tiết
+interface BulkUpsertError {
+    index: number;
+    hanzi: string;
+    id?: string;
+    detail: string;
+}
 
 const VocabularyTab: React.FC = () => {
     const [vocabList, setVocabList] = useState<Vocabulary[]>([]);
@@ -27,6 +39,16 @@ const VocabularyTab: React.FC = () => {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isAddToNotebookModalOpen, setIsAddToNotebookModalOpen] = useState(false);
     const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false); // State cho modal import
+    const [isImporting, setIsImporting] = useState(false); // State loading cho import
+
+    const { vocabularies } = useAppData();
+    // State cho modal báo cáo lỗi
+    const [errorReport, setErrorReport] = useState<{ isOpen: boolean; errors: BulkUpsertError[]; message: string }>({
+        isOpen: false,
+        errors: [],
+        message: '',
+    });
     
     // Filter vocabulary list based on all filters
     const filteredVocabList = useMemo(() => {
@@ -55,9 +77,11 @@ const VocabularyTab: React.FC = () => {
         setLoading(true);
         try {
             const [vocabRes, notebookRes] = await Promise.all([
-                api.fetchVocabularies({ limit: 1000 }), // Load all vocabulary and filter client-side
-                api.fetchNotebooks({ limit: 1000 }) // Tải tất cả sổ tay cho modal
+                api.fetchVocabularies({ limit: 5000 }), // Load all vocabulary and filter client-side
+                api.fetchNotebooks({ limit: 5000 }) // Tải tất cả sổ tay cho modal
             ]);
+            console.log(vocabRes.data);
+            
             setVocabList(vocabRes.data);
             setNotebooks(notebookRes.data);
         } catch (error) {
@@ -88,8 +112,35 @@ const VocabularyTab: React.FC = () => {
             setIsAddModalOpen(false);
             setEditingVocab(null);
             loadData(); // Tải lại
+        } catch (error: any) {
+            if (error.details) {
+                // Nếu có lỗi chi tiết từ API, hiển thị modal lỗi
+                setErrorReport({
+                    isOpen: true,
+                    errors: error.details,
+                    message: error.message,
+                });
+            } else {
+                // Lỗi chung
+                alert("Lưu từ vựng thất bại: " + error.message);
+            }
+            // Ném lại lỗi để hàm gọi có thể xử lý
+            throw error;
+        }
+    };
+
+    const handleImportVocab = async (data: Partial<Vocabulary>[]) => {
+        setIsImporting(true);
+        try {
+            await handleSaveVocab(data);
+            // Nếu không có lỗi, đóng modal import
+            setIsImportModalOpen(false);
         } catch (error) {
-            alert("Lưu từ vựng thất bại.");
+            // Nếu có lỗi (đã được xử lý và hiển thị modal error trong handleSaveVocab),
+            // không đóng modal import để người dùng có thể thử lại với file khác nếu muốn.
+            console.error("Import failed but error report is shown.", error);
+        } finally {
+            setIsImporting(false);
         }
     };
 
@@ -122,6 +173,18 @@ const VocabularyTab: React.FC = () => {
             {viewingVocab && <VocabDetailModal vocab={viewingVocab} onClose={() => setViewingVocab(null)} onEdit={handleEdit} />}
             <AddVocabularyModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSubmit={handleSaveVocab} editingVocab={editingVocab} showSearch={false}/>
             <AddToNotebookModal isOpen={isAddToNotebookModalOpen} onClose={() => setIsAddToNotebookModalOpen(false)} onAddToNotebook={handleAddToNotebook} notebooks={notebooks} />
+            <ImportVocabModal 
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onImport={handleImportVocab}
+                isLoading={isImporting}
+            />
+            <ErrorReportModal 
+                isOpen={errorReport.isOpen}
+                onClose={() => setErrorReport({ isOpen: false, errors: [], message: '' })}
+                errors={errorReport.errors}
+                message={errorReport.message}
+            />
             <Modal isOpen={isDeleteConfirmModalOpen} onClose={() => setIsDeleteConfirmModalOpen(false)} title="Xác nhận xóa" footer={
                 <>
                     <button onClick={() => setIsDeleteConfirmModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-lg border border-gray-300 hover:bg-gray-50">Hủy</button>
@@ -141,7 +204,7 @@ const VocabularyTab: React.FC = () => {
                     wordTypeFilter={wordTypeFilter}
                     onWordTypeFilterChange={setWordTypeFilter}
                     onAdd={handleOpenAddModal} 
-                    onImport={() => alert('Chức năng Import sẽ được phát triển sau!')}
+                    onImport={() => setIsImportModalOpen(true)}
                     isSelectable={true}
                     isAllSelected={filteredVocabList.length > 0 && selectedVocabs.size === filteredVocabList.length}
                     onSelectAll={handleSelectAll}

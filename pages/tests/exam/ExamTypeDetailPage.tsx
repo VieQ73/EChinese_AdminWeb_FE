@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeftIcon } from '../../../components/icons';
-import { MOCK_EXAM_TYPES, MOCK_EXAM_LEVELS, MOCK_EXAMS } from '../../../mock';
 import Modal from '../../../components/Modal';
 import ConfirmationModal from '../../monetization/components/ConfirmationModal';
+import { useAppData } from '../../../contexts/AppDataContext';
 
 import ExamCard from './components/list/ExamCard';
 import ExamLevelFilters from './components/list/ExamLevelFilters';
@@ -15,6 +15,8 @@ import { useExamActions } from './hooks/useExamActions';
 const ExamTypeDetailPage: React.FC = () => {
     const { examTypeId } = useParams<{ examTypeId: string }>();
     const navigate = useNavigate();
+    const { examTypes, examLevels, exams } = useAppData();
+    
     
     // Tái sử dụng state và logic action từ trang danh sách chính
     const {
@@ -34,23 +36,20 @@ const ExamTypeDetailPage: React.FC = () => {
         setIsInfoModalOpen,
         actionState,
     });
-    
-    // Khởi tạo dữ liệu bài thi (tương tự trang danh sách)
+
     useEffect(() => {
-        const initialExams = MOCK_EXAMS.map(exam => ({
-            ...exam,
-            exam_type_name: MOCK_EXAM_TYPES.find(t => t.id === exam.exam_type_id)?.name || 'N/A',
-            exam_level_name: 'N/A',
-            section_count: exam.sections?.length || 0,
-        }));
-        setAllExams(initialExams);
-    }, [setAllExams]);
+        if (exams) {
+            setAllExams(exams);
+        }
+    }, [exams, setAllExams]);
+    
+    
 
 
     const [activeLevelId, setActiveLevelId] = useState<string | 'all'>('all');
 
-    const examType = useMemo(() => MOCK_EXAM_TYPES.find(t => t.id === examTypeId), [examTypeId]);
-    const levelsForType = useMemo(() => MOCK_EXAM_LEVELS.filter(l => l.exam_type_id === examTypeId), [examTypeId]);
+    const examType = useMemo(() => examTypes.find(t => t.id === examTypeId), [examTypes, examTypeId]);
+    const levelsForType = useMemo(() => examLevels.filter(l => l.exam_type_id === examTypeId), [examLevels, examTypeId]);
 
     // Lọc bài thi dựa trên loại và cấp độ được chọn
     const filteredExams = useMemo(() => {

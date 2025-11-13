@@ -87,3 +87,19 @@ export const useContentActions = ({ setNotebooks, setVocabularies, addAdminLog }
     removeVocabsFromNotebook,
   };
 };
+
+    // const loadData = useCallback(async () => {
+    //     setLoading(true);
+    //     try {
+    //         const [vocabRes, notebookRes] = await Promise.all([
+    //             api.fetchVocabularies({ limit: 5000 }), // Load all vocabulary and filter client-side
+    //             api.fetchNotebooks({ limit: 5000 }) // Tải tất cả sổ tay cho modal
+    //         ]);
+    //         setVocabList(vocabRes.data);
+    //         setNotebooks(notebookRes.data);
+    //     } catch (error) {
+    //         console.error("Failed to load vocabulary data:", error);
+    //     } finally {
+    //         setLoading(false);
+    //     }
+    // }, []);
