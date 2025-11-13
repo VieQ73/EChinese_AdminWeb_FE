@@ -1,11 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Upload, X, File as FileIcon, Music, Image as ImageIcon } from 'lucide-react';
+import { Upload, X, File as FileIcon, Loader2 } from 'lucide-react';
+import { uploadToCloudinary } from '../../../../../services/cloudinary';
 
 interface FileInputProps {
     id: string;
     label: string;
-    value?: File | string | null; // Can be a File object for new uploads, or a string URL for existing files
-    onFileChange: (file: File | null) => void;
+    value?: string | null; // Value is now always a string URL
+    onFileChange: (url: string | null) => void;
     accept?: string;
     variant?: 'default' | 'compact';
 }
@@ -22,64 +23,60 @@ const FileInput: React.FC<FileInputProps> = ({
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [fileType, setFileType] = useState<'image' | 'audio' | 'other' | null>(null);
     const [fileName, setFileName] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     useEffect(() => {
-        let objectUrl: string | null = null;
-
         const determineFileType = () => {
             if (accept.startsWith('image/')) return 'image';
             if (accept.startsWith('audio/')) return 'audio';
             return 'other';
         };
 
-        if (value instanceof File) {
-            objectUrl = URL.createObjectURL(value);
-            setPreviewUrl(objectUrl);
-            setFileName(value.name);
-            if (value.type.startsWith('image/')) setFileType('image');
-            else if (value.type.startsWith('audio/')) setFileType('audio');
-            else setFileType('other');
-        } else if (typeof value === 'string' && value) {
+        if (typeof value === 'string' && value) {
             setPreviewUrl(value);
             setFileName(value.split('/').pop() || 'File');
             
-            // If it's a blob, we can't know the type from the URL, so we infer from the 'accept' prop.
-            // This is more reliable.
-            if (value.startsWith('blob:')) {
-                setFileType(determineFileType());
-            } else {
-                // Fallback for regular URLs
-                if (/\.(jpg|jpeg|png|gif|webp)$/i.test(value)) setFileType('image');
-                else if (/\.(mp3|wav|ogg)$/i.test(value)) setFileType('audio');
-                else setFileType('other');
-            }
+            // Infer file type from URL extension or accept prop for blobs
+            if (/\.(jpg|jpeg|png|gif|webp)$/i.test(value)) setFileType('image');
+            else if (/\.(mp3|wav|ogg|m4a)$/i.test(value)) setFileType('audio');
+            else if (value.startsWith('blob:')) setFileType(determineFileType());
+            else setFileType('other');
+
         } else {
             setPreviewUrl(null);
             setFileType(null);
             setFileName(null);
         }
-        
-        return () => {
-            if (objectUrl) {
-                URL.revokeObjectURL(objectUrl);
-            }
-        };
     }, [value, accept]);
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0] || null;
-        onFileChange(file);
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        try {
+            const url = await uploadToCloudinary(file);
+            onFileChange(url);
+        } catch (error) {
+            console.error("Upload failed:", error);
+            // Optionally, show an error to the user
+            onFileChange(null); // Clear the value on failure
+        } finally {
+            setIsUploading(false);
+            // Clear the input value so the same file can be selected again
+            if (inputRef.current) {
+                inputRef.current.value = '';
+            }
+        }
     };
 
     const handleRemoveFile = (e: React.MouseEvent) => {
         e.stopPropagation();
         onFileChange(null);
-        if (inputRef.current) {
-            inputRef.current.value = '';
-        }
     };
     
     const triggerFileInput = () => {
+        if (isUploading) return;
         inputRef.current?.click();
     };
     
@@ -105,9 +102,10 @@ const FileInput: React.FC<FileInputProps> = ({
                 onChange={handleFileChange}
                 accept={accept}
                 className="hidden"
+                disabled={isUploading}
             />
             
-            {previewUrl ? (
+            {previewUrl && !isUploading ? (
                 <div className={`${containerClasses} border-solid border-slate-300 p-0 overflow-hidden`}>
                      {fileType === 'image' && <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />}
                      {fileType === 'audio' && (
@@ -132,11 +130,21 @@ const FileInput: React.FC<FileInputProps> = ({
                  <button
                     type="button"
                     onClick={triggerFileInput}
-                    className={`${containerClasses} bg-slate-50 border-slate-300 hover:border-blue-400 hover:bg-blue-50`}
+                    className={`${containerClasses} ${isUploading ? 'cursor-not-allowed bg-slate-200' : 'bg-slate-50 border-slate-300 hover:border-blue-400 hover:bg-blue-50'}`}
+                    disabled={isUploading}
                 >
                     <div className={`flex items-center text-slate-500 text-center ${variant === 'compact' ? 'flex-col' : 'flex-row'}`}>
-                        <Upload size={variant === 'compact' ? 20 : 24} className={variant === 'compact' ? 'mb-1' : 'mr-2'} />
-                        <span>{label}</span>
+                        {isUploading ? (
+                            <>
+                                <Loader2 size={variant === 'compact' ? 20 : 24} className={`animate-spin ${variant === 'compact' ? 'mb-1' : 'mr-2'}`} />
+                                <span>Đang tải lên...</span>
+                            </>
+                        ) : (
+                            <>
+                                <Upload size={variant === 'compact' ? 20 : 24} className={variant === 'compact' ? 'mb-1' : 'mr-2'} />
+                                <span>{label}</span>
+                            </>
+                        )}
                     </div>
                 </button>
             )}

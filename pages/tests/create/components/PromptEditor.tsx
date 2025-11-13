@@ -46,8 +46,8 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ prompt, onPromptChange }) =
 
   const images = getImages();
 
-  const handleImageChange = (index: number, file: File | null) => {
-    const updatedImages = images.map((img, i) => (i === index ? { ...img, url: file ? URL.createObjectURL(file) : '' } : img));
+  const handleImageChange = (index: number, url: string | null) => {
+    const updatedImages = images.map((img, i) => (i === index ? { ...img, url: url || '' } : img));
     onPromptChange({ image_json: { type: 'image_list', images: updatedImages } });
   };
 
@@ -100,7 +100,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ prompt, onPromptChange }) =
             id={`prompt-image-${prompt.id}`}
             label="Hình ảnh cho đề bài"
             value={prompt.image_json?.type === 'single_image' ? prompt.image_json.url : undefined}
-            onFileChange={(file) => onPromptChange({ image_json: file ? { type: 'single_image', url: URL.createObjectURL(file) } : undefined })}
+            onFileChange={(url) => onPromptChange({ image_json: url ? { type: 'single_image', url: url } : undefined })}
             accept="image/*"
           />
         ) : (
@@ -113,7 +113,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ prompt, onPromptChange }) =
                     id={`prompt-image-multi-${prompt.id}-${index}`}
                     label={`Ảnh ${img.label}`}
                     value={img.url}
-                    onFileChange={(file) => handleImageChange(index, file)}
+                    onFileChange={(url) => handleImageChange(index, url)}
                     accept="image/*"
                     variant="compact"
                   />
@@ -138,7 +138,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ prompt, onPromptChange }) =
         id={`prompt-audio-${prompt.id}`}
         label="Âm thanh cho đề bài (nếu có)"
         value={prompt.audio_url}
-        onFileChange={(file) => onPromptChange({ audio_url: file ? URL.createObjectURL(file) : undefined })}
+        onFileChange={(url) => onPromptChange({ audio_url: url })}
         accept="audio/*"
       />
     </div>

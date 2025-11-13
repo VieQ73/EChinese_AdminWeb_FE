@@ -196,14 +196,14 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
               id={`question-image-${question.id}`}
               label="Ảnh câu hỏi"
               value={question.image_url}
-              onFileChange={(file) => handleFieldChange('image_url', file ? URL.createObjectURL(file) : '')} 
+              onFileChange={(url) => handleFieldChange('image_url', url)} 
               accept="image/*"
           />
           <FileInput 
               id={`question-audio-${question.id}`}
               label="Âm thanh câu hỏi"
               value={question.audio_url}
-              onFileChange={(file) => handleFieldChange('audio_url', file ? URL.createObjectURL(file) : '')} 
+              onFileChange={(url) => handleFieldChange('audio_url', url)} 
               accept="audio/*"
           />
         </div>

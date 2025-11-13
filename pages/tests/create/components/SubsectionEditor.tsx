@@ -77,7 +77,7 @@ const SubsectionEditor: React.FC<SubsectionEditorProps> = ({
             id={`subsection-audio-${subsection.id}`}
             label={`File âm thanh giới thiệu cho ${subsection.name || `Phần ${subsectionIndex + 1}`}`}
             value={subsection.audio_url}
-            onFileChange={file => updateSubsection(subsection.id, { audio_url: file ? URL.createObjectURL(file) : undefined })}
+            onFileChange={url => updateSubsection(subsection.id, { audio_url: url })}
             accept="audio/*"
         />
 

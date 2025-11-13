@@ -62,7 +62,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                     id={`section-audio-${section.id}`}
                     label="File âm thanh chung/Giới thiệu (nếu có)"
                     value={section.audio_url}
-                    onFileChange={file => onUpdate(section.id, { audio_url: file ? URL.createObjectURL(file) : undefined })}
+                    onFileChange={url => onUpdate(section.id, { audio_url: url })}
                     accept="audio/*"
                 />
                 <FormField label="Mô tả Phần thi">
