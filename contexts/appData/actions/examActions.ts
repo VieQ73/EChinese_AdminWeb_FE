@@ -4,6 +4,7 @@ import { ExamType, ExamLevel, Exam } from '../../../types';
 import * as configApi from '../../../pages/tests/api/configApi';
 import * as examsApi from '../../../pages/tests/api/examsApi';
 import type { AddAdminLogPayload } from '../types';
+import { cacheService } from '../../../services/cacheService';
 
 interface UseExamActionsProps {
   setExamTypes: React.Dispatch<React.SetStateAction<ExamType[]>>;
@@ -52,6 +53,7 @@ export const useExamActions = ({ setExamTypes, setExamLevels, setExams, addAdmin
       const newExam = await examsApi.createExam(payload);
       setExams(prev => [newExam, ...prev]);
       addAdminLog({ action_type: 'CREATE_EXAM', target_id: newExam.id, description: `Tạo bài thi mới: ${newExam.name}` });
+      cacheService.invalidateExams();
       return newExam;
   }, [setExams, addAdminLog]);
 
@@ -75,6 +77,7 @@ export const useExamActions = ({ setExamTypes, setExamLevels, setExams, addAdmin
       }
       
       addAdminLog({ action_type, target_id: id, description });
+      cacheService.invalidateExams();
       return updatedExam;
   }, [setExams, addAdminLog]);
 
@@ -99,6 +102,7 @@ export const useExamActions = ({ setExamTypes, setExamLevels, setExams, addAdmin
       if (examToDelete) {
           addAdminLog({ action_type: 'DELETE_EXAM', target_id: id, description: `Xóa bài thi: ${examToDelete.name}` });
       }
+      cacheService.invalidateExams();
   }, [setExams, addAdminLog]);
 
   const duplicateExam = useCallback(async (id: string, newName: string) => {

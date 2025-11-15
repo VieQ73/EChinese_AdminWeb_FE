@@ -100,3 +100,53 @@ export const updateComment = (commentId: string, payload: Partial<Comment>): Pro
         });
     }
 };
+
+// =============================
+// REMOVE/RESTORE COMMENT API
+// =============================
+
+/**
+ * Payload khi gỡ bình luận
+ */
+export interface RemoveCommentPayload {
+    reason: string;        // Lý do gỡ (hiển thị trên log)
+    ruleIds: string[];     // Danh sách ID quy tắc vi phạm
+    resolution: string;    // Ghi chú hướng giải quyết
+    severity: 'low' | 'medium' | 'high'; // Mức độ vi phạm
+}
+
+/**
+ * Payload khi khôi phục bình luận
+ */
+export interface RestoreCommentPayload {
+    reason: string; // Lý do khôi phục
+}
+
+/**
+ * Response chung cho remove/restore comment
+ */
+export interface RemoveRestoreCommentResponse {
+    success: boolean;
+    message: string;
+    comment: Comment;
+}
+
+/**
+ * Gỡ bình luận - Đặt deleted_at, deleted_by, deleted_reason
+ * @param commentId - ID của bình luận cần gỡ
+ * @param payload - Thông tin đầy đủ về lý do gỡ
+ * @returns Promise với thông tin bình luận đã được cập nhật
+ */
+export const removeComment = (commentId: string, payload: RemoveCommentPayload): Promise<RemoveRestoreCommentResponse> => {
+    return apiClient.post<RemoveRestoreCommentResponse>(`/community/comments/${commentId}/remove`, payload);
+};
+
+/**
+ * Khôi phục bình luận - Xóa deleted_at, deleted_by, deleted_reason
+ * @param commentId - ID của bình luận cần khôi phục
+ * @param payload - Thông tin lý do khôi phục
+ * @returns Promise với thông tin bình luận đã được cập nhật
+ */
+export const restoreComment = (commentId: string, payload: RestoreCommentPayload): Promise<RemoveRestoreCommentResponse> => {
+    return apiClient.post<RemoveRestoreCommentResponse>(`/community/comments/${commentId}/restore`, payload);
+};

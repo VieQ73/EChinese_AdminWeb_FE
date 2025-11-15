@@ -5,6 +5,7 @@ import Modal from '../../../components/Modal';
 import BanUserForm from './forms/BanUserForm';
 import UnbanUserForm from './forms/UnbanUserForm';
 import { useAppData } from '../../../contexts/appData/context';
+import FileInput from '../../tests/create/components/shared/FileInput';
 
 interface FormData {
     logReason: string;
@@ -85,8 +86,13 @@ const UserActionModal: React.FC<UserActionModalProps> = ({
                         {canEditExtended && (
                             <>
                                 <div>
-                                    <label className="text-sm font-medium text-gray-700">URL Ảnh đại diện</label>
-                                    <input type="text" value={editableUser.avatar_url || ''} onChange={(e) => setEditableUser(prev => prev ? { ...prev, avatar_url: e.target.value } : null)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm bg-gray-50" />
+                                    <FileInput
+                                        id="user-avatar-upload"
+                                        label="Ảnh đại diện"
+                                        value={editableUser.avatar_url || null}
+                                        onFileChange={(url) => setEditableUser(prev => prev ? { ...prev, avatar_url: url || undefined } : null)}
+                                        accept="image/*"
+                                    />
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-gray-700">Trình độ HSK</label>

@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { Notebook, Vocabulary } from '../../../types';
 import * as api from '../../../pages/content/api';
 import type { AddAdminLogPayload } from '../types';
+import { cacheService } from '../../../services/cacheService';
 
 interface UseContentActionsProps {
   setNotebooks: React.Dispatch<React.SetStateAction<Notebook[]>>;
@@ -17,18 +18,21 @@ export const useContentActions = ({ setNotebooks, setVocabularies, addAdminLog }
     const newNotebook = await api.createNotebook(payload);
     setNotebooks(prev => [newNotebook, ...prev]);
     addAdminLog({ action_type: 'CREATE_NOTEBOOK', target_id: newNotebook.id, description: `Tạo sổ tay mới: ${newNotebook.name}` });
+    cacheService.invalidateContent();
   }, [setNotebooks, addAdminLog]);
 
   const updateNotebook = useCallback(async (id: string, payload: Partial<api.NotebookPayload>) => {
     const updated = await api.updateNotebook(id, payload);
     setNotebooks(prev => prev.map(n => n.id === id ? updated : n));
     addAdminLog({ action_type: 'UPDATE_NOTEBOOK', target_id: id, description: `Cập nhật sổ tay: ${updated.name}` });
+    cacheService.invalidateContent();
   }, [setNotebooks, addAdminLog]);
   
   const deleteNotebooks = useCallback(async (ids: string[]) => {
     await api.deleteNotebooks(ids);
     setNotebooks(prev => prev.filter(n => !ids.includes(n.id)));
     addAdminLog({ action_type: 'BULK_DELETE_NOTEBOOKS', description: `Xóa vĩnh viễn ${ids.length} sổ tay.` });
+    cacheService.invalidateContent();
   }, [setNotebooks, addAdminLog]);
 
   const bulkUpdateNotebookStatus = useCallback(async (ids: string[], status: 'published' | 'draft') => {
@@ -50,12 +54,14 @@ export const useContentActions = ({ setNotebooks, setVocabularies, addAdminLog }
     const createdCount = payloads.filter(p => !p.id).length;
     const updatedCount = payloads.length - createdCount;
     addAdminLog({ action_type: 'BULK_UPSERT_VOCABS', description: `Tạo ${createdCount} và cập nhật ${updatedCount} từ vựng.` });
+    cacheService.invalidateContent();
   }, [setVocabularies, addAdminLog]);
 
   const deleteVocabularies = useCallback(async (ids: string[]) => {
     await api.deleteVocabularies(ids);
     setVocabularies(prev => prev.filter(v => !ids.includes(v.id)));
     addAdminLog({ action_type: 'BULK_DELETE_VOCABS', description: `Xóa vĩnh viễn ${ids.length} từ vựng.` });
+    cacheService.invalidateContent();
   }, [setVocabularies, addAdminLog]);
 
 

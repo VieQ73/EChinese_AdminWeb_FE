@@ -2,6 +2,7 @@
 import { useCallback } from 'react';
 import { User, UserUsage } from '../../../types';
 import type { AddAdminLogPayload } from '../types';
+import { cacheService } from '../../../services/cacheService';
 
 interface UseUserActionsProps {
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
@@ -13,6 +14,8 @@ export const useUserActions = ({ setUsers, setUserUsage, addAdminLog }: UseUserA
 
   const updateUser = useCallback((userId: string, updates: Partial<User>) => {
     setUsers(prev => prev.map(u => (u.id === userId ? { ...u, ...updates } : u)));
+    // Invalidate cache khi cập nhật user
+    cacheService.invalidateUsers();
     // Ghi log được xử lý ở tầng cao hơn (ví dụ: useUserActions hook của trang UserDetail)
     // để có ngữ cảnh đầy đủ hơn.
   }, [setUsers]);

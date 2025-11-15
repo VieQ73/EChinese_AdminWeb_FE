@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { CommunityRule } from '../../../types';
 import * as api from '../../../pages/rules/api';
 import type { AddAdminLogPayload } from '../types';
+import { cacheService } from '../../../services/cacheService';
 
 interface UseRuleActionsProps {
   setCommunityRules: React.Dispatch<React.SetStateAction<CommunityRule[]>>;
@@ -15,12 +16,14 @@ export const useRuleActions = ({ setCommunityRules, addAdminLog }: UseRuleAction
     const newRule = await api.createRule(payload);
     setCommunityRules(prev => [newRule, ...prev]);
     addAdminLog({ action_type: 'CREATE_RULE', target_id: newRule.id, description: `Tạo quy tắc mới: ${newRule.title}` });
+    cacheService.invalidateCommunity();
   }, [setCommunityRules, addAdminLog]);
 
   const updateRule = useCallback(async (id: string, payload: Partial<api.RulePayload>) => {
     const updatedRule = await api.updateRule(id, payload);
     setCommunityRules(prev => prev.map(r => (r.id === id ? updatedRule : r)));
     addAdminLog({ action_type: 'UPDATE_RULE', target_id: id, description: `Cập nhật quy tắc: ${updatedRule.title}` });
+    cacheService.invalidateCommunity();
   }, [setCommunityRules, addAdminLog]);
 
   const deleteRule = useCallback(async (id: string) => {
@@ -30,6 +33,7 @@ export const useRuleActions = ({ setCommunityRules, addAdminLog }: UseRuleAction
     if (ruleToDelete) {
         addAdminLog({ action_type: 'DELETE_RULE', target_id: id, description: `Xóa quy tắc: ${ruleToDelete.title}` });
     }
+    cacheService.invalidateCommunity();
   }, [setCommunityRules, addAdminLog]);
 
   return { createRule, updateRule, deleteRule };

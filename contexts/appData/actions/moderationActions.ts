@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Violation, ViolationRule, ModerationLog } from '../../../types';
 import type { AddViolationPayload, AddModerationLogPayload } from '../types';
+import { cacheService } from '../../../services/cacheService';
 
 interface UseModerationActionsProps {
     setViolationsData: React.Dispatch<React.SetStateAction<Omit<Violation, 'rules' | 'user' | 'targetContent'>[]>>;
@@ -36,6 +37,9 @@ export const useModerationActions = ({ setViolationsData, setViolationRules, set
             rule_id: ruleId,
         }));
         setViolationRules(prev => [...prev, ...newRules]);
+        
+        // Invalidate cache khi thêm violation
+        cacheService.invalidateViolations();
     }, [setViolationsData, setViolationRules]);
     
     const removeViolationByTarget = useCallback((targetType: 'post' | 'comment' | 'user', targetId: string) => {
@@ -51,6 +55,8 @@ export const useModerationActions = ({ setViolationsData, setViolationRules, set
             setViolationRules(prev => prev.filter(vr => vr.violation_id !== violationIdToRemove));
         }
 
+        // Invalidate cache khi xóa violation
+        cacheService.invalidateViolations();
     }, [setViolationsData, setViolationRules]);
 
     const addModerationLog = useCallback((payload: AddModerationLogPayload) => {
@@ -65,6 +71,9 @@ export const useModerationActions = ({ setViolationsData, setViolationRules, set
             target_id: payload.target_id,
             description: `${payload.action === 'remove' ? 'Gỡ' : 'Khôi phục'} ${payload.target_type} với lý do: ${payload.reason}`
         });
+        
+        // Invalidate cache khi thêm moderation log
+        cacheService.invalidateViolations();
     }, [setModerationLogs, addAdminLog]);
 
     return { addViolation, removeViolationByTarget, addModerationLog };

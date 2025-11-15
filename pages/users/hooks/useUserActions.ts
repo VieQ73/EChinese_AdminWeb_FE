@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { User } from '../../../types';
 import { useAppData } from '../../../contexts/appData/context';
-import { updateUser, resetUserQuota, UserDetailData, deleteUser, resetUserPassword } from '../userApi';
+import { updateUser, resetUserQuota, UserDetailData, deleteUser, resetUserPassword, banUser, unbanUser } from '../userApi';
 
 // Định nghĩa props cho custom hook
 interface UseUserActionsProps {
@@ -37,10 +37,20 @@ export const useUserActions = ({
             switch (action) {
                 case 'ban-user': {
                     const { logReason, ruleIds, resolution, severity } = data;
-                    const updatedUser = await updateUser(user.id, { is_active: false });
-                    setData(d => d ? { ...d, user: updatedUser } : null);
+                    
+                    // Gọi API ban user với đầy đủ thông tin
+                    const response = await banUser(user.id, {
+                        reason: logReason,
+                        ruleIds: ruleIds,
+                        resolution: resolution || `Tài khoản bị cấm. Lý do: ${logReason}`,
+                        severity: severity
+                    });
+                    
+                    // Cập nhật state local
+                    setData(d => d ? { ...d, user: response.user } : null);
                     updateContextUser(user.id, { is_active: false });
                     
+                    // Tạo vi phạm trong context (để hiển thị trong UI)
                     addViolation({
                         user_id: user.id,
                         target_type: 'user',
@@ -51,23 +61,55 @@ export const useUserActions = ({
                         detected_by: currentUser.role === 'super admin' ? 'super admin' : 'admin'
                     });
 
-                    addModerationLog({ target_type: 'user', target_id: user.id, action: 'remove', reason: logReason, performed_by: currentUser.id });
-                    addAdminLog({ action_type: 'BAN_USER', target_id: user.id, description: `Cấm người dùng: ${user.name}. Lý do: ${logReason}` });
+                    // Ghi log kiểm duyệt (để hiển thị trong UI)
+                    addModerationLog({ 
+                        target_type: 'user', 
+                        target_id: user.id, 
+                        action: 'remove', 
+                        reason: logReason, 
+                        performed_by: currentUser.id 
+                    });
                     
-                    message = `Đã cấm người dùng ${user.name}`;
+                    // Ghi log admin (để hiển thị trong UI)
+                    addAdminLog({ 
+                        action_type: 'BAN_USER', 
+                        target_id: user.id, 
+                        description: `Cấm người dùng: ${user.name}. Lý do: ${logReason}` 
+                    });
+                    
+                    message = response.message || `Đã cấm người dùng ${user.name}`;
                     break;
                 }
                 case 'unban-user': {
-                     const { logReason } = data;
-                     const updatedUser = await updateUser(user.id, { is_active: true });
-                     setData(d => d ? { ...d, user: updatedUser } : null);
-                     updateContextUser(user.id, { is_active: true });
-                     
-                     removeViolationByTarget('user', user.id);
-                     addModerationLog({ target_type: 'user', target_id: user.id, action: 'restore', reason: logReason, performed_by: currentUser.id });
-                     addAdminLog({ action_type: 'UNBAN_USER', target_id: user.id, description: `Bỏ cấm người dùng: ${user.name}. Lý do: ${logReason}` });
+                    const { logReason } = data;
+                    
+                    // Gọi API unban user với lý do
+                    const response = await unbanUser(user.id, { reason: logReason });
+                    
+                    // Cập nhật state local
+                    setData(d => d ? { ...d, user: response.user } : null);
+                    updateContextUser(user.id, { is_active: true });
+                    
+                    // Xóa vi phạm trong context
+                    removeViolationByTarget('user', user.id);
+                    
+                    // Ghi log kiểm duyệt
+                    addModerationLog({ 
+                        target_type: 'user', 
+                        target_id: user.id, 
+                        action: 'restore', 
+                        reason: logReason, 
+                        performed_by: currentUser.id 
+                    });
+                    
+                    // Ghi log admin
+                    addAdminLog({ 
+                        action_type: 'UNBAN_USER', 
+                        target_id: user.id, 
+                        description: `Bỏ cấm người dùng: ${user.name}. Lý do: ${logReason}` 
+                    });
 
-                    message = `Đã bỏ cấm người dùng ${user.name}`;
+                    message = response.message || `Đã bỏ cấm người dùng ${user.name}`;
                     break;
                 }
                 case 'edit-info': {

@@ -127,13 +127,37 @@ export const useCommunityHandlers = ({ currentUser, state, setters, context, ref
                     });
                 }
             } else { // type === 'comment'
-                const payload = {
-                    deleted_at: action === 'remove' ? new Date().toISOString() : null,
-                    deleted_by: action === 'remove' ? currentUser.id : null,
-                    deleted_reason: action === 'remove' ? reasonForLog : null, // Sử dụng lý do tự động
-                };
-                const updatedCommentEnvelope = await api.updateComment(item.id, payload);
-                context.updateComment(item.id, updatedCommentEnvelope.data);
+                if (action === 'remove') {
+                    // Gọi API removeComment với đầy đủ thông tin
+                    const removePayload: api.RemoveCommentPayload = {
+                        reason: reasonForLog,
+                        ruleIds: ruleIds || [],
+                        resolution: resolution || 'Bình luận đã bị gỡ.',
+                        severity: severity || 'low'
+                    };
+                    const response = await api.removeComment(item.id, removePayload);
+                    context.updateComment(item.id, response.comment);
+                    
+                    // Nếu admin/mod gỡ bình luận người khác, tạo violation
+                    if (!isSelfAction && ruleIds && ruleIds.length > 0 && severity) {
+                        context.addViolation({
+                            user_id: item.user_id,
+                            target_type: 'comment',
+                            target_id: item.id,
+                            ruleIds,
+                            severity,
+                            resolution: resolution || 'Bình luận đã bị gỡ.',
+                            detected_by: currentUser.role === 'super admin' ? 'super admin' : 'admin'
+                        });
+                    }
+                } else {
+                    // Gọi API restoreComment
+                    const restorePayload: api.RestoreCommentPayload = {
+                        reason: reasonForLog
+                    };
+                    const response = await api.restoreComment(item.id, restorePayload);
+                    context.updateComment(item.id, response.comment);
+                }
             }
 
             // Nếu khôi phục bài người khác, xóa violation nếu có
@@ -147,7 +171,7 @@ export const useCommunityHandlers = ({ currentUser, state, setters, context, ref
 
             setters.setModerationModalOpen(false);
             setters.setModerationAction(null);
-            refreshData();
+            // Không cần refreshData() vì context đã cập nhật và cache đã được invalidate
         } catch (error) {
             console.error("Failed to confirm moderation action", error);
             alert("Đã có lỗi xảy ra.");
@@ -162,20 +186,19 @@ export const useCommunityHandlers = ({ currentUser, state, setters, context, ref
                 const updatedPost = await api.updatePost(state.editingPost.id, postData);
                 // Cập nhật context để đồng bộ chỉ số
                 context.updatePost(state.editingPost.id, updatedPost);
-                refreshData();
+                // Không cần refreshData() vì context đã cập nhật và cache đã được invalidate
             } else {
                 const newRawPost = await api.createPost(postData, currentUser);
                 // Cập nhật context để đồng bộ chỉ số ở Dashboard và StatsDisplay
                 context.addPost(newRawPost);
-                // Tải lại feed để hiển thị bài mới nhất ở đầu trang
-                refreshData(); 
+                // Không cần refreshData() vì context đã cập nhật và cache đã được invalidate
             }
             setters.setCreateEditModalOpen(false);
         } catch (error) {
              console.error("Failed to save post", error);
              alert("Lưu bài viết thất bại.");
         }
-    }, [currentUser, state.editingPost, setters, refreshData, context]);
+    }, [currentUser, state.editingPost, setters, context]);
 
     const handleToggleLike = useCallback(async (postId: string) => {
         if (!currentUser) return;

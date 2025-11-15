@@ -27,6 +27,7 @@ import { fetchRules as fetchCommunityRules } from '../../pages/rules/api';
 import { fetchModerationLogs } from '../../pages/community/api/stats';
 import { fetchViolations } from '../../pages/moderation/api/violations';
 import { fetchAdminLogs } from '../../pages/system/api';
+import { cacheService, CACHE_KEYS } from '../../services/cacheService';
 
 interface AppDataProviderProps {
     children: ReactNode;
@@ -44,29 +45,45 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         const loadInitialData = async () => {
             console.log("Authenticated, loading initial data...");
             try {
-                const [types, levels, examsResponse, badges, achievements, rulesResponse, moderationLogsRes, violationsRes, adminLogsRes] = await Promise.all([
-                    fetchExamTypes(),
-                    fetchExamLevels(),
-                    fetchExams({ page: 1, limit: 1000 }), // Fetch a large number of exams initially
-                    fetchBadges(),
-                    fetchAchievements({ page: 1, limit: 1000 }),
-                    fetchCommunityRules({ page: 1, limit: 1000, status: 'all' }),
-                    fetchModerationLogs(),
-                    fetchViolations({ page: 1, limit: 1000, severity: 'all', targetType: 'all' }),
-                    fetchAdminLogs(),
-                ]);
-                state.setExamTypes(types);
-                state.setExamLevels(levels);
-                state.setExams(examsResponse.data);
-                state.setBadges(badges);
-                state.setAchievements(achievements.data);
-                state.setCommunityRules(rulesResponse.data);
-                state.setModerationLogs(moderationLogsRes.data);
-                // Map enriched violations to raw shape expected by state
-                // Keep enriched fields (user, rules, targetContent) to improve detail displays; selectors will fallback to these.
-                const rawViolations = violationsRes.data.data as any[];
-                state.setViolationsData(rawViolations as any);
-                state.setAdminLogs(adminLogsRes);
+                // Thử load từ cache trước
+                const cachedTypes = cacheService.get(CACHE_KEYS.EXAM_TYPES);
+                const cachedLevels = cacheService.get(CACHE_KEYS.EXAM_LEVELS);
+                const cachedExams = cacheService.get(CACHE_KEYS.EXAMS);
+                const cachedBadges = cacheService.get(CACHE_KEYS.BADGES);
+                const cachedAchievements = cacheService.get(CACHE_KEYS.ACHIEVEMENTS);
+                const cachedRules = cacheService.get(CACHE_KEYS.COMMUNITY_RULES);
+                const cachedModerationLogs = cacheService.get(CACHE_KEYS.MODERATION_LOGS);
+                const cachedViolations = cacheService.get(CACHE_KEYS.VIOLATIONS);
+                const cachedAdminLogs = cacheService.get(CACHE_KEYS.ADMIN_LOGS);
+
+                // Set dữ liệu từ cache ngay lập tức nếu có
+                if (cachedTypes) state.setExamTypes(cachedTypes as any);
+                if (cachedLevels) state.setExamLevels(cachedLevels as any);
+                if (cachedExams) state.setExams(cachedExams as any);
+                if (cachedBadges) state.setBadges(cachedBadges as any);
+                if (cachedAchievements) state.setAchievements(cachedAchievements as any);
+                if (cachedRules) state.setCommunityRules(cachedRules as any);
+                if (cachedModerationLogs) state.setModerationLogs(cachedModerationLogs as any);
+                if (cachedViolations) state.setViolationsData(cachedViolations as any);
+                if (cachedAdminLogs) state.setAdminLogs(cachedAdminLogs as any);
+
+                // Fetch dữ liệu mới từ API (chỉ fetch những gì chưa có trong cache)
+                const fetchPromises: Promise<any>[] = [];
+                
+                if (!cachedTypes) fetchPromises.push(fetchExamTypes().then(data => { state.setExamTypes(data); cacheService.set(CACHE_KEYS.EXAM_TYPES, data); }));
+                if (!cachedLevels) fetchPromises.push(fetchExamLevels().then(data => { state.setExamLevels(data); cacheService.set(CACHE_KEYS.EXAM_LEVELS, data); }));
+                if (!cachedExams) fetchPromises.push(fetchExams({ page: 1, limit: 1000 }).then(res => { state.setExams(res.data); cacheService.set(CACHE_KEYS.EXAMS, res.data); }));
+                if (!cachedBadges) fetchPromises.push(fetchBadges().then(data => { state.setBadges(data); cacheService.set(CACHE_KEYS.BADGES, data); }));
+                if (!cachedAchievements) fetchPromises.push(fetchAchievements({ page: 1, limit: 1000 }).then(res => { state.setAchievements(res.data); cacheService.set(CACHE_KEYS.ACHIEVEMENTS, res.data); }));
+                if (!cachedRules) fetchPromises.push(fetchCommunityRules({ page: 1, limit: 1000, status: 'all' }).then(res => { state.setCommunityRules(res.data); cacheService.set(CACHE_KEYS.COMMUNITY_RULES, res.data); }));
+                if (!cachedModerationLogs) fetchPromises.push(fetchModerationLogs().then(res => { state.setModerationLogs(res.data); cacheService.set(CACHE_KEYS.MODERATION_LOGS, res.data); }));
+                if (!cachedViolations) fetchPromises.push(fetchViolations({ page: 1, limit: 1000, severity: 'all', targetType: 'all' }).then(res => { const rawViolations = res.data.data as any[]; state.setViolationsData(rawViolations as any); cacheService.set(CACHE_KEYS.VIOLATIONS, rawViolations); }));
+                if (!cachedAdminLogs) fetchPromises.push(fetchAdminLogs().then(data => { state.setAdminLogs(data); cacheService.set(CACHE_KEYS.ADMIN_LOGS, data); }));
+
+                // Chờ tất cả các fetch hoàn thành
+                if (fetchPromises.length > 0) {
+                    await Promise.all(fetchPromises);
+                }
             } catch (error) {
                 console.error("Failed to load initial app data:", error);
             }
@@ -75,7 +92,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         if (isAuthenticated) {
             loadInitialData();
         } else {
-            // Optional: Clear data on logout to prevent stale data showing up briefly on next login
+            // Clear data và cache khi logout
             console.log("Not authenticated, clearing initial data...");
             state.setExamTypes([]);
             state.setExamLevels([]);
@@ -86,6 +103,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
             state.setCommunityRules([]);
             state.setModerationLogs([]);
             state.setViolationsData([]);
+            cacheService.clearAll();
         }
     }, [isAuthenticated]); // Dependency array now listens to authentication status changes
 

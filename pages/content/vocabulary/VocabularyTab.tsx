@@ -30,6 +30,7 @@ const VocabularyTab: React.FC = () => {
     const [notebooks, setNotebooks] = useState<Notebook[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [levelFilter, setLevelFilter] = useState<string>('all');
     const [wordTypeFilter, setWordTypeFilter] = useState<string>('all');
     
@@ -50,14 +51,23 @@ const VocabularyTab: React.FC = () => {
         message: '',
     });
     
+    // Debounce search term để tối ưu performance
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+        }, 300);
+        
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+    
     // Filter vocabulary list based on all filters
     const filteredVocabList = useMemo(() => {
         return vocabList.filter(vocab => {
-            // Search filter
-            const matchesSearch = searchTerm === '' || 
-                vocab.hanzi.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                vocab.pinyin.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                vocab.meaning.toLowerCase().includes(searchTerm.toLowerCase());
+            // Search filter - sử dụng debouncedSearchTerm
+            const matchesSearch = debouncedSearchTerm === '' || 
+                vocab.hanzi.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                vocab.pinyin.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                vocab.meaning.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
             
             // Level filter
             const matchesLevel = levelFilter === 'all' || 
@@ -69,7 +79,7 @@ const VocabularyTab: React.FC = () => {
             
             return matchesSearch && matchesLevel && matchesWordType;
         });
-    }, [vocabList, searchTerm, levelFilter, wordTypeFilter]);
+    }, [vocabList, debouncedSearchTerm, levelFilter, wordTypeFilter]);
     
     const { selectedVocabs, handleSelect, handleSelectAll, clearSelection } = useVocabSelection(filteredVocabList);
 

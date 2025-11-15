@@ -120,7 +120,6 @@ export const createPost = (postData: Omit<RawPost, 'id' | 'created_at' | 'user_i
  * Cập nhật một bài viết.
  */
 export const updatePost = (postId: string, postData: Partial<Omit<RawPost, 'id'>>): Promise<Post> => {
-    console.log("updatePost "+JSON.stringify(postData)  );
     
     return apiClient.put(`/community/posts/${postId}`, postData);
 
@@ -158,8 +157,6 @@ export const moderatePost = (postId: string, payload: {
         target_id: string;
     };
 }): Promise<Post> => {
-    console.log(JSON.stringify(payload));
-    
     return apiClient.post(`/community/posts/${postId}/moderation`, payload);
 
     if (USE_MOCK_API) {
