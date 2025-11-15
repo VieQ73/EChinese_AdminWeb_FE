@@ -74,7 +74,7 @@ export const useSettingsActions = ({
   }, [setBadges, addAdminLog]);
 
   const resyncAllUserBadges = useCallback(async () => {
-      const { updatedUsers } = await api.resyncAllUserBadges();
+      const  updatedUsers = await api.resyncAllUserBadges();
       // This is a mock implementation; a real app might just refetch all users.
       // Here, we update the existing users state.
       setUsers(updatedUsers);

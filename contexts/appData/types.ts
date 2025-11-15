@@ -127,8 +127,12 @@ export interface AppDataContextType {
     deleteExamLevel: (id: string) => Promise<void>;
     createExam: (payload: ExamPayload) => Promise<Exam>;
     updateExam: (id: string, payload: Partial<ExamPayload>) => Promise<Exam>;
+    publishExam: (id: string) => Promise<Exam>;
+    unpublishExam: (id: string) => Promise<Exam>;
     deleteExam: (id: string) => Promise<void>;
-    duplicateExam: (id: string, newName: string) => Promise<void>;
+    duplicateExam: (id: string, newName: string) => Promise<Exam>;
+    trashExam: (id: string) => Promise<Exam>;
+    restoreExam: (id: string) => Promise<Exam>;
 
     // Content
     createNotebook: (payload: NotebookPayload) => Promise<void>;

@@ -9,6 +9,8 @@ interface RemovedContentTabProps {
     initialSubTab?: 'posts' | 'comments';
     getRemovedPostsByUserId: (userId: string) => Post[];
     getRemovedCommentsByUserId: (userId: string) => CommentWithUser[];
+    removedPosts?: Post[];
+    removedComments?: CommentWithUser[];
     onPostSelect: (post: Post) => void;
     likedPosts: Set<string>;
     viewedPosts: Set<string>;
@@ -38,6 +40,8 @@ const RemovedContentTab: React.FC<RemovedContentTabProps> = ({
     initialSubTab,
     getRemovedPostsByUserId,
     getRemovedCommentsByUserId,
+    removedPosts: removedPostsProp,
+    removedComments: removedCommentsProp,
     onRestorePost,
     onRestoreComment,
     onEditPost,
@@ -50,8 +54,8 @@ const RemovedContentTab: React.FC<RemovedContentTabProps> = ({
         setActiveSubTab(initialSubTab || 'posts');
     }, [initialSubTab]);
 
-    const removedPosts = useMemo(() => getRemovedPostsByUserId(user.id), [user.id, getRemovedPostsByUserId]);
-    const removedComments = useMemo(() => getRemovedCommentsByUserId(user.id), [user.id, getRemovedCommentsByUserId]);
+    const removedPosts = useMemo(() => removedPostsProp ?? getRemovedPostsByUserId(user.id), [user.id, getRemovedPostsByUserId, removedPostsProp]);
+    const removedComments = useMemo(() => removedCommentsProp ?? getRemovedCommentsByUserId(user.id), [user.id, getRemovedCommentsByUserId, removedCommentsProp]);
 
     const renderContent = () => {
         if (activeSubTab === 'posts') {

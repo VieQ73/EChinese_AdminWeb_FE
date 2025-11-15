@@ -6,6 +6,7 @@ import { apiClient } from '../services/apiClient';
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
+  initialized: boolean;
   login: (user: User | null, token?: string, refreshToken?: string) => void;
   logout: () => void;
 }
@@ -19,13 +20,19 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
+  const [initialized, setInitialized] = useState<boolean>(false);
 
   // Khởi tạo từ localStorage (nếu trước đó đã đăng nhập)
   useEffect(() => {
     try {
       const savedUser = localStorage.getItem('auth_user');
       const token = localStorage.getItem('token');
+      const refreshToken = localStorage.getItem('refreshToken');
       if (token) {
+        // restore token into api client so subsequent requests have Authorization header
+        try {
+          apiClient.setTokens(token, refreshToken || undefined);
+        } catch {}
         setIsAuthenticated(true);
         if (savedUser && savedUser !== 'undefined') {
           try {
@@ -37,6 +44,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch {
       // ignore
+    } finally {
+      setInitialized(true);
     }
   }, []);
 
@@ -57,6 +66,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     setIsAuthenticated(true);
     setUser(userData ?? null);
+    setInitialized(true);
   };
 
   const logout = () => {
@@ -68,10 +78,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // ignore
     }
     apiClient.clearTokens();
+    setInitialized(true);
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, initialized, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

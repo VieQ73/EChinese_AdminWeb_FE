@@ -31,6 +31,7 @@ const CommunityManagementPage: React.FC = () => {
     // --- Local State for Posts ---
     const [posts, setPosts] = useState<Post[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [communityStats, setCommunityStats] = useState<{ postCount: number; commentCount: number; moderationCount: number } | null>(null);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     
@@ -65,6 +66,21 @@ const CommunityManagementPage: React.FC = () => {
     useEffect(() => {
         loadPosts(false);
     }, [state.filters.topic]);
+
+    // --- Fetch Community Stats from API ---
+    const loadStats = useCallback(async () => {
+        try {
+            const res = await api.fetchCommunityStats();
+            // API returns envelope: { success, data }
+            setCommunityStats(res.data);
+        } catch (e) {
+            console.error('Failed to load community stats', e);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadStats();
+    }, [loadStats]);
 
     // --- Đồng bộ hóa state cục bộ với context ---
     const { postLikes, postViews, comments: contextComments } = useAppData();
@@ -104,11 +120,11 @@ const CommunityManagementPage: React.FC = () => {
     const viewedPosts = useMemo(() => new Set(context.postViews.filter(v => v.user_id === currentUser?.id).map(v => v.post_id)), [context.postViews, currentUser]);
     
     const stats = useMemo(() => ({
-        postCount: context.posts.filter(p => p.status === 'published').length,
-        commentCount: context.comments.filter(c => !c.deleted_at).length,
-        moderationCount: context.posts.filter(p => p.status === 'removed').length + context.comments.filter(c => !!c.deleted_at).length,
+        postCount: communityStats?.postCount ?? context.posts.filter(p => p.status === 'published').length,
+        commentCount: communityStats?.commentCount ?? context.comments.filter(c => !c.deleted_at).length,
+        moderationCount: communityStats?.moderationCount ?? (context.posts.filter(p => p.status === 'removed').length + context.comments.filter(c => !!c.deleted_at).length),
         logs: context.moderationLogs,
-    }), [context.posts, context.comments, context.moderationLogs]);
+    }), [communityStats, context.posts, context.comments, context.moderationLogs]);
 
     return (
         <div className="space-y-6">
@@ -181,6 +197,7 @@ const CommunityManagementPage: React.FC = () => {
                     currentUser={currentUser}
                     initialTab={state.initialActivityTab}
                     initialSubTab={state.initialActivitySubTab}
+                    activityData={state.selectedUserActivity}
                     getPostsByUserId={(userId) => posts.filter(p => p.user_id === userId && p.status !== 'draft')}
                     getLikedPostsByUserId={context.getLikedPostsByUserId}
                     getCommentedPostsByUserId={context.getCommentedPostsByUserId}

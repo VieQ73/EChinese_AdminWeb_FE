@@ -38,7 +38,14 @@ const enrichRefund = (refund: Refund): Refund => {
     };
 };
 
-export const fetchRefunds = (params: FetchRefundsParams = {}): Promise<PaginatedResponse<Refund>> => {
+export const fetchRefunds = async (params: FetchRefundsParams = {}): Promise<PaginatedResponse<Refund>> => {
+    
+        // Kết nối API thật
+    const queryParams = new URLSearchParams(params as any).toString();
+    const response = await apiClient.get<any>(`/monetization/refunds?${queryParams}`);
+    // Backend trả về { success: true, data: { data: Refund[], meta: {...} } }
+    return (response as any).data as PaginatedResponse<Refund>;
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -75,12 +82,15 @@ export const fetchRefunds = (params: FetchRefundsParams = {}): Promise<Paginated
             }, 500);
         });
     }
-    // Kết nối API thật
-    const queryParams = new URLSearchParams(params as any).toString();
-    return apiClient.get(`/monetization/refunds?${queryParams}`);
+
 };
 
-export const processRefund = (refundId: string, payload: ProcessRefundPayload): Promise<Refund> => {
+export const processRefund = async (refundId: string, payload: ProcessRefundPayload): Promise<Refund> => {
+    // Kết nối API thật: xử lý theo refundId
+    const response = await apiClient.put<any>(`/monetization/refunds/${refundId}/process`, payload);
+    // Backend trả về { success: true, data: Refund }
+    return (response as any).data as Refund;
+    
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -119,6 +129,7 @@ export const processRefund = (refundId: string, payload: ProcessRefundPayload): 
             }, 800);
         });
     }
-    // Kết nối API thật
-    return apiClient.put(`/monetization/refunds/${refundId}/process`, payload);
+
 };
+
+

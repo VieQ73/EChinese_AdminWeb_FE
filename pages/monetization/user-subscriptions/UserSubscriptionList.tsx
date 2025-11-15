@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { EnrichedUserSubscription, UserSubscriptionHistoryItem } from '../../../types';
 import { AuthContext } from '../../../contexts/AuthContext';
 import { useAppData } from '../../../contexts/appData/context';
-import { fetchEnrichedUserSubscriptions, fetchUserSubscriptionHistory, updateUserSubscriptionDetails, UpdateUserSubscriptionDetailsPayload } from '../api';
-import { resetUserQuota } from '../../users/userApi'; // Import API reset quota
+import { fetchEnrichedUserSubscriptions, fetchUserSubscriptionHistory, updateUserSubscriptionDetails, UpdateUserSubscriptionDetailsPayload, resetUserUsage } from '../api';
 
 import { Pagination } from '../../../components/ui/pagination';
 import UserSubscriptionToolbar from './components/UserSubscriptionToolbar';
@@ -86,7 +85,7 @@ const UserSubscriptionList: React.FC = () => {
     const handleResetQuota = async (userId: string, feature: 'ai_lesson' | 'ai_translate') => {
         setIsProcessing(true);
         try {
-            await resetUserQuota(userId, feature);
+            await resetUserUsage(userId, [feature]);
             // Cập nhật context để đồng bộ với trang User Detail
             updateUserUsage(userId, feature, { daily_count: 0, last_reset: new Date().toISOString() });
             // Tải lại dữ liệu để cập nhật quota trên bảng

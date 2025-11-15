@@ -70,51 +70,60 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({ isOpen, onClose, 
   const processAndNavigate = () => {
     if (!updatedReport) return;
 
-    // Bước 1: Luôn cập nhật trạng thái nếu đang chờ xử lý.
+    // Luôn chuyển sang trạng thái đang xử lý nếu còn pending.
     if (updatedReport.status === 'pending') {
-        onAction(updatedReport.id, 'start_processing', { resolution: "Báo cáo đang được xử lý." });
+      onAction(updatedReport.id, 'start_processing', { resolution: 'Báo cáo đang được xử lý.' });
     }
 
-    // Bước 2: Tính toán đường dẫn điều hướng.
     let path = '';
     const { target_type, target_id, targetContent } = updatedReport;
-    const isNavigable = ['user', 'post', 'comment'].includes(target_type);
+    if (!['user', 'post', 'comment'].includes(target_type)) {
+      return;
+    }
 
-    if (isNavigable) {
-        const content = targetContent as Partial<RawPost & Comment>;
-        const isRemoved = content?.status === 'removed' || !!content?.deleted_at;
+    // Lấy bản mới nhất của content để tránh dữ liệu cũ.
+    let latestContent: Partial<RawPost & Comment> | undefined;
+    if (target_type === 'post') {
+      latestContent = posts.find(p => p.id === target_id);
+    } else if (target_type === 'comment') {
+      latestContent = comments.find(c => c.id === target_id);
+    }
+    const content = latestContent || (targetContent as (Partial<RawPost & Comment>) | undefined);
 
-        if (isRemoved && (target_type === 'post' || target_type === 'comment')) {
-            const userId = (content as any).user_id;
-            if (userId) {
-                const subTab = target_type === 'post' ? 'posts' : 'comments';
-                path = `/community?openUserActivity=${userId}&tab=removed&subTab=${subTab}`;
-            }
-        } else {
-            switch(target_type) {
-                case 'user':
-                    path = `/users/${target_id}`;
-                    break;
-                case 'post':
-                    path = `/community?openPostId=${target_id}`;
-                    break;
-                case 'comment':
-                    const findPostIdByCommentId = (commentId: string) => {
-                        return comments.find(c => c.id === commentId)?.post_id;
-                    };
-                    const postId = findPostIdByCommentId(target_id);
-                    if (postId) {
-                        path = `/community?openPostId=${postId}&highlightCommentId=${target_id}`;
-                    }
-                    break;
-            }
-        }
+    const isRemoved = (content as RawPost)?.status === 'removed' || !!(content as Comment)?.deleted_at;
+    let userId = (content as any)?.user_id || (content as any)?.user?.id;
+    if (!userId && target_type === 'post') {
+      const p = posts.find(p => p.id === target_id);
+      if (p) userId = (p as any).user_id || p.user?.id;
     }
     
-    // Bước 3: Điều hướng nếu có đường dẫn.
+
+    if (isRemoved && (target_type === 'post')) {
+      const subTab = target_type === 'post' ? 'posts' : 'comments';
+      console.log(subTab);
+      const uid = (content as any)?.author_id
+      path = `/community?openUserActivity=${uid}&tab=removed&subTab=posts`;
+    } else {
+      switch (target_type) {
+        case 'user':
+          path = `/users/${target_id}`;
+          break;
+        case 'post':
+          path = `/community?openPostId=${target_id}`;
+          break;
+        case 'comment': {
+          const postId = comments.find(c => c.id === target_id)?.post_id;
+          if (postId) {
+            path = `/community?openPostId=${postId}&highlightCommentId=${target_id}`;
+          }
+          break;
+        }
+      }
+    }
+
     if (path) {
-        onClose();
-        navigate(path);
+      onClose();
+      navigate(path);
     }
   };
 

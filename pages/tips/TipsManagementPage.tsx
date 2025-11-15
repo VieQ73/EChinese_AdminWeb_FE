@@ -91,6 +91,8 @@ const TipsManagementPage: React.FC = () => {
     try {
       await createTip(tipData);
       setToast({ message: 'Tạo mẹo thành công!', type: 'success' });
+      // Đóng modal tạo mới sau khi thành công
+      setShowCreateModal(false);
       await loadTips(); // Reload danh sách
     } catch (error) {
       console.error('Lỗi tạo tip:', error);

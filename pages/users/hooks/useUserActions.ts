@@ -81,6 +81,9 @@ export const useUserActions = ({
                 }
                 case 'change-role': {
                     if (!editableUser) return;
+                    if (currentUser.role === 'super admin' && user.id === currentUser.id) {
+                        throw new Error('Super Admin không thể thay đổi vai trò của chính mình.');
+                    }
                     const updatedUser = await updateUser(user.id, { role: editableUser.role });
                     setData(d => d ? { ...d, user: updatedUser } : null);
                     updateContextUser(user.id, { role: editableUser.role });
@@ -94,6 +97,9 @@ export const useUserActions = ({
                     addAdminLog({ action_type: 'RESET_USER_PASSWORD', target_id: user.id, description: `Yêu cầu đặt lại mật khẩu cho ${user.name}` });
                     break;
                 case 'delete-user':
+                    if (currentUser.role === 'super admin' && user.id === currentUser.id) {
+                        throw new Error('Super Admin không thể xóa tài khoản của chính mình.');
+                    }
                     await deleteUser(user.id);
                     addAdminLog({ action_type: 'DELETE_USER', target_id: user.id, description: `Xóa vĩnh viễn người dùng ${user.name}` });
                     message = `Đã xoá người dùng ${user.name}`;

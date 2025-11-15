@@ -52,12 +52,35 @@ const ArrangeSentencesEditor: React.FC<ArrangeSentencesEditorProps> = ({ questio
     };
 
     const removeOption = (optionId: string) => {
+        // Tìm label của option sắp bị xóa để loại bỏ khỏi currentAnswer
+        const optionToRemove = question.options.find(opt => opt.id === optionId);
+        if (optionToRemove && optionToRemove.label) {
+            setCurrentAnswer(prev => prev.filter(label => label !== optionToRemove.label));
+        }
+
         const newOptions = question.options
             .filter(opt => opt.id !== optionId)
             .map((opt, index) => ({
                 ...opt,
                 label: String.fromCharCode(65 + index),
             }));
+        
+        // Cập nhật lại currentAnswer với labels mới sau khi re-label
+        setCurrentAnswer(prev => {
+            const validLabels = prev.filter(label => {
+                const newIndex = question.options.findIndex(opt => 
+                    opt.id !== optionId && opt.label === label
+                );
+                return newIndex !== -1;
+            }).map(label => {
+                const oldIndex = question.options.findIndex(opt => opt.label === label);
+                const newIndex = question.options.filter(opt => opt.id !== optionId)
+                    .findIndex(opt => opt.id === question.options[oldIndex].id);
+                return String.fromCharCode(65 + newIndex);
+            });
+            return validLabels;
+        });
+
         onQuestionChange({ ...question, options: newOptions });
     };
 
@@ -69,6 +92,15 @@ const ArrangeSentencesEditor: React.FC<ArrangeSentencesEditorProps> = ({ questio
 
     const removeLabelFromCurrentAnswer = (index: number) => {
         setCurrentAnswer(prev => prev.filter((_, i) => i !== index));
+    };
+
+    // Thêm/bỏ câu khỏi danh sách đang sắp xếp
+    const toggleLabelInCurrentAnswer = (label: string) => {
+        if (currentAnswer.includes(label)) {
+            setCurrentAnswer(prev => prev.filter(l => l !== label));
+        } else {
+            addLabelToCurrentAnswer(label);
+        }
     };
 
     // Lưu chuỗi đáp án hiện tại thành một câu/đoạn văn hoàn chỉnh
@@ -142,34 +174,22 @@ const ArrangeSentencesEditor: React.FC<ArrangeSentencesEditorProps> = ({ questio
                         const isSelected = currentAnswer.includes(option.label || '');
                         return (
                             <div key={option.id} className="flex items-start gap-2">
-                                <div 
-                                    className={`flex-grow p-3 border rounded-lg transition-colors ${
-                                        isSelected 
-                                        ? 'bg-slate-200 border-slate-300 opacity-60' 
-                                        : 'bg-white'
-                                    }`}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex-grow">
-                                            <Input
-                                                label={`Câu ${option.label}`}
-                                                value={option.content || ''}
-                                                onChange={(e) => handleOptionChange(option.id, 'content', e.target.value)}
-                                                disabled={isSelected} // Vô hiệu hóa input khi đã chọn
-                                            />
-                                        </div>
-                                        <Button 
-                                            type="button" 
-                                            variant="secondary" 
-                                            size="sm"
-                                            onClick={() => !isSelected && addLabelToCurrentAnswer(option.label || '')}
-                                            disabled={isSelected}
-                                            className="mt-6"
-                                        >
-                                            Chọn
-                                        </Button>
-                                    </div>
+                                <div className="flex-grow p-3 border rounded-lg bg-white">
+                                    <Input
+                                        label={`Câu ${option.label}`}
+                                        value={option.content || ''}
+                                        onChange={(e) => handleOptionChange(option.id, 'content', e.target.value)}
+                                    />
                                 </div>
+                                <Button 
+                                    type="button" 
+                                    variant={isSelected ? "secondary" : "primary"} 
+                                    size="sm" 
+                                    onClick={() => toggleLabelInCurrentAnswer(option.label || '')} 
+                                    className="mt-8"
+                                >
+                                    {isSelected ? 'Bỏ chọn' : 'Chọn'}
+                                </Button>
                                 <Button type="button" variant="danger" size="sm" onClick={() => removeOption(option.id)} className="mt-8">
                                     <TrashIcon className="w-4 h-4" />
                                 </Button>

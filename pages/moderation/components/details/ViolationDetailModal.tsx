@@ -34,46 +34,31 @@ const ViolationDetailModal: React.FC<ViolationDetailModalProps> = ({ isOpen, onC
 
   const handleNavigateRequest = () => {
     if (!violation) return;
-    
-    let path = '';
     const { target_type, target_id, targetContent } = violation;
 
-    if (['user', 'post', 'comment'].includes(target_type)) {
-      // Lấy trạng thái mới nhất của content từ context để tránh dữ liệu cũ từ snapshot
-      let latestContent: Partial<RawPost & Comment & User> | undefined;
+    // Yêu cầu mới: Luôn chuyển tới Hoạt động người dùng ở tab "đã gỡ" khi click Nội dung vi phạm
+    let path = '';
+
+    if (target_type === 'post' || target_type === 'comment') {
+      // Lấy content mới nhất hoặc snapshot
+      let latestContent: Partial<RawPost & Comment> | undefined;
       if (target_type === 'post') {
         latestContent = posts.find(p => p.id === target_id);
-      } else if (target_type === 'comment') {
-        latestContent = comments.find(c => c.id === target_id);
-      } else if (target_type === 'user') {
-        latestContent = users.find(u => u.id === target_id);
-      }
-      
-      const content = latestContent || (targetContent as Partial<RawPost & Comment & User>);
-      const isRemoved = (content as RawPost)?.status === 'removed' || !!(content as Comment)?.deleted_at;
-      const isBanned = !(content as User)?.is_active;
-      
-      if (isRemoved && (target_type === 'post' || target_type === 'comment')) {
-        const userId = (content as any).user_id;
-        if (userId) {
-          const subTab = target_type === 'post' ? 'posts' : 'comments';
-          path = `/community?openUserActivity=${userId}&tab=removed&subTab=${subTab}`;
-        }
       } else {
-        switch(target_type) {
-          case 'user':
-            path = `/users/${target_id}`;
-            break;
-          case 'post':
-            path = `/community?openPostId=${target_id}`;
-            break;
-          case 'comment':
-            const postId = comments.find(c => c.id === target_id)?.post_id;
-            if (postId) {
-              path = `/community?openPostId=${postId}&highlightCommentId=${target_id}`;
-            }
-            break;
-        }
+        latestContent = comments.find(c => c.id === target_id);
+      }
+      const content = latestContent || (targetContent as Partial<RawPost & Comment>);
+      // Lấy userId từ content hoặc fallback sang violation.user
+      const userId = (content as any)?.user_id || violation.user?.id;
+      if (userId) {
+        const subTab = target_type === 'post' ? 'posts' : 'comments';
+        path = `/community?openUserActivity=${userId}&tab=removed&subTab=${subTab}`;
+      }
+    } else if (target_type === 'user') {
+      // Nếu đích là user, vẫn mở hoạt động ở tab removed chung (subTab không xác định)
+      const userId = violation.target_id || violation.user?.id;
+      if (userId) {
+        path = `/community?openUserActivity=${userId}&tab=removed`;
       }
     }
 

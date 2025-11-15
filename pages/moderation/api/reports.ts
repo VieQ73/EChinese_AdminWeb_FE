@@ -16,7 +16,13 @@ interface FetchReportsParams {
     targetType?: 'all' | 'post' | 'comment' | 'user' | 'bug' | 'other';
 }
 
-export const fetchReports = (params: FetchReportsParams): Promise<PaginatedResponse<Report>> => {
+type ReportsEnvelope = { success: boolean; data: PaginatedResponse<Report> };
+
+export const fetchReports = (params: FetchReportsParams): Promise<ReportsEnvelope> => {
+
+    
+        return apiClient.get<ReportsEnvelope>('/moderation/reports');
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -36,12 +42,12 @@ export const fetchReports = (params: FetchReportsParams): Promise<PaginatedRespo
                 const total = filtered.length;
                 const totalPages = Math.ceil(total / limit);
                 const data = filtered.slice((page - 1) * limit, page * limit);
-
-                resolve({ data, meta: { total, page, limit, totalPages } });
+                const payload: PaginatedResponse<Report> = { data, meta: { total, page, limit, totalPages } };
+                console.log(payload);
+                resolve({ success: true, data: payload });
             }, 300);
         });
     }
-    return apiClient.get('/moderation/reports', { body: params as any });
 };
 
 interface UpdateReportStatusPayload {
@@ -51,8 +57,12 @@ interface UpdateReportStatusPayload {
     severity?: Violation['severity'];
 }
 
-export const updateReportStatus = (reportId: string, payload: UpdateReportStatusPayload): Promise<Report> => {
-    if (USE_MOCK_API) {
+type UpdateReportEnvelope = { success: boolean; data: Report };
+
+export const updateReportStatus = (reportId: string, payload: UpdateReportStatusPayload): Promise<UpdateReportEnvelope> => {
+    
+        return apiClient.put<UpdateReportEnvelope>(`/moderation/reports/${reportId}/status`, payload);
+if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
                 const reportIndex = mockReports.findIndex(r => r.id === reportId);
@@ -91,9 +101,10 @@ export const updateReportStatus = (reportId: string, payload: UpdateReportStatus
                     mockViolationRules.push({id: `vr-${newViolationId}`, violation_id: newViolationId, rule_id: 'rule-03'});
                 }
 
-                resolve(enrichReport(report));
+                const enriched = enrichReport(report);
+                console.log({ report: enriched });
+                resolve({ success: true, data: enriched });
             }, 400);
         });
     }
-    return apiClient.put(`/moderation/reports/${reportId}/status`, payload);
 };

@@ -366,7 +366,7 @@ export const duplicateExam = async (examIdToCopy: string, newName: string): Prom
         data: ExamSummary;
     }
 
-    const response = await apiClient.post<DuplicateResponse>(`/admin/exams/${examIdToCopy}/duplicate`, { newName });
+    const response = await apiClient.post<DuplicateResponse>(`/admin/exams/${examIdToCopy}/duplicate`, {});
     return response.data;
     
     if (USE_MOCK_API) {

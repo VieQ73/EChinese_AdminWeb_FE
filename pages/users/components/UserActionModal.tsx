@@ -112,17 +112,28 @@ const UserActionModal: React.FC<UserActionModalProps> = ({
                     </div>
                 );
             }
-            case 'change-role':
+            case 'change-role': {
+                const isViewingSelf = !!modalContent.data?.isViewingSelf;
+                const isDisabled = isViewingSelf; // Super Admin tự xem chính mình: không cho phép đổi
                 return (
                     <div>
                         <p className="mb-4">Chọn vai trò mới cho <span className="font-semibold">{user.name}</span>.</p>
-                        <select value={editableUser.role} onChange={(e) => setEditableUser(prev => prev ? { ...prev, role: e.target.value as User['role'] } : null)} className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm bg-gray-50">
+                        <select
+                            value={editableUser.role}
+                            onChange={(e) => setEditableUser(prev => prev ? { ...prev, role: e.target.value as User['role'] } : null)}
+                            disabled={isDisabled}
+                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+                        >
                             <option value="user">User</option>
                             <option value="admin">Admin</option>
                         </select>
                         <p className="text-xs text-gray-500 mt-2">Chỉ có thể có một Super Admin. Không thể chỉ định vai trò này cho người khác.</p>
+                        {isDisabled && (
+                            <p className="text-xs text-red-600 mt-1">Super Admin không thể thay đổi vai trò của chính mình.</p>
+                        )}
                     </div>
                 );
+            }
             case 'ban-user':
                 return <BanUserForm data={formData} onChange={handleFormChange} rules={communityRules} />;
             case 'unban-user':

@@ -13,6 +13,8 @@ const USE_MOCK_API = (import.meta as any).env?.VITE_USE_MOCK_API !== 'false';
  * Tải tất cả bình luận (đã được làm giàu và sắp xếp dạng cây) cho một bài viết.
  */
 export const fetchCommentsByPostId = (postId: string): Promise<CommentWithUser[]> => {
+        return apiClient.get(`/community/posts/${postId}/comments`);
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -21,7 +23,6 @@ export const fetchCommentsByPostId = (postId: string): Promise<CommentWithUser[]
             }, 400);
         });
     }
-    return apiClient.get(`/community/posts/${postId}/comments`);
 };
 
 interface AddCommentPayload {
@@ -35,7 +36,17 @@ interface AddCommentPayload {
  * Thêm một bình luận mới.
  * Hàm này giờ chỉ tạo và trả về object comment mới, không tự ý thay đổi mảng mock.
  */
-export const addComment = (payload: AddCommentPayload): Promise<Comment> => {
+type AddCommentResponse = {
+    success: boolean;
+    message: string;
+    data: CommentWithUser[];
+};
+
+export const addComment = (payload: AddCommentPayload): Promise<AddCommentResponse> => {
+        const { postId, ...body } = payload;
+    
+    return apiClient.post<AddCommentResponse>(`/community/posts/${postId}/comments`, body);
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -47,21 +58,31 @@ export const addComment = (payload: AddCommentPayload): Promise<Comment> => {
                     created_at: new Date().toISOString(),
                     parent_comment_id: payload.parentCommentId,
                 };
-                // KHÔNG push vào mockComments ở đây.
-                // Chỉ trả về object mới để Context xử lý.
-                resolve(newComment);
+                // Không chỉnh mockComments; trả về danh sách bình luận đã làm giàu bao gồm comment mới.
+                const updatedList = getEnrichedCommentsByPostId(payload.postId, [...mockComments, newComment]);
+                resolve({
+                    success: true,
+                    message: 'Lấy danh sách bình luận thành công.',
+                    data: updatedList,
+                });
             }, 200);
         });
     }
-    const { postId, ...body } = payload;
-    return apiClient.post(`/community/posts/${postId}/comments`, body);
 };
 
 /**
  * Cập nhật bình luận (chủ yếu cho việc xóa/khôi phục).
  * Hàm này giờ chỉ trả về object đã cập nhật, không tự ý thay đổi mảng mock.
  */
-export const updateComment = (commentId: string, payload: Partial<Comment>): Promise<Comment> => {
+type UpdateCommentResponse = {
+    success: boolean;
+    message: string;
+    data: Comment;
+};
+
+export const updateComment = (commentId: string, payload: Partial<Comment>): Promise<UpdateCommentResponse> => {
+       return apiClient.put<UpdateCommentResponse>(`/community/comments/${commentId}`, payload);
+
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -70,9 +91,12 @@ export const updateComment = (commentId: string, payload: Partial<Comment>): Pro
                 
                 // Tạo một object đã cập nhật thay vì thay đổi trực tiếp
                 const updatedComment = { ...mockComments[index], ...payload };
-                resolve(updatedComment);
+                resolve({
+                    success: true,
+                    message: 'Cập nhật bình luận thành công.',
+                    data: updatedComment,
+                });
             }, 200);
         });
     }
-    return apiClient.put(`/community/comments/${commentId}`, payload);
 };

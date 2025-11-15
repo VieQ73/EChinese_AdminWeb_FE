@@ -21,6 +21,12 @@ import { AddViolationPayload } from './types';
 import { fetchExamTypes, fetchExamLevels } from '../../pages/tests/api/configApi';
 import { fetchExams } from '../../pages/tests/api/examsApi';
 import { fetchVocabularies } from '../../pages/content/api/vocabularyApi';
+import { fetchBadges } from '../../pages/settings/badges/api';
+import { fetchAchievements } from '../../pages/settings/achievements/api';
+import { fetchRules as fetchCommunityRules } from '../../pages/rules/api';
+import { fetchModerationLogs } from '../../pages/community/api/stats';
+import { fetchViolations } from '../../pages/moderation/api/violations';
+import { fetchAdminLogs } from '../../pages/system/api';
 
 interface AppDataProviderProps {
     children: ReactNode;
@@ -38,14 +44,29 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         const loadInitialData = async () => {
             console.log("Authenticated, loading initial data...");
             try {
-                const [types, levels, examsResponse] = await Promise.all([
+                const [types, levels, examsResponse, badges, achievements, rulesResponse, moderationLogsRes, violationsRes, adminLogsRes] = await Promise.all([
                     fetchExamTypes(),
                     fetchExamLevels(),
                     fetchExams({ page: 1, limit: 1000 }), // Fetch a large number of exams initially
+                    fetchBadges(),
+                    fetchAchievements({ page: 1, limit: 1000 }),
+                    fetchCommunityRules({ page: 1, limit: 1000, status: 'all' }),
+                    fetchModerationLogs(),
+                    fetchViolations({ page: 1, limit: 1000, severity: 'all', targetType: 'all' }),
+                    fetchAdminLogs(),
                 ]);
                 state.setExamTypes(types);
                 state.setExamLevels(levels);
                 state.setExams(examsResponse.data);
+                state.setBadges(badges);
+                state.setAchievements(achievements.data);
+                state.setCommunityRules(rulesResponse.data);
+                state.setModerationLogs(moderationLogsRes.data);
+                // Map enriched violations to raw shape expected by state
+                // Keep enriched fields (user, rules, targetContent) to improve detail displays; selectors will fallback to these.
+                const rawViolations = violationsRes.data.data as any[];
+                state.setViolationsData(rawViolations as any);
+                state.setAdminLogs(adminLogsRes);
             } catch (error) {
                 console.error("Failed to load initial app data:", error);
             }
@@ -60,6 +81,11 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
             state.setExamLevels([]);
             state.setExams([]);
             state.setVocabularies([]);
+            state.setBadges([]);
+            state.setAchievements([]);
+            state.setCommunityRules([]);
+            state.setModerationLogs([]);
+            state.setViolationsData([]);
         }
     }, [isAuthenticated]); // Dependency array now listens to authentication status changes
 

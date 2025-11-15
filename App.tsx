@@ -28,7 +28,9 @@ const ProtectedRoute: React.FC = () => {
     if (!authContext) {
         return <Navigate to="/login" replace />;
     }
-    const { isAuthenticated } = authContext;
+    const { isAuthenticated, initialized } = authContext as any;
+    // While auth context is restoring from storage, don't redirect — wait
+    if (!initialized) return null;
     return isAuthenticated ? <Layout><Outlet /></Layout> : <Navigate to="/login" replace />;
 };
 

@@ -77,6 +77,20 @@ export const useExamActions = ({ setExamTypes, setExamLevels, setExams, addAdmin
       addAdminLog({ action_type, target_id: id, description });
       return updatedExam;
   }, [setExams, addAdminLog]);
+
+  const publishExam = useCallback(async (id: string) => {
+      const updated = await examsApi.publishExam(id);
+      setExams(prev => prev.map(e => e.id === id ? updated : e));
+      addAdminLog({ action_type: 'PUBLISH_EXAM', target_id: id, description: `Xuất bản bài thi: ${updated.name}` });
+      return updated;
+  }, [setExams, addAdminLog]);
+
+  const unpublishExam = useCallback(async (id: string) => {
+      const updated = await examsApi.unpublishExam(id);
+      setExams(prev => prev.map(e => e.id === id ? updated : e));
+      addAdminLog({ action_type: 'UNPUBLISH_EXAM', target_id: id, description: `Hủy xuất bản bài thi: ${updated.name}` });
+      return updated;
+  }, [setExams, addAdminLog]);
   
   const deleteExam = useCallback(async (id: string) => {
       const examToDelete = (await examsApi.fetchExams()).data.find(e => e.id === id);
@@ -91,8 +105,22 @@ export const useExamActions = ({ setExamTypes, setExamLevels, setExams, addAdmin
       const newExam = await examsApi.duplicateExam(id, newName);
       setExams(prev => [newExam, ...prev]);
       addAdminLog({ action_type: 'DUPLICATE_EXAM', target_id: newExam.id, description: `Sao chép bài thi từ (ID: ${id}) thành: ${newName}` });
+      return newExam; // Trả về bài thi mới
   }, [setExams, addAdminLog]);
 
+  const trashExam = useCallback(async (id: string) => {
+      const updatedExam = await examsApi.trashExam(id);
+      setExams(prev => prev.map(e => e.id === id ? { ...e, ...updatedExam } : e));
+      addAdminLog({ action_type: 'TRASH_EXAM', target_id: id, description: `Chuyển bài thi vào thùng rác: ${updatedExam.name}` });
+      return updatedExam;
+  }, [setExams, addAdminLog]);
+
+  const restoreExam = useCallback(async (id: string) => {
+      const updatedExam = await examsApi.restoreExam(id);
+      setExams(prev => prev.map(e => e.id === id ? { ...e, ...updatedExam } : e));
+      addAdminLog({ action_type: 'RESTORE_EXAM', target_id: id, description: `Khôi phục bài thi: ${updatedExam.name}` });
+      return updatedExam;
+  }, [setExams, addAdminLog]);
 
   return { 
       createExamType, 
@@ -101,7 +129,11 @@ export const useExamActions = ({ setExamTypes, setExamLevels, setExams, addAdmin
       deleteExamLevel,
       createExam,
       updateExam,
+      publishExam,
+      unpublishExam,
       deleteExam,
       duplicateExam,
+      trashExam,
+      restoreExam,
   };
 };

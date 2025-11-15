@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeftIcon } from '../../../components/icons';
 import Modal from '../../../components/Modal';
@@ -8,7 +8,7 @@ import { useAppData } from '../../../contexts/AppDataContext';
 import ExamCard from './components/list/ExamCard';
 import ExamLevelFilters from './components/list/ExamLevelFilters';
 
-// Import hooks từ trang danh sách để tái sử dụng logic
+// Import hooks dùng chung cho state tác vụ & modal
 import { useExamState } from './hooks/useExamState';
 import { useExamActions } from './hooks/useExamActions';
 
@@ -16,49 +16,44 @@ const ExamTypeDetailPage: React.FC = () => {
     const { examTypeId } = useParams<{ examTypeId: string }>();
     const navigate = useNavigate();
     const { examTypes, examLevels, exams } = useAppData();
-    
-    
-    // Tái sử dụng state và logic action từ trang danh sách chính
+
+    // State dùng cho các hành động (copy, publish, delete ...) & modal
     const {
-        allExams, setAllExams,
         isCopying, setIsCopying,
         actionState, setActionState,
         isInfoModalOpen, setIsInfoModalOpen,
         infoModalContent, setInfoModalContent
     } = useExamState();
 
+    // Hook hành động (không còn phụ thuộc vào allExams nội bộ)
     const { handleAction, handleConfirmAction, getConfirmModalContent } = useExamActions({
         isCopying,
         setIsCopying,
-        setAllExams,
         setActionState,
         setInfoModalContent,
         setIsInfoModalOpen,
         actionState,
     });
-
-    useEffect(() => {
-        if (exams) {
-            setAllExams(exams);
-        }
-    }, [exams, setAllExams]);
     
     
 
 
-    const [activeLevelId, setActiveLevelId] = useState<string | 'all'>('all');
+    const [activeLevelId, setActiveLevelId] = useState<string>(() => {
+        const first = examLevels.find(l => l.exam_type_id === examTypeId);
+        return first?.id || '';
+    });
 
     const examType = useMemo(() => examTypes.find(t => t.id === examTypeId), [examTypes, examTypeId]);
     const levelsForType = useMemo(() => examLevels.filter(l => l.exam_type_id === examTypeId), [examLevels, examTypeId]);
 
     // Lọc bài thi dựa trên loại và cấp độ được chọn
     const filteredExams = useMemo(() => {
-        let exams = allExams.filter(e => e.exam_type_id === examTypeId && !e.is_deleted);
-        if (activeLevelId !== 'all') {
-            exams = exams.filter(e => e.exam_level_id === activeLevelId);
+        let examsForType = exams.filter(e => e.exam_type_id === examTypeId && !e.is_deleted);
+        if (activeLevelId) {
+            examsForType = examsForType.filter(e => e.exam_level_id === activeLevelId);
         }
-        return exams;
-    }, [allExams, examTypeId, activeLevelId]);
+        return examsForType;
+    }, [exams, examTypeId, activeLevelId]);
 
     // Lấy nội dung cho modal
     const { title, content, confirmText } = getConfirmModalContent();

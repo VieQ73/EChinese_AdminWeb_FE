@@ -177,6 +177,7 @@ export const apiClient = {
   get: <T>(endpoint: string, config?: RequestInit) => client<T>(endpoint, { ...config, method: 'GET' }),
   post: <T>(endpoint: string, body: any, config?: RequestInit) => client<T>(endpoint, { ...config, body, method: 'POST' }),
   put: <T>(endpoint: string, body: any, config?: RequestInit) => client<T>(endpoint, { ...config, body, method: 'PUT' }),
+  patch: <T>(endpoint: string, body: any, config?: RequestInit) => client<T>(endpoint, { ...config, body, method: 'PATCH' }),
   //  Added a body parameter to the delete helper to support DELETE requests with a body, making it consistent with post and put.
   delete: <T>(endpoint: string, body?: any, config?: RequestInit) => client<T>(endpoint, { ...config, body, method: 'DELETE' }),
 

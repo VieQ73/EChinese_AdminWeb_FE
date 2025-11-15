@@ -8,18 +8,27 @@ const USE_MOCK_API = (import.meta as any).env?.VITE_USE_MOCK_API !== 'false';
 // NOTIFICATIONS API
 // =============================
 
-export const fetchNotifications = (): Promise<Notification[]> => {
+type NotificationsEnvelope = { success: boolean; data: Notification[] };
+
+export const fetchNotifications = (): Promise<NotificationsEnvelope> => {
+        return apiClient.get<NotificationsEnvelope>('/notifications');
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
-                resolve(mockNotifications);
+                console.log(mockNotifications);
+                
+                resolve({ success: true, data: mockNotifications });
             }, 300);
         });
     }
-    return apiClient.get('/notifications');
 };
 
-export const createNotification = (payload: Omit<Notification, 'id' | 'created_at'>): Promise<Notification> => {
+type CreateNotificationEnvelope = { success: boolean; data: Notification };
+
+export const createNotification = (payload: Omit<Notification, 'id' | 'created_at'>): Promise<CreateNotificationEnvelope> => {
+    return apiClient.post<CreateNotificationEnvelope>('/notifications', payload);
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -29,14 +38,18 @@ export const createNotification = (payload: Omit<Notification, 'id' | 'created_a
                     created_at: new Date().toISOString(),
                 };
                 mockNotifications.unshift(newNotif);
-                resolve(newNotif);
+                console.log("createNotification "+JSON.stringify(newNotif));
+                resolve({ success: true, data: newNotif });
             }, 300);
         });
     }
-    return apiClient.post('/notifications', payload);
 };
 
-export const publishNotifications = (ids: string[]): Promise<{ success: boolean }> => {
+type BasicSuccessEnvelope = { success: boolean; data: { ids: string[] } };
+
+export const publishNotifications = (ids: string[]): Promise<BasicSuccessEnvelope> => {
+    return apiClient.post<BasicSuccessEnvelope>('/notifications/publish', { ids });
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -46,14 +59,16 @@ export const publishNotifications = (ids: string[]): Promise<{ success: boolean 
                         n.is_push_sent = true;
                     }
                 });
-                resolve({ success: true });
+                console.log("publishNotifications "+JSON.stringify(ids));
+                resolve({ success: true, data: { ids } });
             }, 400);
         });
     }
-    return apiClient.post('/notifications/publish', { ids });
 };
 
-export const deleteNotifications = (ids: string[]): Promise<{ success: boolean }> => {
+export const deleteNotifications = (ids: string[]): Promise<BasicSuccessEnvelope> => {
+    return apiClient.post<BasicSuccessEnvelope>('/notifications/delete', { ids });
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -61,14 +76,16 @@ export const deleteNotifications = (ids: string[]): Promise<{ success: boolean }
                 const newMock = mockNotifications.filter(n => !idsToDelete.has(n.id));
                 mockNotifications.length = 0;
                 mockNotifications.push(...newMock);
-                resolve({ success: true });
+                console.log("deleteNotifications "+JSON.stringify(ids));
+                resolve({ success: true, data: { ids } });
             }, 400);
         });
     }
-    return apiClient.post('/notifications/delete', { ids });
 };
 
-export const markNotificationsAsRead = (ids: string[], asRead: boolean): Promise<{ success: boolean }> => {
+export const markNotificationsAsRead = (ids: string[], asRead: boolean): Promise<BasicSuccessEnvelope> => {
+        return apiClient.post<BasicSuccessEnvelope>('/notifications/mark-read', { ids, asRead });
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -78,9 +95,9 @@ export const markNotificationsAsRead = (ids: string[], asRead: boolean): Promise
                         n.read_at = asRead ? new Date().toISOString() : null;
                     }
                 });
-                resolve({ success: true });
+                console.log("markNotificationsAsRead "+JSON.stringify({ ids, asRead }));
+                resolve({ success: true, data: { ids } });
             }, 100);
         });
     }
-    return apiClient.post('/notifications/mark-read', { ids, asRead });
 };

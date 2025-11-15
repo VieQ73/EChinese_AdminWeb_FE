@@ -74,15 +74,18 @@ export const useAppDataState = () => {
     const [comments, setComments] = useState<Comment[]>(() => [...mockComments]);
     const [postLikes, setPostLikes] = useState<PostLike[]>(() => [...mockPostLikes]);
     const [postViews, setPostViews] = useState<PostView[]>(() => [...mockPostViews]);
-    const [moderationLogs, setModerationLogs] = useState<ModerationLog[]>(() => [...mockModerationLogs]);
-    const [violationsData, setViolationsData] = useState<Omit<Violation, 'rules' | 'user' | 'targetContent'>[]>(() => [...mockViolations]);
-    const [communityRules, setCommunityRules] = useState<CommunityRule[]>(() => [...mockCommunityRules]);
+    const [moderationLogs, setModerationLogs] = useState<ModerationLog[]>([]);
+    const [violationsData, setViolationsData] = useState<Omit<Violation, 'rules' | 'user' | 'targetContent'>[]>([]);
+    // Community rules fetched from API; start empty
+    const [communityRules, setCommunityRules] = useState<CommunityRule[]>([]);
     const [violationRules, setViolationRules] = useState<ViolationRule[]>(() => [...mockViolationRules]);
     const [appealsData, setAppealsData] = useState<Appeal[]>(() => [...mockAppeals]);
     const [notifications, setNotifications] = useState<Notification[]>(() => [...mockNotifications]);
     const [userAchievements, setUserAchievements] = useState<UserAchievement[]>(() => [...mockUserAchievements]);
-    const [badges, setBadges] = useState<BadgeLevel[]>([...mockBadges]);
-    const [achievements, setAchievements] = useState<Achievement[]>([...mockAchievements]);
+    // Badges will be fetched from real API; start empty
+    const [badges, setBadges] = useState<BadgeLevel[]>([]);
+    // Achievements fetched from API; start empty
+    const [achievements, setAchievements] = useState<Achievement[]>([]);
     const [adminLogs, setAdminLogs] = useState<AdminLog[]>(() => [...mockAdminLogs]);
     
     const [userStreaks, setUserStreaks] = useState<UserStreak[]>([...mockUserStreaks]);
