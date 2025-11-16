@@ -129,6 +129,7 @@ export const fetchExamById = async (id: string): Promise<ExamFull> => {
 };
 
 export const createExam = async (payload: ExamPayload): Promise<ExamFull> => {
+    
     type CreateExamResponse = {
         success: boolean;
         message: string;
@@ -184,7 +185,6 @@ export const createExam = async (payload: ExamPayload): Promise<ExamFull> => {
     // savePayloadAsJson(transformedPayload);
 
     const response = await apiClient.post<CreateExamResponse>('/admin/exams', transformedPayload);
-    console.log(transformedPayload);
     
     return response.data;
 
@@ -233,6 +233,8 @@ export const updateExam = async (id: string, payload: Partial<ExamPayload>): Pro
     });
 
     const response = await apiClient.put<UpdateExamResponse>(`/admin/exams/${id}`, transformedPayload);
+    console.log(response.data);
+    
     return response.data;
 
     if (USE_MOCK_API) {

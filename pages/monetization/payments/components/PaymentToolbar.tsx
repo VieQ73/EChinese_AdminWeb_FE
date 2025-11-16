@@ -13,9 +13,10 @@ interface PaymentToolbarProps {
     onFilterChange: (name: keyof PaymentToolbarProps['filters'], value: string) => void;
     dates: DateRange;
     onDatesChange: (dates: DateRange) => void;
+    onExportCSV: () => void;
 }
 
-const PaymentToolbar: React.FC<PaymentToolbarProps> = ({ filters, onFilterChange, dates, onDatesChange }) => {
+const PaymentToolbar: React.FC<PaymentToolbarProps> = ({ filters, onFilterChange, dates, onDatesChange, onExportCSV }) => {
     return (
         <div className="p-4 bg-gray-50 border-b border-gray-200 text-sm">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 flex-wrap">
@@ -41,7 +42,10 @@ const PaymentToolbar: React.FC<PaymentToolbarProps> = ({ filters, onFilterChange
                 </div>
                 {/* Export Button */}
                 <div className="flex-shrink-0">
-                    <button className="flex items-center w-full sm:w-auto justify-center px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-sm">
+                    <button 
+                        onClick={onExportCSV}
+                        className="flex items-center w-full sm:w-auto justify-center px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-sm transition-colors"
+                    >
                         <DownloadIcon className="w-4 h-4 mr-2" />
                         Xuất CSV
                     </button>

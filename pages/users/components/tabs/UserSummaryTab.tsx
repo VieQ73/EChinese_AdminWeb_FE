@@ -25,6 +25,7 @@ const UserSummaryTab: React.FC<UserSummaryTabProps> = ({ user, subscription, onO
     const isTargetAdminOrSuperAdmin = user.role === 'admin' || user.role === 'super admin';
     // Chỉ ẩn khi admin xem admin/superadmin khác, không phải chính mình
     const hideActions = isAdmin && isTargetAdminOrSuperAdmin && !isViewingSelf;
+    const isSuperAdmin = user.role === 'super admin';
     // Debug
     console.log('currentUser.role:', currentUser?.role);
     console.log('user.role:', user.role);
@@ -58,8 +59,8 @@ const UserSummaryTab: React.FC<UserSummaryTabProps> = ({ user, subscription, onO
                         user.is_active ? 'ban-user' : 'unban-user', 
                         user.is_active ? 'Cấm người dùng' : 'Bỏ cấm người dùng'
                     )}
-                    className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg text-white ${user.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}${(hideActions || (isAdmin && isViewingSelf)) ? ' opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
-                    disabled={hideActions || (isAdmin && isViewingSelf)}
+                    className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg text-white ${user.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}${(hideActions || (isAdmin && isViewingSelf) || isSuperAdmin) ? ' opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
+                    disabled={hideActions || (isAdmin && isViewingSelf)|| isSuperAdmin}
                 >
                     {user.is_active ? 'Cấm người dùng' : 'Bỏ cấm'}
                 </button>

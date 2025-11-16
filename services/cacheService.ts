@@ -158,6 +158,13 @@ class CacheService {
   invalidateMonetization(): void {
     this.remove(CACHE_KEYS.SUBSCRIPTIONS);
     this.remove(CACHE_KEYS.USER_SUBSCRIPTIONS);
+    // Xóa cache dashboard monetization
+    try {
+      sessionStorage.removeItem('monetization_dashboard_data');
+      sessionStorage.removeItem('monetization_dashboard_timestamp');
+    } catch {
+      // ignore
+    }
   }
 
   /**
@@ -175,6 +182,20 @@ class CacheService {
     this.remove(CACHE_KEYS.COMMENTS);
     this.remove(CACHE_KEYS.VIOLATIONS);
     this.remove(CACHE_KEYS.MODERATION_LOGS);
+    // Xóa cache dashboard
+    this.invalidateDashboard();
+  }
+
+  /**
+   * Xóa cache liên quan đến dashboard
+   */
+  invalidateDashboard(): void {
+    try {
+      sessionStorage.removeItem('dashboard_data');
+      sessionStorage.removeItem('dashboard_timestamp');
+    } catch {
+      // ignore
+    }
   }
 }
 

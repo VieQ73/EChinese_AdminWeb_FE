@@ -18,9 +18,31 @@ const Dashboard: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Fetch dữ liệu từ API khi component mount
+    // Fetch dữ liệu từ API - Sử dụng cache để tránh load lại nhiều lần
     useEffect(() => {
         const loadDashboardData = async () => {
+            // Kiểm tra cache trong sessionStorage
+            const cachedData = sessionStorage.getItem('dashboard_data');
+            const cachedTimestamp = sessionStorage.getItem('dashboard_timestamp');
+            
+            // Nếu có cache và chưa quá 5 phút thì dùng cache
+            if (cachedData && cachedTimestamp) {
+                const age = Date.now() - parseInt(cachedTimestamp);
+                if (age < 5 * 60 * 1000) { // 5 phút
+                    try {
+                        const parsed = JSON.parse(cachedData);
+                        setChartsData(parsed.charts);
+                        setAnalyticsData(parsed.analytics);
+                        setCommunityData(parsed.community);
+                        setIsLoading(false);
+                        return;
+                    } catch {
+                        // Cache lỗi, tiếp tục fetch
+                    }
+                }
+            }
+
+            // Không có cache hoặc cache hết hạn → Fetch mới
             setIsLoading(true);
             setError(null);
             try {
@@ -32,6 +54,14 @@ const Dashboard: React.FC = () => {
                 setChartsData(charts);
                 setAnalyticsData(analytics);
                 setCommunityData(community);
+                
+                // Lưu vào cache
+                try {
+                    sessionStorage.setItem('dashboard_data', JSON.stringify({ charts, analytics, community }));
+                    sessionStorage.setItem('dashboard_timestamp', Date.now().toString());
+                } catch {
+                    // Ignore cache errors
+                }
             } catch (err) {
                 console.error('Failed to load dashboard data:', err);
                 setError(err instanceof Error ? err.message : 'Không thể tải dữ liệu dashboard');
