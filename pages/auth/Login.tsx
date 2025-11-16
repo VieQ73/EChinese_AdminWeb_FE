@@ -38,6 +38,7 @@ const Login: React.FC = () => {
         }
     };
 
+    
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
             <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-lg border border-gray-200">
