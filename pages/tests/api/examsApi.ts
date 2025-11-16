@@ -209,12 +209,12 @@ export const createExam = async (payload: ExamPayload): Promise<ExamFull> => {
 
 };
 
-export const updateExam = async (id: string, payload: Partial<ExamPayload>): Promise<ExamFull> => {
+export const updateExam = async (id: string, payload: Partial<ExamPayload>): Promise<ExamFull | ExamFull[]> => {
 
     type UpdateExamResponse = {
         success: boolean;
         message: string;
-        data: ExamFull;
+        data: ExamFull | ExamFull[]; // Có thể trả về 1 exam hoặc mảng exams
     }
 
     // Deep copy the payload to avoid mutating the original form state
@@ -233,8 +233,9 @@ export const updateExam = async (id: string, payload: Partial<ExamPayload>): Pro
     });
 
     const response = await apiClient.put<UpdateExamResponse>(`/admin/exams/${id}`, transformedPayload);
-    console.log(response.data);
+    console.log('Update exam response:', response);
     
+    // Trả về data (có thể là 1 exam hoặc mảng exams)
     return response.data;
 
     if (USE_MOCK_API) {
@@ -353,6 +354,31 @@ export const deleteExam = async (id: string): Promise<{ success: boolean }> => {
     }
 }
 
+
+/**
+ * Kiểm tra số lần làm bài của một đề thi
+ * @param examId - ID của bài thi cần kiểm tra
+ * @returns Thông tin về số lần làm bài
+ */
+export interface ExamAttemptsData {
+    exam_id: string;
+    has_attempts: boolean;
+    total_attempts: number;
+    unique_users: number;
+    first_attempt_at: string | null;
+    last_attempt_at: string | null;
+}
+
+export interface CheckExamAttemptsResponse {
+    success: boolean;
+    message: string;
+    data: ExamAttemptsData;
+}
+
+export const checkExamAttempts = async (examId: string): Promise<ExamAttemptsData> => {
+    const response = await apiClient.get<CheckExamAttemptsResponse>(`/admin/exams/${examId}/check-attempts`);
+    return response.data;
+};
 
 /**
  * Tạo bản sao sâu (deep copy) của một bài thi, bao gồm việc tạo ID mới cho tất cả các phần tử.

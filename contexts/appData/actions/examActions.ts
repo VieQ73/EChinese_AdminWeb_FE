@@ -58,27 +58,62 @@ export const useExamActions = ({ setExamTypes, setExamLevels, setExams, addAdmin
   }, [setExams, addAdminLog]);
 
   const updateExam = useCallback(async (id: string, payload: Partial<examsApi.ExamPayload>) => {
-      const updatedExam = await examsApi.updateExam(id, payload);
-      setExams(prev => prev.map(e => e.id === id ? updatedExam : e));
+      const result = await examsApi.updateExam(id, payload);
+      
+      // Xử lý response: có thể là 1 exam hoặc mảng exams
+      const examsToUpdate = Array.isArray(result) ? result : [result];
+      
+      // Cập nhật state:
+      // - Nếu trả về 1 exam: cập nhật exam đó
+      // - Nếu trả về 2 exams: cập nhật exam cũ + thêm exam mới vào đầu danh sách
+      setExams(prev => {
+          if (Array.isArray(result) && result.length > 1) {
+              // Trường hợp có 2 exams (exam cũ + exam mới)
+              const [oldExam, newExam] = result;
+              
+              // Cập nhật exam cũ và thêm exam mới vào đầu
+              const updated = prev.map(e => e.id === oldExam.id ? oldExam : e);
+              
+              // Kiểm tra xem exam mới đã tồn tại chưa
+              const newExamExists = updated.some(e => e.id === newExam.id);
+              
+              if (!newExamExists) {
+                  // Thêm exam mới vào đầu danh sách
+                  return [newExam, ...updated];
+              }
+              
+              return updated;
+          } else {
+              // Trường hợp chỉ có 1 exam: cập nhật bình thường
+              const examToUpdate = Array.isArray(result) ? result[0] : result;
+              return prev.map(e => e.id === examToUpdate.id ? examToUpdate : e);
+          }
+      });
       
       // Tạo log cụ thể hơn cho các hành động quan trọng
+      const mainExam = Array.isArray(result) ? result[0] : result;
       let action_type = 'UPDATE_EXAM';
-      let description = `Cập nhật chi tiết bài thi: ${updatedExam.name}`;
+      let description = `Cập nhật chi tiết bài thi: ${mainExam.name}`;
 
       // Ghi log cụ thể cho hành động Xuất bản / Hủy xuất bản
       if (payload.is_published !== undefined) {
           if (payload.is_published) {
               action_type = 'PUBLISH_EXAM';
-              description = `Xuất bản bài thi: ${updatedExam.name}`;
+              description = `Xuất bản bài thi: ${mainExam.name}`;
           } else {
               action_type = 'UNPUBLISH_EXAM';
-              description = `Hủy xuất bản bài thi: ${updatedExam.name}`;
+              description = `Hủy xuất bản bài thi: ${mainExam.name}`;
           }
+      }
+      
+      // Nếu có nhiều exams (tạo bản sao), ghi log đặc biệt
+      if (Array.isArray(result) && result.length > 1) {
+          description += ` (Đã tạo bản sao mới vì bài thi cũ đã có người làm)`;
       }
       
       addAdminLog({ action_type, target_id: id, description });
       cacheService.invalidateExams();
-      return updatedExam;
+      return result;
   }, [setExams, addAdminLog]);
 
   const publishExam = useCallback(async (id: string) => {

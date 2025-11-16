@@ -149,8 +149,16 @@ const TipsManagementPage: React.FC = () => {
 
   // Xử lý bulk upload thành công
   const handleBulkUploadSuccess = async (result: any) => {
+    const successCount = result.success_count || 0;
+    const skippedCount = result.skipped_count || 0;
+    
+    let message = `Tải lên thành công ${successCount} mẹo!`;
+    if (skippedCount > 0) {
+      message += ` (Bỏ qua ${skippedCount} mẹo có lỗi)`;
+    }
+    
     setToast({ 
-      message: `Tải lên thành công ${result.success_count} mẹo!`, 
+      message, 
       type: 'success' 
     });
     setShowBulkUploadModal(false);
