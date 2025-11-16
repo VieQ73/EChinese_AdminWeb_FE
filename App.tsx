@@ -70,7 +70,7 @@ const MainApp: React.FC = () => {
                     <Route path="/system" element={<SystemManagement />} />
                 </Route>
                 
-                <Route path="*" element={<Navigate to="/" />} />
+                <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
         </HashRouter>
     );

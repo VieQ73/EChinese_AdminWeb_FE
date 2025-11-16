@@ -113,8 +113,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       setInitialized(true);
       
-      // Reload trang để reset hoàn toàn ứng dụng
-      window.location.href = '/login';
+      // Reload trang để reset hoàn toàn ứng dụng và về trang login
+      window.location.href = '/#/login';
     }
   };
 
