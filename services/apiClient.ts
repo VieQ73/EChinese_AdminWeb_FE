@@ -51,38 +51,84 @@ function clearTokens() {
 async function refreshTokenIfNeeded(): Promise<string> {
   // Nếu đã có một yêu cầu refresh đang diễn ra, chờ nó xong.
   if (refreshPromise) {
+    console.log('[refreshToken] Đang đợi request refresh hiện tại...');
     const res = await refreshPromise;
     return res.token;
   }
 
   const currentRefresh = getRefreshToken();
   if (!currentRefresh) {
+    console.error('[refreshToken] Không tìm thấy refresh token trong localStorage');
     throw new Error('Missing refresh token');
   }
 
+  console.log('[refreshToken] Bắt đầu gọi API refresh token...');
+
   // Tạo yêu cầu refresh mới
   refreshPromise = (async () => {
-    const resp = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: currentRefresh }),
-    });
+    try {
+      const resp = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: currentRefresh }),
+      });
 
-    const data = await resp.json().catch(() => ({}));
+      console.log('[refreshToken] Response status:', resp.status);
 
-    if (!resp.ok) {
-      const msg = data?.message || 'Refresh token failed';
-      throw new Error(msg);
+      // Parse response
+      let data: any;
+      try {
+        data = await resp.json();
+        console.log('[refreshToken] Response data:', data);
+      } catch (parseErr) {
+        console.error('[refreshToken] Lỗi parse JSON:', parseErr);
+        data = {};
+      }
+
+      if (!resp.ok) {
+        const msg = data?.message || `HTTP ${resp.status}`;
+        console.error('[refreshToken] API trả về lỗi:', msg);
+        throw new Error(msg);
+      }
+
+      // Hỗ trợ nhiều format response từ backend
+      const newToken: string | undefined = 
+        data.token || 
+        data.access_token || 
+        data.accessToken ||
+        data.result?.token ||
+        data.result?.access_token ||
+        data.result?.accessToken ||
+        data.data?.token ||
+        data.data?.access_token;
+        
+      const newRefreshToken: string | undefined = 
+        data.refreshToken || 
+        data.refresh_token || 
+        data.result?.refreshToken ||
+        data.result?.refresh_token ||
+        data.data?.refreshToken ||
+        data.data?.refresh_token;
+
+      if (!newToken) {
+        console.error('[refreshToken] Response không chứa token. Data:', data);
+        throw new Error('Refresh response missing token');
+      }
+
+      console.log('[refreshToken] Đã nhận token mới, đang lưu vào localStorage...');
+      console.log('[refreshToken] New access_token:', newToken.substring(0, 30) + '...');
+      console.log('[refreshToken] New refresh_token:', newRefreshToken ? newRefreshToken.substring(0, 30) + '...' : 'Không có (giữ lại token cũ)');
+      
+      // Nếu không có refresh token mới, giữ lại refresh token cũ
+      const finalRefreshToken = newRefreshToken || currentRefresh;
+      setTokens(newToken, finalRefreshToken);
+      console.log('[refreshToken] Lưu token thành công!');
+
+      return { token: newToken, refreshToken: finalRefreshToken };
+    } catch (error) {
+      console.error('[refreshToken] Lỗi trong quá trình refresh:', error);
+      throw error;
     }
-
-    // Hỗ trợ cả trường hợp API trả về chỉ token hoặc cả refreshToken
-    const newToken: string | undefined = data.token;
-    const newRefreshToken: string | undefined = data.refreshToken || data.refresh_token;
-    if (!newToken) {
-      throw new Error('Refresh response missing token');
-    }
-    setTokens(newToken, newRefreshToken);
-    return { token: newToken, refreshToken: newRefreshToken };
   })();
 
   try {
@@ -98,6 +144,7 @@ async function refreshTokenIfNeeded(): Promise<string> {
  * Một hàm client fetch chung, có khả năng xử lý body, headers và các cấu hình khác.
  * - Tự động gắn Authorization header nếu có token.
  * - Khi gặp lỗi "Token không hợp lệ" (401), sẽ gọi refresh token và thử lại 1 lần.
+ * - Tự động gọi lại API ban đầu sau khi refresh token thành công.
  * @param endpoint - Đường dẫn API (ví dụ: '/auth/login').
  * @param config - Cấu hình cho request (method, body, headers...).
  * @returns Promise chứa dữ liệu JSON từ API.
@@ -105,27 +152,24 @@ async function refreshTokenIfNeeded(): Promise<string> {
 async function client<T>(endpoint: string, { body, ...customConfig }: RequestInit & { body?: any }): Promise<T> {
   const defaultHeaders: HeadersInit = { 'Content-Type': 'application/json' };
 
-  // Gắn Authorization header nếu có token
-  const token = getAccessToken();
-  const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
+  // Hàm thực hiện request với token hiện tại
+  const doFetch = async (token?: string): Promise<{ ok: boolean; status: number; data: any }> => {
+    const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
+    
+    const config: RequestInit = {
+      method: body ? 'POST' : 'GET',
+      ...customConfig,
+      headers: {
+        ...defaultHeaders,
+        ...authHeader,
+        ...customConfig.headers,
+      },
+    };
 
-  // Cấu hình request
-  const config: RequestInit = {
-    method: body ? 'POST' : 'GET',
-    ...customConfig,
-    headers: {
-      ...defaultHeaders,
-      ...authHeader,
-      ...customConfig.headers,
-    },
-  };
+    if (body !== undefined) {
+      config.body = JSON.stringify(body);
+    }
 
-  if (body !== undefined) {
-    config.body = JSON.stringify(body);
-  }
-
-  // Hàm thực hiện request thật sự
-  const doFetch = async (): Promise<{ ok: boolean; status: number; data: any }> => {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
     const data = await response
       .json()
@@ -134,32 +178,66 @@ async function client<T>(endpoint: string, { body, ...customConfig }: RequestIni
   };
 
   try {
-    let { ok, status, data } = await doFetch();
+    // Lần gọi đầu tiên với token hiện tại
+    const token = getAccessToken();
+    let { ok, status, data } = await doFetch(token);
+    
     if (ok) return data;
 
-    // Nếu gặp lỗi token: status 401 hoặc message từ server
+    // Kiểm tra lỗi token: status 401 hoặc message từ server
     const isInvalidToken =
-      status === 401 || (typeof data?.message === 'string' && data.message.includes('Token không hợp lệ'));
+      status === 401 || 
+      (typeof data?.message === 'string' && (
+        data.message.includes('Token không hợp lệ') ||
+        data.message.includes('Token expired') ||
+        data.message.includes('Invalid token') ||
+        data.message.includes('jwt expired')
+      ));
 
-    if (isInvalidToken && endpoint !== '/auth/refresh-token') {
-      // Thử refresh token và gọi lại request 1 lần
+    // Nếu gặp lỗi token và không phải endpoint refresh-token hoặc login
+    if (isInvalidToken && endpoint !== '/auth/refresh-token' && endpoint !== '/auth/login') {
       try {
-        await refreshTokenIfNeeded();
-        // Cập nhật header Authorization với token mới
-        const newToken = getAccessToken();
-        config.headers = {
-          ...(config.headers as HeadersInit),
-          Authorization: newToken ? `Bearer ${newToken}` : undefined,
-        } as HeadersInit;
-        const retry = await doFetch();
-        if (retry.ok) return retry.data;
-        // Nếu retry vẫn lỗi, ném lỗi của retry
+        console.log('[apiClient] Token hết hạn cho endpoint:', endpoint);
+        console.log('[apiClient] Status:', status, 'Message:', data?.message);
+        
+        // Gọi refresh token (sẽ tự động đợi nếu đã có request refresh đang chạy)
+        const newToken = await refreshTokenIfNeeded();
+        
+        console.log('[apiClient] Refresh token thành công! Token mới:', newToken.substring(0, 20) + '...');
+        console.log('[apiClient] Đang gọi lại API:', endpoint);
+        
+        // Gọi lại request với token mới
+        const retry = await doFetch(newToken);
+        
+        if (retry.ok) {
+          console.log('[apiClient] ✅ Gọi lại API thành công!');
+          return retry.data;
+        }
+        
+        // Nếu retry vẫn lỗi
+        console.error('[apiClient] ❌ Gọi lại API thất bại. Status:', retry.status, 'Data:', retry.data);
         const retryMsg = retry.data?.message || `HTTP ${retry.status}`;
         throw new Error(retryMsg);
       } catch (refreshErr) {
-        // Refresh thất bại: xóa token và ném lỗi để tầng trên xử lý (chuyển hướng login ...)
+        console.error('[apiClient] ❌ Refresh token thất bại:', refreshErr);
+        
+        // Refresh thất bại: xóa token và chuyển về trang login
         clearTokens();
-        const msg = refreshErr instanceof Error ? refreshErr.message : 'Refresh token failed';
+        
+        // Xóa thông tin user
+        try {
+          localStorage.removeItem('auth_user');
+        } catch {}
+        
+        // Chuyển về trang login sau 1 giây để có thời gian xem log
+        console.warn('[apiClient] Sẽ chuyển về trang login sau 1 giây...');
+        setTimeout(() => {
+          if (window.location.hash !== '#/login') {
+            window.location.href = '/#/login';
+          }
+        }, 1000);
+        
+        const msg = refreshErr instanceof Error ? refreshErr.message : 'Phiên đăng nhập đã hết hạn';
         throw new Error(msg);
       }
     }
