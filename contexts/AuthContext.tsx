@@ -2,12 +2,13 @@
 import React, { createContext, useState, ReactNode, useEffect } from 'react';
 import { User } from '../types';
 import { apiClient } from '../services/apiClient';
+import { registerDeviceToken, unregisterDeviceToken } from '../utils/notificationHelper';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   initialized: boolean;
-  login: (user: User | null, token?: string, refreshToken?: string) => void;
+  login: (user: User | null, token?: string, refreshToken?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -49,7 +50,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
-  const login = (userData: User | null, token?: string, refreshToken?: string) => {
+  const login = async (userData: User | null, token?: string, refreshToken?: string) => {
     // Lưu user và token nếu có
     if (token) {
       apiClient.setTokens(token, refreshToken);
@@ -67,10 +68,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsAuthenticated(true);
     setUser(userData ?? null);
     setInitialized(true);
+
+    // Register device token for push notifications
+    if (token) {
+      try {
+        await registerDeviceToken();
+      } catch (error) {
+        console.error('Failed to register device token:', error);
+        // Không throw error để không ảnh hưởng đến login flow
+      }
+    }
   };
 
   const logout = async () => {
     try {
+      // Unregister device token trước khi logout
+      try {
+        await unregisterDeviceToken();
+      } catch (error) {
+        console.error('Failed to unregister device token:', error);
+      }
+
       // Lấy refresh token để gọi API logout
       const refreshToken = localStorage.getItem('refreshToken');
       
@@ -95,6 +113,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.removeItem('auth_user');
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
+        localStorage.removeItem('fcm_token'); // Xóa FCM token
       } catch {
         // ignore
       }

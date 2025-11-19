@@ -11,6 +11,20 @@ interface ExamCardProps {
     onAction: (action: 'copy' | 'publish' | 'unpublish' | 'delete' | 'restore' | 'delete-permanently', exam: ExamSummary) => void;
 }
 
+const formatDateTime = (date) => {
+  const d = new Date(date);
+
+  const day = d.getDate().toString().padStart(2, '0');
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const year = d.getFullYear();
+
+  const hour = d.getHours().toString().padStart(2, '0');
+  const minute = d.getMinutes().toString().padStart(2, '0');
+  const second = d.getSeconds().toString().padStart(2, '0');
+
+  return `${day}/${month}/${year} ${hour}:${minute}:${second}`;
+};
+
 const ExamCard: React.FC<ExamCardProps> = ({ exam, onAction }) => {
     const navigate = useNavigate();
     const isDeleted = exam.is_deleted || false;
@@ -206,13 +220,29 @@ const ExamCard: React.FC<ExamCardProps> = ({ exam, onAction }) => {
                         </div>
                         {/* Hiển thị version_at nếu có */}
                         {exam.version_at && (
-                            <div className="flex items-center text-orange-600 font-medium">
+                            <div className="flex items-center text-red-600 font-medium">
                                 <Clock size={14} className="mr-1.5 flex-shrink-0" />
-                                <span className="truncate" title={`Phiên bản: ${new Date(exam.version_at).toLocaleString('vi-VN')}`}>
+                                {/* <span className="truncate" title={`Phiên bản: ${new Date(exam.version_at).toLocaleString('vi-VN')}`}>
                                     v{new Date(exam.version_at).toLocaleDateString('vi-VN')}
+                                </span> */}
+                                <span
+                                    className="truncate"
+                                    title={`Phiên bản: ${formatDateTime(exam.version_at)}`}>
+                                    v{formatDateTime(exam.version_at)}
                                 </span>
                             </div>
                         )}
+                        {!exam.version_at && exam.updated_at && (
+                            <div className="flex items-center text-blue-600 font-medium">
+                                <Clock size={14} className="mr-1.5 flex-shrink-0" />
+                                <span
+                                    className="truncate"
+                                    title={`Phiên bản: ${formatDateTime(exam.updated_at)}`}>
+                                    v{formatDateTime(exam.updated_at)}
+                                </span>
+                            </div>
+                        )}
+
                     </div>
 
                     {/* Right Actions */}

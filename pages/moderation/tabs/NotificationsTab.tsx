@@ -1,140 +1,146 @@
-import React, { useState, useMemo } from 'react';
-import { Notification } from '../../../types';
-import CreateEditNotificationModal from '../components/notifications/CreateEditNotificationModal';
-import NotificationDetailModal from '../components/notifications/NotificationDetailModal';
-import Modal from '../../../components/Modal';
-import ReceivedNotificationsView from '../components/notifications/tabs/ReceivedNotificationsView';
-import SentNotificationsView from '../components/notifications/tabs/SentNotificationsView';
-import * as api from '../api';
+import React, { useState, useEffect } from 'react';
+import { apiClient } from '../../../services/apiClient';
+import ReceivedNotifications from '../../notifications/components/ReceivedNotifications';
+import SentNotifications from '../../notifications/components/SentNotifications';
+import CreateNotificationModal from '../../notifications/components/CreateNotificationModal';
+import { Bell, Send, Inbox, Plus } from 'lucide-react';
 
 type ActiveSubTab = 'received' | 'sent';
 
 interface NotificationsTabProps {
-    notifications: Notification[];
-    onNavigateToAction: (type?: string, id?: string) => void;
-    refreshData: () => void; // Hàm để tải lại dữ liệu từ component cha
+    notifications?: any[]; // Không dùng nữa, sẽ fetch trực tiếp
+    onNavigateToAction?: (type?: string, id?: string) => void;
+    refreshData?: () => void;
 }
 
-// Nút chuyển tab con
-const SubTabButton: React.FC<{ tabId: ActiveSubTab; activeTab: ActiveSubTab; onClick: (tabId: ActiveSubTab) => void; children: React.ReactNode }> = ({ tabId, activeTab, onClick, children }) => {
-    const isActive = activeTab === tabId;
-    return (
-        <button
-            onClick={() => onClick(tabId)}
-            className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
-                isActive ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-100'
-            }`}
-        >
-            {children}
-        </button>
-    );
-};
-
-// Component container chính
-const NotificationsTab: React.FC<NotificationsTabProps> = ({ notifications, onNavigateToAction, refreshData }) => {
+const NotificationsTab: React.FC<NotificationsTabProps> = () => {
     const [activeSubTab, setActiveSubTab] = useState<ActiveSubTab>('received');
-    
-    // State cho modals
-    const [isCreateModalOpen, setCreateModalOpen] = useState(false);
-    const [isDetailModalOpen, setDetailModalOpen] = useState(false);
-    const [viewingNotification, setViewingNotification] = useState<Notification | null>(null);
-    const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
-    const [isPublishModalOpen, setPublishModalOpen] = useState(false);
-    const [idsForBulkAction, setIdsForBulkAction] = useState<string[]>([]);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [stats, setStats] = useState({
+        totalReceived: 0,
+        totalSent: 0,
+        unreadCount: 0
+    });
 
-    // Tách dữ liệu cho từng tab
-    const sentNotifications = useMemo(() => notifications.filter(n => !n.from_system), [notifications]);
-    const receivedNotifications = useMemo(() => notifications.filter(n => n.from_system || n.audience === 'admin'), [notifications]);
-    
-    // --- Handlers cho Modal và Actions ---
-    const handleViewDetails = async (notification: Notification) => {
-        setViewingNotification(notification);
-        setDetailModalOpen(true);
-        if (!notification.read_at && (notification.audience === 'admin' || notification.from_system)) {
-            await api.markNotificationsAsRead([notification.id], true);
-            refreshData();
+    useEffect(() => {
+        fetchStats();
+    }, []);
+
+    const fetchStats = async () => {
+        try {
+            const response = await apiClient.get<any>('/admin/notifications/all?page=1&limit=1');
+            setStats({
+                totalReceived: response.meta?.totalReceived || 0,
+                totalSent: response.meta?.totalSent || 0,
+                unreadCount: response.meta?.unreadCount || 0
+            });
+        } catch (error) {
+            console.error('Error fetching stats:', error);
         }
     };
-    
-    const handleSaveNotification = async (data: Omit<Notification, 'id' | 'created_at'>) => {
-        await api.createNotification(data);
-        refreshData();
-        setCreateModalOpen(false);
+
+    const handleNotificationCreated = () => {
+        setShowCreateModal(false);
+        fetchStats();
     };
 
-    const confirmDelete = (ids: string[]) => {
-        setIdsForBulkAction(ids);
-        setDeleteModalOpen(true);
-    };
-
-    const confirmPublish = (ids: string[]) => {
-        setIdsForBulkAction(ids);
-        setPublishModalOpen(true);
-    };
-
-    const handleDelete = async () => {
-        await api.deleteNotifications(idsForBulkAction);
-        refreshData();
-        setIdsForBulkAction([]);
-        setDeleteModalOpen(false);
-    };
-    
-    const handlePublish = async () => {
-        await api.publishNotifications(idsForBulkAction);
-        refreshData();
-        setIdsForBulkAction([]);
-        setPublishModalOpen(false);
-    };
-
-    const handleMarkAsRead = async (ids: string[], asRead: boolean) => {
-        await api.markNotificationsAsRead(ids, asRead);
-        refreshData();
-    }
-    
     return (
-        <div className="space-y-4">
-            <div className="flex space-x-2 border-b border-gray-200 pb-2">
-                <SubTabButton tabId="received" activeTab={activeSubTab} onClick={setActiveSubTab}>Thông báo nhận</SubTabButton>
-                <SubTabButton tabId="sent" activeTab={activeSubTab} onClick={setActiveSubTab}>Thông báo đã gửi</SubTabButton>
+        <div className="space-y-6">
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 bg-blue-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                            <Inbox className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div>
+                            <div className="text-sm text-gray-600">Đã nhận</div>
+                            <div className="text-2xl font-bold text-gray-900">{stats.totalReceived}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-4 bg-green-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-green-100 rounded-lg">
+                            <Send className="w-6 h-6 text-green-600" />
+                        </div>
+                        <div>
+                            <div className="text-sm text-gray-600">Đã gửi</div>
+                            <div className="text-2xl font-bold text-gray-900">{stats.totalSent}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-4 bg-orange-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-orange-100 rounded-lg">
+                            <Bell className="w-6 h-6 text-orange-600" />
+                        </div>
+                        <div>
+                            <div className="text-sm text-gray-600">Chưa đọc</div>
+                            <div className="text-2xl font-bold text-gray-900">{stats.unreadCount}</div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            {activeSubTab === 'received' && (
-                <ReceivedNotificationsView
-                    notifications={receivedNotifications}
-                    onViewDetails={handleViewDetails}
-                    onMarkAsRead={handleMarkAsRead}
+            {/* Tabs */}
+            <div className="bg-white rounded-lg border border-gray-200">
+                <div className="border-b border-gray-200">
+                    <div className="flex items-center justify-between px-6 py-4">
+                        <div className="flex space-x-4">
+                            <button
+                                onClick={() => setActiveSubTab('received')}
+                                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                                    activeSubTab === 'received'
+                                        ? 'bg-blue-100 text-blue-700'
+                                        : 'text-gray-600 hover:bg-gray-100'
+                                }`}
+                            >
+                                <Inbox className="w-5 h-5" />
+                                <span>Thông báo nhận ({stats.totalReceived})</span>
+                            </button>
+
+                            <button
+                                onClick={() => setActiveSubTab('sent')}
+                                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                                    activeSubTab === 'sent'
+                                        ? 'bg-blue-100 text-blue-700'
+                                        : 'text-gray-600 hover:bg-gray-100'
+                                }`}
+                            >
+                                <Send className="w-5 h-5" />
+                                <span>Thông báo đã gửi ({stats.totalSent})</span>
+                            </button>
+                        </div>
+
+                        <button
+                            onClick={() => setShowCreateModal(true)}
+                            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            <Plus className="w-5 h-5" />
+                            <span>Tạo thông báo</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="p-6">
+                    {activeSubTab === 'received' ? (
+                        <ReceivedNotifications onStatsUpdate={fetchStats} />
+                    ) : (
+                        <SentNotifications />
+                    )}
+                </div>
+            </div>
+
+            {/* Create Modal */}
+            {showCreateModal && (
+                <CreateNotificationModal
+                    onClose={() => setShowCreateModal(false)}
+                    onSuccess={handleNotificationCreated}
                 />
             )}
-
-            {activeSubTab === 'sent' && (
-                <SentNotificationsView
-                    notifications={sentNotifications}
-                    onViewDetails={handleViewDetails}
-                    onCreate={() => setCreateModalOpen(true)}
-                    onPublish={confirmPublish}
-                    onDelete={confirmDelete}
-                />
-            )}
-
-            {/* Modals được quản lý tập trung ở đây */}
-            <CreateEditNotificationModal isOpen={isCreateModalOpen} onClose={() => setCreateModalOpen(false)} onSave={handleSaveNotification} />
-            
-            {viewingNotification && 
-                <NotificationDetailModal 
-                    isOpen={isDetailModalOpen} 
-                    onClose={() => setDetailModalOpen(false)} 
-                    notification={viewingNotification}
-                    onNavigateToAction={onNavigateToAction}
-                />
-            }
-            
-            <Modal isOpen={isDeleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="Xác nhận xóa" footer={<><button onClick={() => setDeleteModalOpen(false)} className="px-4 py-2 rounded-lg border">Hủy</button><button onClick={handleDelete} className="px-4 py-2 rounded-lg bg-red-600 text-white">Xóa</button></>}>
-                <p>Bạn có chắc muốn xóa {idsForBulkAction.length} thông báo nháp đã chọn không? Hành động này không thể hoàn tác.</p>
-            </Modal>
-            
-            <Modal isOpen={isPublishModalOpen} onClose={() => setPublishModalOpen(false)} title="Xác nhận phát hành" footer={<><button onClick={() => setPublishModalOpen(false)} className="px-4 py-2 rounded-lg border">Hủy</button><button onClick={handlePublish} className="px-4 py-2 rounded-lg bg-green-600 text-white">Phát hành</button></>}>
-                <p>Bạn có chắc muốn phát hành {idsForBulkAction.length} thông báo đã chọn không? Thông báo sẽ được gửi tới đối tượng đã chọn.</p>
-            </Modal>
         </div>
     );
 };

@@ -230,7 +230,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
               </div>
               <div className="flex items-center gap-1 p-3 border-t border-b">
                  <button 
-                  onClick={() => onToggleLike(post.id, !isLiked)}
+                  onClick={() => onToggleLike(post.id, isLiked)}
                   disabled={isPostRemoved}
                   className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg transition-colors group ${isLiked ? 'bg-red-50 text-red-600' : 'hover:bg-gray-50 text-gray-700'} disabled:opacity-50 disabled:hover:bg-transparent`}>
                   <Heart className={`w-5 h-5 ${isLiked ? 'text-red-500 fill-current' : 'text-gray-600 group-hover:text-red-500'}`} />
@@ -241,7 +241,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
                     <span className="font-medium">{totalComments}</span>
                 </div>
                 <button 
-                  onClick={() => onToggleView(post.id, !isViewed)}
+                  onClick={() => onToggleView(post.id, isViewed)}
                   disabled={isPostRemoved}
                   className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg transition-colors group ${isViewed ? 'bg-green-50 text-green-600' : 'hover:bg-gray-50 text-gray-700'} disabled:opacity-50 disabled:hover:bg-transparent`}>
                   <Eye className={`w-5 h-5 ${isViewed ? 'text-green-500' : 'text-gray-600 group-hover:text-green-500'}`} />

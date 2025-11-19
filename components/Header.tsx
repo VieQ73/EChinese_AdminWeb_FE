@@ -1,6 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { LogoutIcon, ChevronDownIcon, MenuIcon } from '../constants';
+import NotificationBell from './NotificationBell';
 
 interface HeaderProps {
     toggleSidebar: () => void;
@@ -24,7 +25,9 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                     <MenuIcon className="w-6 h-6" />
                 </button>
             </div>
-            <div className="relative">
+            <div className="flex items-center space-x-2">
+                <NotificationBell />
+                <div className="relative">
                 <button 
                     onClick={() => setDropdownOpen(!dropdownOpen)} 
                     className="flex items-center space-x-2 focus:outline-none p-1 rounded-lg hover:bg-gray-100"
@@ -51,6 +54,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                         </button>
                     </div>
                 )}
+                </div>
             </div>
         </header>
     );

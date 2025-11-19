@@ -27,7 +27,8 @@ const Login: React.FC = () => {
             const response = await login({ username, password });
             // Lưu token để dùng cho các API khác
             apiClient.setTokens(response.token, response.refreshToken);
-            authContext.login(response.user ?? null, response.token, response.refreshToken);
+            // Login sẽ tự động register device token
+            await authContext.login(response.user ?? null, response.token, response.refreshToken);
             navigate('/');
         } catch (err) {
             // Xử lý lỗi từ API

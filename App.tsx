@@ -1,9 +1,10 @@
 
-import React, { useContext } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router';
 import { HashRouter } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './contexts/AuthContext';
 import { AppDataProvider } from './contexts/appData/provider';
+import { NotificationProvider, useNotification } from './contexts/NotificationContext';
 import Layout from './components/Layout';
 import Login from './pages/auth/Login';
 import ForgotPassword from './pages/auth/ForgotPassword';
@@ -22,6 +23,11 @@ import RuleManagementPage from './pages/rules/RuleManagementPage';
 import MockTestManagementPage from './pages/tests/MockTestManagementPage';
 import ExamCreatePage from './pages/tests/create/ExamCreatePage'; 
 import ExamTypeDetailPage from './pages/tests/exam/ExamTypeDetailPage';
+import AdminNotificationsPage from './pages/notifications/AdminNotificationsPage';
+import NotificationPopup from './components/NotificationPopup';
+import { setupForegroundListener } from './utils/notificationHelper';
+import { useNavigate } from 'react-router-dom';
+import { debugNotificationSetup, setupServiceWorkerMessageListener } from './utils/testNotification';
 
 const ProtectedRoute: React.FC = () => {
     const authContext = useContext(AuthContext);
@@ -34,12 +40,126 @@ const ProtectedRoute: React.FC = () => {
     return isAuthenticated ? <Layout><Outlet /></Layout> : <Navigate to="/login" replace />;
 };
 
+const NotificationPopupWrapper: React.FC<{ payload: any; onClose: () => void }> = ({ payload, onClose }) => {
+    const navigate = useNavigate();
+
+    const handleNavigate = (path: string) => {
+        navigate(path);
+    };
+
+    return (
+        <NotificationPopup 
+            payload={payload} 
+            onClose={onClose}
+            onNavigate={handleNavigate}
+        />
+    );
+};
+
+const NotificationHandler: React.FC = () => {
+    const authContext = useContext(AuthContext);
+    const isAuthenticated = authContext?.isAuthenticated || false;
+    const [notificationPayload, setNotificationPayload] = React.useState<any>(null);
+    
+    // Sử dụng useNotification hook
+    const { incrementUnreadCount } = useNotification();
+
+    useEffect(() => {
+        console.log('🔧 NotificationHandler useEffect - isAuthenticated:', isAuthenticated);
+        
+        if (!isAuthenticated) {
+            console.log('⚠️ User not authenticated, skipping listener setup');
+            return;
+        }
+
+        console.log('✅ Setting up foreground listener...');
+        console.log('✅ incrementUnreadCount function:', incrementUnreadCount);
+        
+        const callbackFunction = (payload: any) => {
+            console.log('🎊🎊🎊 [NotificationHandler] ===== CALLBACK TRIGGERED! =====');
+            console.log('📩 [NotificationHandler] Received notification payload:', payload);
+            console.log('📩 [NotificationHandler] Payload type:', typeof payload);
+            console.log('📩 [NotificationHandler] Payload keys:', Object.keys(payload));
+            
+            // Tăng unread count
+            console.log('🔢 [NotificationHandler] Calling incrementUnreadCount...');
+            incrementUnreadCount();
+            console.log('✅ [NotificationHandler] Incremented unread count');
+            
+            // Hiển thị popup
+            console.log('🎨 [NotificationHandler] Setting notification payload for popup...');
+            setNotificationPayload(payload);
+            console.log('✅ [NotificationHandler] Notification payload set!');
+        };
+        
+        console.log('✅ Callback function created:', callbackFunction);
+        const unsubscribe = setupForegroundListener(callbackFunction);
+
+        if (unsubscribe) {
+            console.log('✅ Foreground listener setup successfully');
+            console.log('✅ Unsubscribe function:', unsubscribe);
+        } else {
+            console.log('❌ Failed to setup foreground listener');
+        }
+
+        return () => {
+            console.log('🧹 Cleaning up foreground listener');
+            if (unsubscribe) {
+                console.log('🧹 Calling unsubscribe...');
+                unsubscribe();
+                console.log('✅ Unsubscribed successfully');
+            }
+        };
+    }, [isAuthenticated, incrementUnreadCount]);
+
+    // Test function
+    const testNotification = React.useCallback(() => {
+        console.log('🧪 Testing notification popup...');
+        const testPayload = {
+            notification: {
+                title: 'Test Notification',
+                body: 'Đây là test notification để kiểm tra popup'
+            },
+            data: {
+                type: 'system',
+                redirect_url: 'app://home'
+            }
+        };
+        console.log('🧪 Test payload:', testPayload);
+        setNotificationPayload(testPayload);
+        incrementUnreadCount();
+    }, [incrementUnreadCount]);
+
+    React.useEffect(() => {
+        (window as any).testNotification = testNotification;
+        console.log('✅ Test function exposed: window.testNotification()');
+        
+        // Setup Service Worker message listener
+        setupServiceWorkerMessageListener();
+        
+        // Debug notification setup
+        debugNotificationSetup();
+    }, [testNotification]);
+
+    return (
+        <NotificationPopupWrapper 
+            payload={notificationPayload}
+            onClose={() => {
+                console.log('🔴 Closing notification popup');
+                setNotificationPayload(null);
+            }}
+        />
+    );
+};
+
 const App: React.FC = () => {
     return (
         <AuthProvider>
-            <AppDataProvider>
-                <MainApp />
-            </AppDataProvider>
+            <NotificationProvider>
+                <AppDataProvider>
+                    <MainApp />
+                </AppDataProvider>
+            </NotificationProvider>
         </AuthProvider>
     );
 };
@@ -47,6 +167,7 @@ const App: React.FC = () => {
 const MainApp: React.FC = () => {
     return (
         <HashRouter>
+            <NotificationHandler />
             <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -67,6 +188,7 @@ const MainApp: React.FC = () => {
                     <Route path="/mock-tests/create" element={<ExamCreatePage />} />
                     <Route path="/mock-tests/edit/:examId" element={<ExamCreatePage />} />
                     <Route path="/mock-tests/type/:examTypeId" element={<ExamTypeDetailPage />} />
+                    <Route path="/notifications" element={<AdminNotificationsPage />} />
                     <Route path="/system" element={<SystemManagement />} />
                 </Route>
                 

@@ -35,6 +35,12 @@ const VocabularyTab: React.FC = () => {
     const [levelFilter, setLevelFilter] = useState<string>('all');
     const [wordTypeFilter, setWordTypeFilter] = useState<string>('all');
     
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const [itemsPerPage] = useState(50); // Số items mỗi trang
+    
     // Modal states
     const [viewingVocab, setViewingVocab] = useState<Vocabulary | null>(null);
     const [editingVocab, setEditingVocab] = useState<Vocabulary | null>(null);
@@ -46,7 +52,7 @@ const VocabularyTab: React.FC = () => {
     const [isLoadingImages, setIsLoadingImages] = useState(false); // State loading cho load ảnh
     const [imageLoadProgress, setImageLoadProgress] = useState({ current: 0, total: 0 }); // Progress tracking
 
-    const { vocabularies } = useAppData();
+
     // State cho modal báo cáo lỗi
     const [errorReport, setErrorReport] = useState<{ isOpen: boolean; errors: BulkUpsertError[]; message: string }>({
         isOpen: false,
@@ -58,10 +64,16 @@ const VocabularyTab: React.FC = () => {
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearchTerm(searchTerm);
+            setCurrentPage(1); // Reset về trang 1 khi search
         }, 300);
         
         return () => clearTimeout(timer);
     }, [searchTerm]);
+    
+    // Reset page khi filter thay đổi
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [levelFilter, wordTypeFilter]);
     
     // Filter vocabulary list based on all filters
     const filteredVocabList = useMemo(() => {
@@ -89,20 +101,43 @@ const VocabularyTab: React.FC = () => {
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
+            // Build query params
+            const params: any = {
+                page: currentPage,
+                limit: itemsPerPage
+            };
+            
+            if (debouncedSearchTerm) {
+                params.search = debouncedSearchTerm;
+            }
+            
+            if (levelFilter !== 'all') {
+                params.level = levelFilter;
+            }
+            
+            // Note: API không hỗ trợ filter theo word_type, sẽ filter ở client-side
+            
             const [vocabRes, notebookRes] = await Promise.all([
-                api.fetchVocabularies({ limit: 5000 }), // Load all vocabulary and filter client-side
+                api.fetchVocabularies(params),
                 api.fetchNotebooks({ limit: 5000 }) // Tải tất cả sổ tay cho modal
             ]);
-            console.log(vocabRes.data);
+            
+            console.log('Vocab response:', vocabRes);
             
             setVocabList(vocabRes.data);
             setNotebooks(notebookRes.data);
+            
+            // Update pagination info
+            if (vocabRes.meta) {
+                setTotalPages(vocabRes.meta.totalPages || 1);
+                setTotalItems(vocabRes.meta.total || 0);
+            }
         } catch (error) {
             console.error("Failed to load vocabulary data:", error);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [currentPage, itemsPerPage, debouncedSearchTerm, levelFilter]);
 
     useEffect(() => {
         loadData();
@@ -337,7 +372,83 @@ const VocabularyTab: React.FC = () => {
                 {loading ? (
                      <div className="flex justify-center items-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary-600"/></div>
                 ) : (
-                    <VocabCardGrid vocabItems={filteredVocabList} selectedVocabs={selectedVocabs} onSelect={handleSelect} onSelectAll={handleSelectAll} onViewDetails={setViewingVocab} isSelectable={true}/>
+                    <>
+                        <VocabCardGrid vocabItems={filteredVocabList} selectedVocabs={selectedVocabs} onSelect={handleSelect} onSelectAll={handleSelectAll} onViewDetails={setViewingVocab} isSelectable={true}/>
+                        
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                            <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
+                                <div className="text-sm text-gray-700">
+                                    Hiển thị <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> đến{' '}
+                                    <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalItems)}</span> trong tổng số{' '}
+                                    <span className="font-medium">{totalItems}</span> từ vựng
+                                </div>
+                                
+                                <div className="flex items-center space-x-2">
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Trước
+                                    </button>
+                                    
+                                    <div className="flex items-center space-x-1">
+                                        {/* First page */}
+                                        {currentPage > 3 && (
+                                            <>
+                                                <button
+                                                    onClick={() => setCurrentPage(1)}
+                                                    className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                                                >
+                                                    1
+                                                </button>
+                                                {currentPage > 4 && <span className="px-2 text-gray-500">...</span>}
+                                            </>
+                                        )}
+                                        
+                                        {/* Pages around current */}
+                                        {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                            .filter(page => page >= currentPage - 2 && page <= currentPage + 2)
+                                            .map(page => (
+                                                <button
+                                                    key={page}
+                                                    onClick={() => setCurrentPage(page)}
+                                                    className={`px-3 py-2 text-sm font-medium rounded-lg ${
+                                                        page === currentPage
+                                                            ? 'bg-primary-600 text-white'
+                                                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                                                    }`}
+                                                >
+                                                    {page}
+                                                </button>
+                                            ))}
+                                        
+                                        {/* Last page */}
+                                        {currentPage < totalPages - 2 && (
+                                            <>
+                                                {currentPage < totalPages - 3 && <span className="px-2 text-gray-500">...</span>}
+                                                <button
+                                                    onClick={() => setCurrentPage(totalPages)}
+                                                    className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                                                >
+                                                    {totalPages}
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                    
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Sau
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 

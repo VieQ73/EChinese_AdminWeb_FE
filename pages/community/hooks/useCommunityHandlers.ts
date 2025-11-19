@@ -16,9 +16,10 @@ interface UseCommunityHandlersProps {
     setters: any; // from useCommunityState
     context: any; // from useAppData
     refreshData: () => void; // Hàm để tải lại dữ liệu
+    updatePostInList?: (postId: string, updates: Partial<Post>) => void; // Hàm để update post trong list
 }
 
-export const useCommunityHandlers = ({ currentUser, state, setters, context, refreshData }: UseCommunityHandlersProps) => {
+export const useCommunityHandlers = ({ currentUser, state, setters, context, refreshData, updatePostInList }: UseCommunityHandlersProps) => {
 
     const handleOpenCreateModal = useCallback(() => {
         setters.setEditingPost(null);
@@ -191,40 +192,81 @@ export const useCommunityHandlers = ({ currentUser, state, setters, context, ref
                 const newRawPost = await api.createPost(postData, currentUser);
                 // Cập nhật context để đồng bộ chỉ số ở Dashboard và StatsDisplay
                 context.addPost(newRawPost);
-                // Không cần refreshData() vì context đã cập nhật và cache đã được invalidate
+                // Reload lại trang để hiển thị bài viết mới
+                refreshData();
             }
             setters.setCreateEditModalOpen(false);
         } catch (error) {
              console.error("Failed to save post", error);
              alert("Lưu bài viết thất bại.");
         }
-    }, [currentUser, state.editingPost, setters, context]);
+    }, [currentUser, state.editingPost, setters, context, refreshData]);
 
-    const handleToggleLike = useCallback(async (postId: string) => {
+    const handleToggleLike = useCallback(async (postId: string, currentIsLiked?: boolean) => {
         if (!currentUser) return;
-        // Optimistic update
+        
+        // Dựa vào trạng thái hiện tại của nút từ UI
+        const isCurrentlyLiked = currentIsLiked ?? context.postLikes.some((l: any) => l.post_id === postId && l.user_id === currentUser.id);
+        
+        // Optimistic update context
         context.toggleLike(postId, currentUser.id);
+        
+        // Optimistic update UI - Tăng/giảm số lượng dựa vào trạng thái nút
+        if (updatePostInList) {
+            updatePostInList(postId, {
+                likesChange: isCurrentlyLiked ? -1 : 1, // -1 nếu đang liked (unlike), +1 nếu chưa liked (like)
+                isLiked: !isCurrentlyLiked
+            } as any);
+        }
+        
         try {
             await api.toggleLike(postId, currentUser.id);
+            // Không sync lại, chỉ dựa vào optimistic update
         } catch (error) {
             // Revert state if API fails
             context.toggleLike(postId, currentUser.id);
+            if (updatePostInList) {
+                updatePostInList(postId, {
+                    likesChange: isCurrentlyLiked ? 1 : -1, // Revert: +1 nếu đã unlike, -1 nếu đã like
+                    isLiked: isCurrentlyLiked
+                } as any);
+            }
             alert('Thao tác thất bại, vui lòng thử lại.');
         }
-    }, [currentUser, context]);
+    }, [currentUser, context, updatePostInList]);
 
-    const handleToggleView = useCallback(async (postId: string) => {
+    const handleToggleView = useCallback(async (postId: string, currentIsViewed?: boolean) => {
         if (!currentUser) return;
-        // Optimistic update
+        
+        // Dựa vào trạng thái hiện tại của nút từ UI
+        const isCurrentlyViewed = currentIsViewed ?? context.postViews.some((v: any) => v.post_id === postId && v.user_id === currentUser.id);
+        
+        // Optimistic update context
         context.toggleView(postId, currentUser.id);
+        
+        // Optimistic update UI - Tăng/giảm số lượng dựa vào trạng thái nút
+        if (updatePostInList) {
+            updatePostInList(postId, {
+                viewsChange: isCurrentlyViewed ? -1 : 1, // -1 nếu đang viewed (unview), +1 nếu chưa viewed (view)
+                isViewed: !isCurrentlyViewed
+            } as any);
+        }
+        
         try {
             await api.toggleView(postId, currentUser.id);
+            // Không sync lại, chỉ dựa vào optimistic update
         } catch (error) {
             // Revert state if API fails
             context.toggleView(postId, currentUser.id);
+            if (updatePostInList) {
+                updatePostInList(postId, {
+                    viewsChange: isCurrentlyViewed ? 1 : -1, // Revert: +1 nếu đã unview, -1 nếu đã view
+                    isViewed: isCurrentlyViewed
+                } as any);
+            }
             alert('Thao tác thất bại, vui lòng thử lại.');
         }
-    }, [currentUser, context]);
+    }, [currentUser, context, updatePostInList]);
 
     const handlePostSelectFromActivity = useCallback((post: Post) => {
         setters.setUserActivityModalOpen(false);

@@ -1,5 +1,5 @@
 
-import type { UUID, Timestamp, Json, BadgeLevel, User } from './index';
+import type { UUID, Timestamp, BadgeLevel, User } from './index';
 
 // Cấu trúc nội dung của một bài đăng
 export interface PostContent {
@@ -41,6 +41,9 @@ export interface Post extends RawPost {
   user: Pick<User, 'id' | 'name' | 'avatar_url' | 'badge_level' | 'role'>;
   badge: BadgeLevel;
   comment_count?: number;
+  isLiked?: boolean;
+  isViewed?: boolean;
+  isCommented?: boolean;
 }
 
 // Bình luận (cơ bản, tương thích với DB)

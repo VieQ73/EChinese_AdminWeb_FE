@@ -68,12 +68,12 @@ const PostFeedCard: React.FC<PostFeedCardProps> = ({
 
     const handleLikeClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        onToggleLike(post.id, !isLiked);
+        onToggleLike(post.id, isLiked); // Truyền trạng thái HIỆN TẠI
     };
 
     const handleViewClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        onToggleView(post.id, !isViewed);
+        onToggleView(post.id, isViewed); // Truyền trạng thái HIỆN TẠI
     };
     
     const handleImageClick = (e: React.MouseEvent, imageUrl: string) => {

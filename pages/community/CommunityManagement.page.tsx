@@ -82,23 +82,8 @@ const CommunityManagementPage: React.FC = () => {
         loadStats();
     }, [loadStats]);
 
-    // --- Đồng bộ hóa state cục bộ với context ---
-    const { postLikes, postViews, comments: contextComments } = useAppData();
-    useEffect(() => {
-        setPosts(currentPosts =>
-            currentPosts.map(post => {
-                const newLikes = postLikes.filter(l => l.post_id === post.id).length;
-                const newViews = postViews.filter(v => v.post_id === post.id).length;
-                const newCommentCount = contextComments.filter(c => c.post_id === post.id && !c.deleted_at).length;
-                
-                // Chỉ tạo object mới nếu có sự thay đổi để tối ưu re-render
-                if (post.likes !== newLikes || post.views !== newViews || post.comment_count !== newCommentCount) {
-                     return { ...post, likes: newLikes, views: newViews, comment_count: newCommentCount };
-                }
-                return post;
-            })
-        );
-    }, [postLikes, postViews, contextComments]);
+    // Không cần sync useEffect nữa vì updatePostInList đã xử lý
+    // API trả về isLiked, isViewed từ đầu, và updatePostInList sẽ update khi có action
 
 
     const handlers = useCommunityHandlers({
@@ -107,6 +92,28 @@ const CommunityManagementPage: React.FC = () => {
         setters,
         context,
         refreshData: () => loadPosts(false),
+        updatePostInList: (postId: string, updates: any) => {
+            setPosts(prev => prev.map(p => {
+                if (p.id === postId) {
+                    // Tạo bản sao để không mutate object gốc
+                    const { likesChange, viewsChange, ...restUpdates } = updates;
+                    
+                    const newPost = { ...p };
+                    
+                    // Xử lý likesChange và viewsChange (delta)
+                    if (likesChange !== undefined) {
+                        newPost.likes = (p.likes || 0) + likesChange;
+                    }
+                    if (viewsChange !== undefined) {
+                        newPost.views = (p.views || 0) + viewsChange;
+                    }
+                    
+                    // Apply các updates còn lại
+                    return { ...newPost, ...restUpdates };
+                }
+                return p;
+            }));
+        },
     });
     
     useCommunityEffects({
@@ -116,8 +123,9 @@ const CommunityManagementPage: React.FC = () => {
     });
 
     // --- Derived Data ---
-    const likedPosts = useMemo(() => new Set(context.postLikes.filter(l => l.user_id === currentUser?.id).map(l => l.post_id)), [context.postLikes, currentUser]);
-    const viewedPosts = useMemo(() => new Set(context.postViews.filter(v => v.user_id === currentUser?.id).map(v => v.post_id)), [context.postViews, currentUser]);
+    // Sử dụng isLiked và isViewed từ API response thay vì tính toán từ context
+    const likedPosts = useMemo(() => new Set(posts.filter(p => p.isLiked).map(p => p.id)), [posts]);
+    const viewedPosts = useMemo(() => new Set(posts.filter(p => p.isViewed).map(p => p.id)), [posts]);
     
     const stats = useMemo(() => ({
         postCount: communityStats?.postCount ?? context.posts.filter(p => p.status === 'published').length,
@@ -147,9 +155,9 @@ const CommunityManagementPage: React.FC = () => {
                         onEdit={handlers.handleOpenEditModal}
                         onRemove={post => handlers.handleOpenModerationModal('remove', 'post', post)}
                         onUserClick={handlers.handleUserClick}
-                        onToggleLike={handlers.handleToggleLike}
+                        onToggleLike={(postId, isLiked) => handlers.handleToggleLike(postId, isLiked)}
                         isLiked={postId => likedPosts.has(postId)}
-                        onToggleView={handlers.handleToggleView}
+                        onToggleView={(postId, isViewed) => handlers.handleToggleView(postId, isViewed)}
                         isViewed={postId => viewedPosts.has(postId)}
                     />
                 </div>
@@ -181,8 +189,8 @@ const CommunityManagementPage: React.FC = () => {
                     post={state.viewingPost}
                     isLiked={likedPosts.has(state.viewingPost.id)}
                     isViewed={viewedPosts.has(state.viewingPost.id)}
-                    onToggleLike={() => handlers.handleToggleLike(state.viewingPost!.id)}
-                    onToggleView={() => handlers.handleToggleView(state.viewingPost!.id)}
+                    onToggleLike={() => handlers.handleToggleLike(state.viewingPost!.id, likedPosts.has(state.viewingPost!.id))}
+                    onToggleView={() => handlers.handleToggleView(state.viewingPost!.id, viewedPosts.has(state.viewingPost!.id))}
                     onRemoveComment={comment => handlers.handleOpenModerationModal('remove', 'comment', comment)}
                     onRestoreComment={comment => handlers.handleOpenModerationModal('restore', 'comment', comment)}
                     onUserClick={handlers.handleUserClick}
@@ -207,8 +215,8 @@ const CommunityManagementPage: React.FC = () => {
                     onPostSelect={handlers.handlePostSelectFromActivity}
                     likedPosts={likedPosts}
                     viewedPosts={viewedPosts}
-                    onToggleLike={handlers.handleToggleLike}
-                    onToggleView={handlers.handleToggleView}
+                    onToggleLike={(postId, isLiked) => handlers.handleToggleLike(postId, isLiked)}
+                    onToggleView={(postId, isViewed) => handlers.handleToggleView(postId, isViewed)}
                     onUserClick={handlers.handleUserClick}
                     onEditPost={handlers.handleOpenEditModal}
                     onRemovePost={post => handlers.handleOpenModerationModal('remove', 'post', post)}
