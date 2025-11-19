@@ -124,11 +124,34 @@ const CommunityManagementPage: React.FC = () => {
         context: { ...context, posts },
     });
 
-    // Effect xử lý query params để mở UserActivityModal
+    // Effect xử lý query params để mở modal
     useEffect(() => {
+        const postId = searchParams.get('post');
         const userId = searchParams.get('user');
         const tab = searchParams.get('tab');
         
+        // Xử lý mở PostDetailModal
+        if (postId) {
+            // Tìm post từ danh sách hoặc fetch từ API
+            const post = posts.find(p => p.id === postId);
+            if (post) {
+                handlers.handleOpenDetailModal(post);
+            } else {
+                // Nếu không tìm thấy trong list, fetch từ API
+                api.fetchPostById(postId).then(fetchedPost => {
+                    if (fetchedPost) {
+                        handlers.handleOpenDetailModal(fetchedPost);
+                    }
+                }).catch(err => {
+                    console.error('Failed to fetch post:', err);
+                });
+            }
+            // Xóa query params sau khi xử lý
+            setSearchParams({});
+            return;
+        }
+        
+        // Xử lý mở UserActivityModal
         if (userId) {
             // Tìm user từ context
             const user = context.users.find(u => u.id === userId);
@@ -143,7 +166,7 @@ const CommunityManagementPage: React.FC = () => {
                 setSearchParams({});
             }
         }
-    }, [searchParams, context.users, handlers, setters, setSearchParams]);
+    }, [searchParams, posts, context.users, handlers, setters, setSearchParams]);
 
     // --- Derived Data ---
     // Sử dụng isLiked và isViewed từ API response thay vì tính toán từ context

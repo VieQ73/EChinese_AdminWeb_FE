@@ -116,8 +116,11 @@ const ReceivedNotifications: React.FC<ReceivedNotificationsProps> = ({ onStatsUp
       return;
     }
 
-    // Xử lý thông báo community
-    if (notification.type === 'community') {
+    // Kiểm tra xem có phải thông báo liên quan đến bài đăng/comment không
+    const isPostRelated = (notification.type === 'community' || notification.type === 'violation') && 
+                          (notification.redirect_type === 'post' || notification.redirect_type === 'post_comment');
+
+    if (isPostRelated) {
       const postId = notification.data?.post_id;
       const commentId = notification.data?.comment_id;
 
@@ -128,9 +131,11 @@ const ReceivedNotifications: React.FC<ReceivedNotificationsProps> = ({ onStatsUp
             const data = await response.json();
             const post = data.data || data;
             
+            // Nếu bài viết bị gỡ, mở UserActivityModal tab "Đã gỡ"
             if (post.status === 'removed') {
               navigate(`/community?user=${post.user_id}&tab=removed`);
             } else {
+              // Bài viết bình thường, mở PostDetailModal
               navigate(`/community?post=${postId}`);
             }
           } else {
@@ -150,9 +155,11 @@ const ReceivedNotifications: React.FC<ReceivedNotificationsProps> = ({ onStatsUp
             const data = await response.json();
             const comment = data.data || data;
             
+            // Nếu comment bị gỡ, mở UserActivityModal tab "Đã gỡ"
             if (comment.deleted_at) {
               navigate(`/community?user=${comment.user_id}&tab=removed`);
             } else if (comment.post_id) {
+              // Comment bình thường, mở bài viết chứa comment
               navigate(`/community?post=${comment.post_id}`);
             } else {
               navigate('/community');
@@ -168,8 +175,8 @@ const ReceivedNotifications: React.FC<ReceivedNotificationsProps> = ({ onStatsUp
       }
     }
 
-    // Mặc định: chuyển đến trang notifications
-    navigate('/notifications');
+    // Thông báo không liên quan đến bài đăng/comment: chuyển đến trang Quản lý Thông báo
+    // (User đang ở trang này rồi, không cần navigate)
   };
 
   const getNotificationIcon = (type: string) => {

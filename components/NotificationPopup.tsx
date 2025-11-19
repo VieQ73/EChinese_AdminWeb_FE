@@ -67,8 +67,13 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({ payload, onClose,
         return;
       }
 
-      // Xử lý thông báo community
-      if (payload?.data?.type === 'community') {
+      // Kiểm tra xem có phải thông báo liên quan đến bài đăng/comment không
+      // Dựa vào type (community/violation) và có post_id hoặc comment_id
+      const notificationType = payload?.data?.type;
+      const isPostRelated = (notificationType === 'community' || notificationType === 'violation') && 
+                            (payload?.data?.post_id || payload?.data?.comment_id);
+
+      if (isPostRelated) {
         const postId = payload.data?.post_id;
         const commentId = payload.data?.comment_id;
 
@@ -79,10 +84,11 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({ payload, onClose,
               const data = await response.json();
               const post = data.data || data;
               
-              // Nếu bài viết bị gỡ, chuyển đến trang Hoạt động của người dùng, tab "Đã gỡ"
+              // Nếu bài viết bị gỡ, mở UserActivityModal tab "Đã gỡ"
               if (post.status === 'removed') {
                 onNavigate(`/community?user=${post.user_id}&tab=removed`);
               } else {
+                // Bài viết bình thường, mở PostDetailModal
                 onNavigate(`/community?post=${postId}`);
               }
             } else {
@@ -103,10 +109,11 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({ payload, onClose,
               const data = await response.json();
               const comment = data.data || data;
               
-              // Nếu comment bị gỡ, chuyển đến trang Hoạt động của người dùng, tab "Đã gỡ"
+              // Nếu comment bị gỡ, mở UserActivityModal tab "Đã gỡ"
               if (comment.deleted_at) {
                 onNavigate(`/community?user=${comment.user_id}&tab=removed`);
               } else if (comment.post_id) {
+                // Comment bình thường, mở bài viết chứa comment
                 onNavigate(`/community?post=${comment.post_id}`);
               } else {
                 onNavigate('/community');
@@ -123,7 +130,7 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({ payload, onClose,
         }
       }
 
-      // Mặc định: chuyển đến trang Quản lý Thông báo
+      // Thông báo không liên quan đến bài đăng/comment: chuyển đến trang Quản lý Thông báo
       onNavigate('/notifications');
     }
     handleClose();

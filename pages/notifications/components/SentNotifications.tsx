@@ -83,8 +83,11 @@ const SentNotifications: React.FC = () => {
       return;
     }
 
-    // Xử lý thông báo community
-    if (notification.type === 'community') {
+    // Kiểm tra xem có phải thông báo liên quan đến bài đăng/comment không
+    const isPostRelated = (notification.type === 'community' || notification.type === 'violation') && 
+                          (notification.redirect_type === 'post' || notification.redirect_type === 'post_comment');
+
+    if (isPostRelated) {
       const postId = notification.data?.post_id;
       const commentId = notification.data?.comment_id;
 
@@ -95,9 +98,11 @@ const SentNotifications: React.FC = () => {
             const data = await response.json();
             const post = data.data || data;
             
+            // Nếu bài viết bị gỡ, mở UserActivityModal tab "Đã gỡ"
             if (post.status === 'removed') {
               navigate(`/community?user=${post.user_id}&tab=removed`);
             } else {
+              // Bài viết bình thường, mở PostDetailModal
               navigate(`/community?post=${postId}`);
             }
           } else {
@@ -117,9 +122,11 @@ const SentNotifications: React.FC = () => {
             const data = await response.json();
             const comment = data.data || data;
             
+            // Nếu comment bị gỡ, mở UserActivityModal tab "Đã gỡ"
             if (comment.deleted_at) {
               navigate(`/community?user=${comment.user_id}&tab=removed`);
             } else if (comment.post_id) {
+              // Comment bình thường, mở bài viết chứa comment
               navigate(`/community?post=${comment.post_id}`);
             } else {
               navigate('/community');
@@ -135,7 +142,7 @@ const SentNotifications: React.FC = () => {
       }
     }
 
-    // Mặc định: không làm gì (vì là sent notification)
+    // Thông báo không liên quan đến bài đăng/comment: không làm gì (đã ở trang này rồi)
   };
 
   const formatTime = (timestamp: string) => {
