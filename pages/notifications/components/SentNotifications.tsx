@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../../services/apiClient';
 import { Search, Users, User, Globe } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface SentNotification {
   id: string;
@@ -22,6 +23,7 @@ interface SentNotification {
 }
 
 const SentNotifications: React.FC = () => {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<SentNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -73,7 +75,68 @@ const SentNotifications: React.FC = () => {
     }
   };
 
+  const handleNotificationClick = async (notification: SentNotification) => {
+    // Nếu có redirect_url, ưu tiên sử dụng
+    if (notification.data?.redirect_url) {
+      const path = notification.data.redirect_url.replace('app:/', '');
+      navigate(path);
+      return;
+    }
 
+    // Xử lý thông báo community
+    if (notification.type === 'community') {
+      const postId = notification.data?.post_id;
+      const commentId = notification.data?.comment_id;
+
+      if (postId) {
+        try {
+          const response = await fetch(`/api/community/posts/${postId}`);
+          if (response.ok) {
+            const data = await response.json();
+            const post = data.data || data;
+            
+            if (post.status === 'removed') {
+              navigate(`/community?user=${post.user_id}&tab=removed`);
+            } else {
+              navigate(`/community?post=${postId}`);
+            }
+          } else {
+            navigate('/community');
+          }
+        } catch (error) {
+          console.error('Error checking post status:', error);
+          navigate('/community');
+        }
+        return;
+      }
+
+      if (commentId) {
+        try {
+          const response = await fetch(`/api/community/comments/${commentId}`);
+          if (response.ok) {
+            const data = await response.json();
+            const comment = data.data || data;
+            
+            if (comment.deleted_at) {
+              navigate(`/community?user=${comment.user_id}&tab=removed`);
+            } else if (comment.post_id) {
+              navigate(`/community?post=${comment.post_id}`);
+            } else {
+              navigate('/community');
+            }
+          } else {
+            navigate('/community');
+          }
+        } catch (error) {
+          console.error('Error checking comment status:', error);
+          navigate('/community');
+        }
+        return;
+      }
+    }
+
+    // Mặc định: không làm gì (vì là sent notification)
+  };
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -135,7 +198,8 @@ const SentNotifications: React.FC = () => {
           {filteredNotifications.map((notification) => (
             <div
               key={notification.id}
-              className="p-4 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+              className="p-4 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
+              onClick={() => handleNotificationClick(notification)}
             >
               <div className="flex items-start space-x-3">
                 <div className="p-2 bg-gray-100 rounded-lg">

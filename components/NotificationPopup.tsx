@@ -57,21 +57,74 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({ payload, onClose,
     }, 300); // Đợi animation kết thúc
   };
 
-  const handleClick = () => {
+  const handleClick = async () => {
     if (onNavigate) {
       // Ưu tiên redirect_url nếu có
       if (payload?.data?.redirect_url) {
         const path = payload.data.redirect_url.replace('app:/', '');
         onNavigate(path);
-      } 
-      // Nếu là thông báo community và có post_id
-      else if (payload?.data?.type === 'community' && payload?.data?.post_id) {
-        onNavigate(`/community?post=${payload.data.post_id}`);
+        handleClose();
+        return;
       }
+
+      // Xử lý thông báo community
+      if (payload?.data?.type === 'community') {
+        const postId = payload.data?.post_id;
+        const commentId = payload.data?.comment_id;
+
+        if (postId) {
+          try {
+            const response = await fetch(`/api/community/posts/${postId}`);
+            if (response.ok) {
+              const data = await response.json();
+              const post = data.data || data;
+              
+              // Nếu bài viết bị gỡ, chuyển đến trang Hoạt động của người dùng, tab "Đã gỡ"
+              if (post.status === 'removed') {
+                onNavigate(`/community?user=${post.user_id}&tab=removed`);
+              } else {
+                onNavigate(`/community?post=${postId}`);
+              }
+            } else {
+              onNavigate('/community');
+            }
+          } catch (error) {
+            console.error('Error checking post status:', error);
+            onNavigate('/community');
+          }
+          handleClose();
+          return;
+        }
+
+        if (commentId) {
+          try {
+            const response = await fetch(`/api/community/comments/${commentId}`);
+            if (response.ok) {
+              const data = await response.json();
+              const comment = data.data || data;
+              
+              // Nếu comment bị gỡ, chuyển đến trang Hoạt động của người dùng, tab "Đã gỡ"
+              if (comment.deleted_at) {
+                onNavigate(`/community?user=${comment.user_id}&tab=removed`);
+              } else if (comment.post_id) {
+                onNavigate(`/community?post=${comment.post_id}`);
+              } else {
+                onNavigate('/community');
+              }
+            } else {
+              onNavigate('/community');
+            }
+          } catch (error) {
+            console.error('Error checking comment status:', error);
+            onNavigate('/community');
+          }
+          handleClose();
+          return;
+        }
+      }
+
       // Mặc định: chuyển đến trang Quản lý Thông báo
-      else {
-        onNavigate('/notifications');
-      }
+      onNavigate('/notifications');
     }
     handleClose();
   };

@@ -1,5 +1,6 @@
 // CommunityManagementPage.tsx
 import React, { useMemo, useContext, useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 // Contexts & Hooks
 import { AuthContext } from '../../contexts/AuthContext';
@@ -25,6 +26,7 @@ const CommunityManagementPage: React.FC = () => {
     // --- Hooks & Context ---
     const currentUser = useContext(AuthContext)?.user || null;
     const context = useAppData();
+    const [searchParams, setSearchParams] = useSearchParams();
     
     const { state, setters } = useCommunityState();
 
@@ -121,6 +123,27 @@ const CommunityManagementPage: React.FC = () => {
         setters,
         context: { ...context, posts },
     });
+
+    // Effect xử lý query params để mở UserActivityModal
+    useEffect(() => {
+        const userId = searchParams.get('user');
+        const tab = searchParams.get('tab');
+        
+        if (userId) {
+            // Tìm user từ context
+            const user = context.users.find(u => u.id === userId);
+            if (user) {
+                // Set initial tab nếu có
+                if (tab) {
+                    setters.setInitialActivityTab(tab);
+                }
+                // Mở UserActivityModal
+                handlers.handleUserClick(user);
+                // Xóa query params sau khi xử lý
+                setSearchParams({});
+            }
+        }
+    }, [searchParams, context.users, handlers, setters, setSearchParams]);
 
     // --- Derived Data ---
     // Sử dụng isLiked và isViewed từ API response thay vì tính toán từ context

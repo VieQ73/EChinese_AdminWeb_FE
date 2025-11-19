@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../../services/apiClient';
-import { CheckCheck, Trash2, Filter, Search, Bell } from 'lucide-react';
+import { CheckCheck, Trash2, Search, Bell } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface Notification {
   id: string;
@@ -24,6 +25,7 @@ interface ReceivedNotificationsProps {
 }
 
 const ReceivedNotifications: React.FC<ReceivedNotificationsProps> = ({ onStatsUpdate }) => {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -99,6 +101,75 @@ const ReceivedNotifications: React.FC<ReceivedNotificationsProps> = ({ onStatsUp
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
+    // Đánh dấu đã đọc nếu chưa đọc
+    if (!notification.is_read) {
+      handleMarkAsRead([notification.id], false);
+    }
+
+    // Nếu có redirect_url, ưu tiên sử dụng
+    if (notification.data?.redirect_url) {
+      const path = notification.data.redirect_url.replace('app:/', '');
+      navigate(path);
+      return;
+    }
+
+    // Xử lý thông báo community
+    if (notification.type === 'community') {
+      const postId = notification.data?.post_id;
+      const commentId = notification.data?.comment_id;
+
+      if (postId) {
+        try {
+          const response = await fetch(`/api/community/posts/${postId}`);
+          if (response.ok) {
+            const data = await response.json();
+            const post = data.data || data;
+            
+            if (post.status === 'removed') {
+              navigate(`/community?user=${post.user_id}&tab=removed`);
+            } else {
+              navigate(`/community?post=${postId}`);
+            }
+          } else {
+            navigate('/community');
+          }
+        } catch (error) {
+          console.error('Error checking post status:', error);
+          navigate('/community');
+        }
+        return;
+      }
+
+      if (commentId) {
+        try {
+          const response = await fetch(`/api/community/comments/${commentId}`);
+          if (response.ok) {
+            const data = await response.json();
+            const comment = data.data || data;
+            
+            if (comment.deleted_at) {
+              navigate(`/community?user=${comment.user_id}&tab=removed`);
+            } else if (comment.post_id) {
+              navigate(`/community?post=${comment.post_id}`);
+            } else {
+              navigate('/community');
+            }
+          } else {
+            navigate('/community');
+          }
+        } catch (error) {
+          console.error('Error checking comment status:', error);
+          navigate('/community');
+        }
+        return;
+      }
+    }
+
+    // Mặc định: chuyển đến trang notifications
+    navigate('/notifications');
   };
 
   const getNotificationIcon = (type: string) => {
@@ -231,7 +302,10 @@ const ReceivedNotifications: React.FC<ReceivedNotificationsProps> = ({ onStatsUp
 
                 <div className="text-2xl">{getNotificationIcon(notification.type)}</div>
 
-                <div className="flex-1 min-w-0">
+                <div 
+                  className="flex-1 min-w-0 cursor-pointer"
+                  onClick={() => handleNotificationClick(notification)}
+                >
                   <div className="flex items-start justify-between mb-1">
                     <h3 className={`font-semibold ${!notification.is_read ? 'text-gray-900' : 'text-gray-700'}`}>
                       {notification.title}
