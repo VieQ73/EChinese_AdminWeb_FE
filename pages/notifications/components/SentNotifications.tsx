@@ -73,13 +73,7 @@ const SentNotifications: React.FC = () => {
     }
   };
 
-  const getPriorityColor = (priority: number) => {
-    switch (priority) {
-      case 3: return 'text-red-600 bg-red-50';
-      case 2: return 'text-orange-600 bg-orange-50';
-      default: return 'text-gray-600 bg-gray-50';
-    }
-  };
+
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -157,9 +151,6 @@ const SentNotifications: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         <span className={`text-xs px-2 py-1 rounded ${getAudienceBadgeColor(notification.audience)}`}>
                           {getAudienceLabel(notification.audience)}
-                        </span>
-                        <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(notification.priority)}`}>
-                          {notification.priority === 3 ? 'Cao' : notification.priority === 2 ? 'TB' : 'Thấp'}
                         </span>
                         {notification.is_push_sent && (
                           <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">

@@ -110,13 +110,7 @@ const ReceivedNotifications: React.FC<ReceivedNotificationsProps> = ({ onStatsUp
     }
   };
 
-  const getPriorityColor = (priority: number) => {
-    switch (priority) {
-      case 3: return 'text-red-600 bg-red-50';
-      case 2: return 'text-orange-600 bg-orange-50';
-      default: return 'text-gray-600 bg-gray-50';
-    }
-  };
+
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -242,9 +236,6 @@ const ReceivedNotifications: React.FC<ReceivedNotificationsProps> = ({ onStatsUp
                     <h3 className={`font-semibold ${!notification.is_read ? 'text-gray-900' : 'text-gray-700'}`}>
                       {notification.title}
                     </h3>
-                    <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(notification.priority)}`}>
-                      {notification.priority === 3 ? 'Cao' : notification.priority === 2 ? 'TB' : 'Thấp'}
-                    </span>
                   </div>
 
                   <p className="text-sm text-gray-600 mb-2">{notification.content.message}</p>

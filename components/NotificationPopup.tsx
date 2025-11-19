@@ -58,11 +58,20 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({ payload, onClose,
   };
 
   const handleClick = () => {
-    if (payload?.data?.redirect_url && onNavigate) {
-      const path = payload.data.redirect_url.replace('app:/', '');
-      onNavigate(path);
-    } else if (payload?.data?.type === 'community' && payload?.data?.post_id && onNavigate) {
-      onNavigate(`/community?post=${payload.data.post_id}`);
+    if (onNavigate) {
+      // Ưu tiên redirect_url nếu có
+      if (payload?.data?.redirect_url) {
+        const path = payload.data.redirect_url.replace('app:/', '');
+        onNavigate(path);
+      } 
+      // Nếu là thông báo community và có post_id
+      else if (payload?.data?.type === 'community' && payload?.data?.post_id) {
+        onNavigate(`/community?post=${payload.data.post_id}`);
+      }
+      // Mặc định: chuyển đến trang Quản lý Thông báo
+      else {
+        onNavigate('/notifications');
+      }
     }
     handleClose();
   };
@@ -127,13 +136,13 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({ payload, onClose,
                 <p className="text-sm text-gray-600 leading-relaxed">
                   {payload.notification?.body || 'Bạn có một thông báo mới'}
                 </p>
-                {payload.data?.redirect_url && (
-                  <div className="mt-2">
-                    <span className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                      Nhấn để xem chi tiết →
-                    </span>
-                  </div>
-                )}
+                <div className="mt-2">
+                  <span className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                    {payload.data?.redirect_url || payload.data?.post_id 
+                      ? 'Nhấn để xem chi tiết →' 
+                      : 'Nhấn để xem tất cả thông báo →'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
