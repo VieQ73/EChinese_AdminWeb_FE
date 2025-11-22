@@ -1,0 +1,19 @@
+// Table AdminLogs
+Table AdminLogs {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null, note: "Tham chiếu Users.id, chỉ lưu user có role admin/super_admin"]
+  action_type varchar(50) [not null, note: "Enum: CREATE, UPDATE, DELETE, BAN_USER, ..."]
+  target_id uuid [note: "Đối tượng bị tác động, có thể là user_id, post_id, ..."]
+  description text
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  
+  Note: '''
+  - Theo dõi hành động admin (ví dụ, xóa post, khóa user) để kiểm toán.
+  - user_id tham chiếu tới bảng Users, nhưng chỉ cho phép role admin/super_admin.
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+    created_at [type: btree]
+  }
+}
