@@ -99,7 +99,7 @@ const VocabDetailModal: React.FC<VocabDetailModalProps> = ({ vocab, onClose, onE
                     {/* Ghi chú */}
                     {vocab.notes && (
                         <InfoRow label="Ghi chú">
-                            <p className="text-sm text-gray-600 bg-gray-50 border border-gray-100 p-3 rounded-lg shadow-inner">
+                            <p className="text-sm text-gray-600 bg-gray-50 border border-gray-100 p-3 rounded-lg shadow-inner whitespace-pre-wrap">
                                 {vocab.notes}
                             </p>
                         </InfoRow>

@@ -23,6 +23,57 @@ interface NotificationPopupProps {
 const NotificationPopup: React.FC<NotificationPopupProps> = ({ payload, onClose, onNavigate }) => {
   const [isVisible, setIsVisible] = useState(false);
 
+  // Hàm decode HTML entities và loại bỏ thẻ HTML
+  const decodeHtmlEntities = (text: string): string => {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    return textarea.value;
+  };
+
+  // Hàm convert HTML thành văn bản thuần và cắt ngắn
+  const htmlToPlainText = (html: string, maxLength: number = 150): string => {
+    // Decode HTML entities trước
+    const decoded = decodeHtmlEntities(html);
+    
+    // Tạo element tạm để parse HTML
+    const temp = document.createElement('div');
+    temp.innerHTML = decoded;
+    
+    // Lấy text content (loại bỏ tất cả thẻ HTML)
+    let text = temp.textContent || temp.innerText || '';
+    
+    // Loại bỏ khoảng trắng thừa và xuống dòng
+    text = text.replace(/\s+/g, ' ').trim();
+    
+    // Cắt ngắn nếu quá dài
+    if (text.length > maxLength) {
+      text = text.substring(0, maxLength) + '...';
+    }
+    
+    return text;
+  };
+
+  // Lấy content từ payload
+  const getContent = (): string => {
+    // Thử nhiều nguồn khác nhau
+    const sources = [
+      payload?.data?.content,
+      payload?.data?.message,
+      payload?.data?.body,
+      payload?.notification?.body,
+      ''
+    ];
+    
+    // Lấy nguồn đầu tiên có giá trị
+    for (const source of sources) {
+      if (source && typeof source === 'string' && source.trim()) {
+        return source;
+      }
+    }
+    
+    return 'Bạn có một thông báo mới';
+  };
+
   useEffect(() => {
     console.log('🎨 [NotificationPopup] useEffect triggered, payload:', payload);
     
@@ -31,6 +82,8 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({ payload, onClose,
       console.log('📋 [NotificationPopup] Title:', payload.notification?.title);
       console.log('📋 [NotificationPopup] Body:', payload.notification?.body);
       console.log('📋 [NotificationPopup] Data:', payload.data);
+      console.log('📋 [NotificationPopup] Content from getContent():', getContent());
+      console.log('📋 [NotificationPopup] Plain text:', htmlToPlainText(getContent()));
       
       setIsVisible(true);
       console.log('✅ [NotificationPopup] isVisible set to true');
@@ -190,12 +243,9 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({ payload, onClose,
                 {getNotificationIcon(payload.data?.type)}
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-base font-semibold text-gray-900 mb-1">
+                <h3 className="text-base font-semibold text-gray-900 mb-2">
                   {payload.notification?.title || 'Thông báo'}
                 </h3>
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  {payload.notification?.body || 'Bạn có một thông báo mới'}
-                </p>
                 <div className="mt-2">
                   <span className="text-xs text-blue-600 hover:text-blue-700 font-medium">
                     {payload.data?.redirect_url || payload.data?.post_id 

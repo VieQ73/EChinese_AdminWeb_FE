@@ -22,9 +22,10 @@ const ActionButton: React.FC<ActionButtonProps> = ({ onClick, title, icon, class
 interface ExamCardActionsProps {
     exam: ExamSummary;
     onAction: (action: 'copy' | 'publish' | 'unpublish' | 'delete' | 'restore' | 'delete-permanently', exam: ExamSummary) => void;
+    hasAttempts?: boolean;
 }
 
-const ExamCardActions: React.FC<ExamCardActionsProps> = ({ exam, onAction }) => {
+const ExamCardActions: React.FC<ExamCardActionsProps> = ({ exam, onAction, hasAttempts = false }) => {
     const isDeleted = exam.is_deleted || false;
 
     if (isDeleted) {
@@ -46,6 +47,12 @@ const ExamCardActions: React.FC<ExamCardActionsProps> = ({ exam, onAction }) => 
         );
     }
 
+    // Xác định có thể xóa hay không
+    const canDelete = !hasAttempts;
+    const deleteTitle = hasAttempts 
+        ? "Không thể xóa - Đã có người làm bài thi này" 
+        : "Xóa (Chuyển vào thùng rác)";
+
     return (
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <ActionButton
@@ -61,10 +68,10 @@ const ExamCardActions: React.FC<ExamCardActionsProps> = ({ exam, onAction }) => 
                 className="hover:text-green-600 hover:bg-green-100"
             />
             <ActionButton
-                onClick={() => onAction('delete', exam)}
-                title="Xóa (Chuyển vào thùng rác)"
+                onClick={() => canDelete && onAction('delete', exam)}
+                title={deleteTitle}
                 icon={<TrashIcon className="w-4 h-4" />}
-                className="hover:text-red-600 hover:bg-red-100"
+                className={`${canDelete ? 'hover:text-red-600 hover:bg-red-100' : 'opacity-40 cursor-not-allowed'}`}
             />
         </div>
     );

@@ -1,8 +1,12 @@
 // pages/system/SystemManagement.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Loader2 } from 'lucide-react';
 import { useAppData } from '../../contexts/appData/context';
+import { fetchAdminLogs, type GetAdminLogsParams } from './api';
+import { Pagination } from '../../components/ui/pagination';
 import LogToolbar from './components/LogToolbar';
 import LogList from './components/LogList';
+import type { AdminLog, PaginatedResponse } from '../../types';
 
 // Add DateRange type
 interface DateRange {
@@ -11,10 +15,18 @@ interface DateRange {
 }
 
 const SystemManagement: React.FC = () => {
-    // Lấy dữ liệu từ context
-    const { adminLogs, users } = useAppData();
+    // Lấy danh sách users từ context (để hiển thị filter)
+    const { users } = useAppData();
     
-    // State cục bộ để quản lý các bộ lọc
+    // State cho logs data
+    const [logs, setLogs] = useState<AdminLog[]>([]);
+    const [totalLogs, setTotalLogs] = useState(0);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    
+    // State cho pagination và filter
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(20); // 20 logs per page
     const [filters, setFilters] = useState({
         search: '',
         adminId: 'all',
@@ -27,41 +39,50 @@ const SystemManagement: React.FC = () => {
         users.filter(u => u.role === 'admin' || u.role === 'super admin'), 
     [users]);
 
-    // Lấy danh sách các loại hành động đã xảy ra để hiển thị trong bộ lọc
+    // Lấy danh sách các loại hành động (từ logs hiện tại)
     const actionTypes = useMemo(() => 
-        [...new Set(adminLogs.map(log => log.action_type))].sort(),
-    [adminLogs]);
+        [...new Set(logs.map(log => log.action_type))].sort(),
+    [logs]);
 
-    // Lọc danh sách log dựa trên state của các bộ lọc
-    const filteredLogs = useMemo(() => {
-        return adminLogs.filter(log => {
-            const searchLower = filters.search.toLowerCase();
-            const matchesSearch = log.description.toLowerCase().includes(searchLower) 
-                || (log.target_id && log.target_id.toLowerCase().includes(searchLower))
-                || (log.adminName && log.adminName.toLowerCase().includes(searchLower));
-            const matchesAdmin = filters.adminId === 'all' || log.user_id === filters.adminId;
-            const matchesAction = filters.actionType === 'all' || log.action_type === filters.actionType;
+    // Load logs data từ API
+    const loadLogs = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        
+        try {
+            const params: GetAdminLogsParams = {
+                page: currentPage,
+                limit: pageSize,
+                search: filters.search || undefined,
+                admin_id: filters.adminId !== 'all' ? filters.adminId : undefined,
+                action_type: filters.actionType !== 'all' ? filters.actionType : undefined,
+                start_date: dates.start || undefined,
+                end_date: dates.end || undefined
+            };
 
-            // Date filtering logic
-            const matchesDate = (() => {
-                if (!dates.start && !dates.end) return true;
-                const logDate = new Date(log.created_at);
-                if (dates.start) {
-                    const startDate = new Date(dates.start);
-                    startDate.setHours(0, 0, 0, 0);
-                    if (logDate < startDate) return false;
-                }
-                if (dates.end) {
-                    const endDate = new Date(dates.end);
-                    endDate.setHours(23, 59, 59, 999);
-                    if (logDate > endDate) return false;
-                }
-                return true;
-            })();
-            
-            return matchesSearch && matchesAdmin && matchesAction && matchesDate;
-        });
-    }, [adminLogs, filters, dates]);
+            const response: PaginatedResponse<AdminLog> = await fetchAdminLogs(params);
+            setLogs(response.data || []);
+            setTotalLogs(response.meta?.total || 0);
+        } catch (err) {
+            console.error('Lỗi khi tải logs:', err);
+            setError('Không thể tải danh sách nhật ký hệ thống');
+        } finally {
+            setLoading(false);
+        }
+    }, [currentPage, pageSize, filters, dates]);
+
+    // Load logs khi component mount hoặc filter thay đổi
+    useEffect(() => {
+        loadLogs();
+    }, [loadLogs]);
+
+    // Reset về trang 1 khi filter hoặc pageSize thay đổi
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filters.search, filters.adminId, filters.actionType, dates.start, dates.end, pageSize]);
+
+    // Tính toán pagination
+    const totalPages = Math.ceil(totalLogs / pageSize);
 
     return (
         <div className="space-y-6">
@@ -77,10 +98,60 @@ const SystemManagement: React.FC = () => {
                 actionTypes={actionTypes}
             />
             
+            {/* Error State */}
+            {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p className="text-red-600">{error}</p>
+                </div>
+            )}
+
+            {/* Loading State */}
+            {loading && (
+                <div className="flex items-center justify-center py-12">
+                    <Loader2 size={32} className="animate-spin text-blue-600" />
+                    <span className="ml-2 text-gray-600">Đang tải...</span>
+                </div>
+            )}
+            
             {/* Danh sách các thẻ log */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                 <LogList logs={filteredLogs} />
-            </div>
+            {!loading && !error && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                    <LogList logs={logs} />
+                </div>
+            )}
+
+            {/* Pagination với Page Size Selector */}
+            {logs.length > 0 && (
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+                    <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <span>Hiển thị</span>
+                            <select
+                                value={pageSize}
+                                onChange={(e) => setPageSize(Number(e.target.value))}
+                                className="px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                            >
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                            <span>logs / trang</span>
+                        </div>
+                        <div className="text-sm text-gray-600">
+                            Tổng cộng: <span className="font-semibold text-gray-900">{totalLogs}</span> logs
+                        </div>
+                    </div>
+                    
+                    {totalPages > 1 && (
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={setCurrentPage}
+                        />
+                    )}
+                </div>
+            )}
         </div>
     );
 };

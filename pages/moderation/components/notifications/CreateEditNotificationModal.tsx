@@ -31,7 +31,9 @@ const CreateEditNotificationModal: React.FC<CreateEditNotificationModalProps> = 
             setEditorKey(Date.now()); // Reset RichTextEditor
             if (notification) {
                 setTitle(notification.title);
-                setContent((notification.content as any)?.html || '');
+                // Lấy content từ message hoặc html
+                const notifContent = notification.content as any;
+                setContent(notifContent?.message || notifContent?.html || '');
                 setAudience(notification.audience);
                 setType(notification.type as any);
             } else {
@@ -51,7 +53,10 @@ const CreateEditNotificationModal: React.FC<CreateEditNotificationModalProps> = 
 
         const data: Omit<Notification, 'id' | 'created_at'> = {
             title,
-            content: { html: content },
+            content: { 
+                message: content, // API yêu cầu field 'message'
+                html: content     // Giữ html để hiển thị
+            },
             audience,
             type: type as Notification['type'],
             is_push_sent: false, // Luôn tạo ở trạng thái Nháp

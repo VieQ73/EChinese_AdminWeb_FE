@@ -78,7 +78,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
                 if (!cachedRules) fetchPromises.push(fetchCommunityRules({ page: 1, limit: 1000, status: 'all' }).then(res => { state.setCommunityRules(res.data); cacheService.set(CACHE_KEYS.COMMUNITY_RULES, res.data); }));
                 if (!cachedModerationLogs) fetchPromises.push(fetchModerationLogs().then(res => { state.setModerationLogs(res.data); cacheService.set(CACHE_KEYS.MODERATION_LOGS, res.data); }));
                 if (!cachedViolations) fetchPromises.push(fetchViolations({ page: 1, limit: 1000, severity: 'all', targetType: 'all' }).then(res => { const rawViolations = res.data.data as any[]; state.setViolationsData(rawViolations as any); cacheService.set(CACHE_KEYS.VIOLATIONS, rawViolations); }));
-                if (!cachedAdminLogs) fetchPromises.push(fetchAdminLogs().then(data => { state.setAdminLogs(data); cacheService.set(CACHE_KEYS.ADMIN_LOGS, data); }));
+                // if (!cachedAdminLogs) fetchPromises.push(fetchAdminLogs().then(data => { state.setAdminLogs(data); cacheService.set(CACHE_KEYS.ADMIN_LOGS, data); }));
 
                 // Chờ tất cả các fetch hoàn thành
                 if (fetchPromises.length > 0) {

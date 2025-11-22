@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useContext } from 'react';
+import { useLocation } from 'react-router-dom';
 import ReportsTab from './tabs/ReportsTab';
 import ViolationsTab from './tabs/ViolationsTab';
 import AppealsTab from './tabs/AppealsTab';
 import NotificationsTab from './tabs/NotificationsTab';
 import { ReportIcon, ShieldExclamationIcon, ChatAlt2Icon, BellIcon } from '../../constants';
-import { Report, Violation, Appeal, User, Notification, PaginatedResponse } from '../../types';
+import { Report, Violation, Appeal, Notification, PaginatedResponse } from '../../types';
 import { AuthContext } from '../../contexts/AuthContext';
 import * as api from './api'; // Import API mới
 
@@ -49,57 +50,175 @@ const TabButton: React.FC<{
 
 const ModerationCenter: React.FC = () => {
     const { user: currentUser } = useContext(AuthContext)!;
-    // Lấy dữ liệu vi phạm và các hàm action từ context để đảm bảo đồng bộ
-    const { communityRules, violations: contextViolations, updatePost, updateComment, updateUser, removeViolationByTarget } = useAppData();
-    const [activeTab, setActiveTab] = useState<ActiveTab>('reports');
+    const location = useLocation();
+    // Lấy các hàm action từ context để đảm bảo đồng bộ
+    const { communityRules, updatePost, updateComment, updateUser, removeViolationByTarget } = useAppData();
+    
+    // Đọc tab từ URL query params
+    const searchParams = new URLSearchParams(location.search);
+    const tabFromUrl = searchParams.get('tab') as ActiveTab;
+    const [activeTab, setActiveTab] = useState<ActiveTab>(tabFromUrl || 'reports');
+    
+    // Cập nhật activeTab khi URL thay đổi
+    useEffect(() => {
+        if (tabFromUrl) {
+            setActiveTab(tabFromUrl);
+        }
+    }, [tabFromUrl]);
     
     // State cục bộ cho dữ liệu của module
     const [reports, setReports] = useState<PaginatedResponse<Report> | null>(null);
     const [appeals, setAppeals] = useState<PaginatedResponse<Appeal> | null>(null);
+    const [violations, setViolations] = useState<PaginatedResponse<Violation> | null>(null);
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loadingStates, setLoadingStates] = useState({
+        reports: false,
+        appeals: false,
+        violations: false,
+        notifications: false,
+    });
 
     // State quản lý tập trung cho các modal
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [selectedViolation, setSelectedViolation] = useState<Violation | null>(null);
     const [selectedAppeal, setSelectedAppeal] = useState<Appeal | null>(null);
     
-    // Hàm tải tất cả dữ liệu trừ violations (đã lấy từ context)
-    const loadData = useCallback(async () => {
-        setLoading(true);
+    // Hàm tải dữ liệu cho từng tab riêng biệt với phân trang API
+    // Reports, Appeals, Violations: limit=12
+    // Notifications: limit=15
+    const loadReportsData = useCallback(async (
+        page: number = 1, 
+        limit: number = 12,
+        filters?: { status?: string; target_type?: string; search?: string }
+    ) => {
+        setLoadingStates(prev => ({ ...prev, reports: true }));
         try {
-            // Tạm thời fetch tất cả mà không phân trang để lấy count.
-            const [reportsRes, appealsRes, notificationsRes] = await Promise.all([
-                api.fetchReports({ limit: 999 }),
-                api.fetchAppeals({ limit: 999 }),
-                api.fetchNotifications(),
-            ]);
+            const reportsRes = await api.fetchReports({ 
+                page, 
+                limit,
+                status: filters?.status as any,
+                targetType: filters?.target_type as any,
+                search: filters?.search
+            });
             setReports(reportsRes.data);
-            setAppeals(appealsRes.data);
-            setNotifications(notificationsRes.data);
         } catch (error) {
-            console.error("Failed to load moderation data", error);
+            console.error("Failed to load reports data", error);
         } finally {
-            setLoading(false);
+            setLoadingStates(prev => ({ ...prev, reports: false }));
         }
     }, []);
 
+    const loadAppealsData = useCallback(async (
+        page: number = 1, 
+        limit: number = 12,
+        filters?: { status?: string; search?: string }
+    ) => {
+        setLoadingStates(prev => ({ ...prev, appeals: true }));
+        try {
+            const appealsRes = await api.fetchAppeals({ 
+                page, 
+                limit,
+                status: filters?.status as any,
+                search: filters?.search
+            });
+            setAppeals(appealsRes.data);
+        } catch (error) {
+            console.error("Failed to load appeals data", error);
+        } finally {
+            setLoadingStates(prev => ({ ...prev, appeals: false }));
+        }
+    }, []);
+
+    const loadViolationsData = useCallback(async (
+        page: number = 1, 
+        limit: number = 12,
+        filters?: { severity?: string; targetType?: string; search?: string }
+    ) => {
+        setLoadingStates(prev => ({ ...prev, violations: true }));
+        try {
+            const violationsRes = await api.fetchViolations({ 
+                page, 
+                limit,
+                severity: filters?.severity as any,
+                targetType: filters?.targetType as any,
+                search: filters?.search
+            });
+            setViolations(violationsRes.data);
+        } catch (error) {
+            console.error("Failed to load violations data", error);
+        } finally {
+            setLoadingStates(prev => ({ ...prev, violations: false }));
+        }
+    }, []);
+
+    const loadNotificationsData = useCallback(async (
+        page: number = 1, 
+        limit: number = 15,
+        filters?: { read_status?: string; type?: string; status?: string; audience?: string }
+    ) => {
+        setLoadingStates(prev => ({ ...prev, notifications: true }));
+        try {
+            const [receivedNotifs, sentNotifs] = await Promise.all([
+                api.fetchReceivedNotifications({ 
+                    page, 
+                    limit,
+                    read_status: filters?.read_status as any,
+                    type: filters?.type
+                }),
+                api.fetchSentNotifications({ 
+                    page, 
+                    limit,
+                    status: filters?.status as any,
+                    audience: filters?.audience,
+                    type: filters?.type
+                }),
+            ]);
+            
+            // Gộp thông báo nhận và gửi, đánh dấu nguồn và meta
+            const allNotifications = [
+                ...receivedNotifs.data.map(n => ({ ...n, _source: 'received' as const, _meta: receivedNotifs.meta })),
+                ...sentNotifs.data.map(n => ({ ...n, _source: 'sent' as const, _meta: sentNotifs.meta }))
+            ];
+            setNotifications(allNotifications as any);
+            console.log('Received notifications:', receivedNotifs.data, 'Meta:', receivedNotifs.meta);
+            console.log('Sent notifications:', sentNotifs.data, 'Meta:', sentNotifs.meta);
+        } catch (error) {
+            console.error("Failed to load notifications data", error);
+        } finally {
+            setLoadingStates(prev => ({ ...prev, notifications: false }));
+        }
+    }, []);
+
+    // Load dữ liệu mỗi khi chuyển tab (luôn reload để có dữ liệu mới nhất)
     useEffect(() => {
-        loadData();
-    }, [loadData]);
+        switch (activeTab) {
+            case 'reports':
+                loadReportsData();
+                break;
+            case 'violations':
+                loadViolationsData();
+                break;
+            case 'appeals':
+                loadAppealsData();
+                break;
+            case 'notifications':
+                loadNotificationsData();
+                break;
+        }
+    }, [activeTab, loadReportsData, loadViolationsData, loadAppealsData, loadNotificationsData]);
 
 
     // Handlers cho actions
     const handleUpdateReport = async (reportId: string, action: 'start_processing' | 'resolve' | 'dismiss', data: any) => {
         try {
-            const updatedReportRes = await api.updateReportStatus(reportId, {
+            await api.updateReportStatus(reportId, {
                 status: action === 'start_processing' ? 'in_progress' : action === 'resolve' ? 'resolved' : 'dismissed',
                 resolution: data.resolution,
                 severity: data.severity,
                 adminId: currentUser.id,
             });
-            // Tải lại toàn bộ dữ liệu để đảm bảo đồng bộ, bao gồm cả violation mới (nếu có)
-            loadData();
+            // Tải lại dữ liệu của tab hiện tại
+            await loadReportsData();
             if (action !== 'start_processing') {
                 setSelectedReport(null); // Đóng modal sau khi xử lý
             }
@@ -129,7 +248,8 @@ const ModerationCenter: React.FC = () => {
                 }
             }
             
-            loadData(); // Tải lại dữ liệu cục bộ cho trang kiểm duyệt
+            // Tải lại dữ liệu của tab appeals
+            await loadAppealsData();
             setSelectedAppeal(null);
         } catch (error) {
             alert('Xử lý khiếu nại thất bại');
@@ -169,22 +289,22 @@ const ModerationCenter: React.FC = () => {
     const renderTabContent = () => {
         switch (activeTab) {
             case 'reports':
-                return <ReportsTab reportsData={reports} onOpenReport={handleOpenReport} loading={loading} communityRules={communityRules}/>;
+                return <ReportsTab reportsData={reports} onOpenReport={handleOpenReport} loading={loadingStates.reports} communityRules={communityRules} refreshData={loadReportsData} />;
             case 'violations':
-                // Sử dụng violations từ context
-                return <ViolationsTab violations={contextViolations} onOpenViolation={handleOpenViolation} loading={loading && contextViolations.length === 0} />;
+                // Sử dụng violations từ API để có dữ liệu mới nhất
+                return <ViolationsTab violationsData={violations} onOpenViolation={handleOpenViolation} loading={loadingStates.violations} refreshData={loadViolationsData} />;
             case 'appeals':
-                return <AppealsTab appealsData={appeals} onOpenAppeal={handleOpenAppeal} loading={loading} />;
+                return <AppealsTab appealsData={appeals} onOpenAppeal={handleOpenAppeal} loading={loadingStates.appeals} refreshData={loadAppealsData} />;
             case 'notifications':
-                return <NotificationsTab notifications={notifications} onNavigateToAction={handleNavigateFromNotification} refreshData={loadData} />;
+                return <NotificationsTab notifications={notifications} onNavigateToAction={handleNavigateFromNotification} refreshData={loadNotificationsData} loading={loadingStates.notifications} />;
             default:
                 return null;
         }
     };
 
     const unreadAdminNotifs = notifications.filter(n => (n.audience === 'admin' || n.from_system) && !n.read_at).length;
-    const pendingReportsCount = reports?.data.filter(r => r.status === 'pending').length || 0;
-    const pendingAppealsCount = appeals?.data.filter(a => a.status === 'pending').length || 0;
+    const pendingReportsCount = reports?.meta?.total || 0;
+    const pendingAppealsCount = appeals?.meta?.total || 0;
 
     return (
         <div className="space-y-6">

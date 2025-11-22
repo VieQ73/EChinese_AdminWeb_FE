@@ -19,6 +19,9 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
     selected = false,
     onSelect
 }) => {
+    // Xử lý cả is_read (boolean) và read_at (timestamp)
+    const isRead = (notification as any).is_read ?? (notification.read_at ? true : false);
+    
     // Lấy màu theo loại thông báo
     const getTypeColor = () => {
         switch (notification.type) {
@@ -27,6 +30,7 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
             case 'violation': return 'text-orange-600 bg-orange-50';
             case 'appeal': return 'text-purple-600 bg-purple-50';
             case 'achievement': return 'text-green-600 bg-green-50';
+            case 'community': return 'text-indigo-600 bg-indigo-50';
             default: return 'text-gray-600 bg-gray-50';
         }
     };
@@ -47,16 +51,30 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
     };
 
     const getAudienceLabel = () => {
+        if (!notification.audience) return 'Người dùng';
         switch (notification.audience) {
             case 'admin': return 'Quản trị viên';
             case 'all': return 'Tất cả';
             default: return 'Người dùng';
         }
     };
+    
+    // Lấy message từ content hoặc data
+    const getMessage = () => {
+        const data = notification.data as any;
+        if (data?.message) return data.message;
+        if (typeof notification.content === 'string') return notification.content;
+        if (notification.content && typeof notification.content === 'object') {
+            return (notification.content as any).html || (notification.content as any).text || '';
+        }
+        return '';
+    };
 
+    const message = getMessage();
+    
     return (
         <div className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all max-w-xs ${
-            notification.read_at ? 'border-gray-200' : 'border-primary-200 bg-primary-50/30'
+            isRead ? 'border-gray-200' : 'border-primary-200 bg-primary-50/30'
         } ${selected ? 'ring-2 ring-primary-500' : ''}`}>
             <div className="p-3">
                 {/* Header với checkbox (nếu có) và trạng thái */}
@@ -70,13 +88,13 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
                                 className="h-3 w-3 text-primary-600 border-gray-300 rounded"
                             />
                         )}
-                        <BellIcon className={`w-3 h-3 flex-shrink-0 ${notification.read_at ? 'text-gray-400' : 'text-primary-500'}`} />
+                        <BellIcon className={`w-3 h-3 flex-shrink-0 ${isRead ? 'text-gray-400' : 'text-primary-500'}`} />
                         <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getTypeColor()}`}>
                             {getTypeLabel()}
                         </span>
                     </div>
                     
-                    {!notification.read_at && (
+                    {!isRead && (
                         <div className="w-2 h-2 bg-primary-500 rounded-full flex-shrink-0"></div>
                     )}
                 </div>
@@ -86,15 +104,20 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
                     {notification.title}
                 </h3>
 
+                {/* Message preview nếu có */}
+                {message && (
+                    <p className="text-xs text-gray-600 mb-2 line-clamp-2" dangerouslySetInnerHTML={{ __html: message }} />
+                )}
+
                 {/* Thông tin bổ sung */}
                 <div className="text-xs text-gray-500 mb-2 space-y-1">
                     <div className="flex items-center justify-between">
-                        <span>Đối tượng: {getAudienceLabel()}</span>
-                        <span>{new Date(notification.created_at).toLocaleDateString('vi-VN')}</span>
+                        {notification.audience && <span>Đối tượng: {getAudienceLabel()}</span>}
+                        <span className="ml-auto">{new Date(notification.created_at).toLocaleDateString('vi-VN')}</span>
                     </div>
                     
                     {/* Trạng thái phát hành cho sent notifications */}
-                    {'is_push_sent' in notification && (
+                    {'is_push_sent' in notification && notification.is_push_sent !== undefined && (
                         <div className="flex items-center space-x-1">
                             <span className={`w-1.5 h-1.5 rounded-full ${
                                 notification.is_push_sent ? 'bg-green-500' : 'bg-yellow-500'
@@ -106,7 +129,7 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
 
                 {/* Actions */}
                 <div className="flex items-center justify-between">
-                    {onMarkAsRead && !notification.read_at && (
+                    {onMarkAsRead && !isRead && (
                         <button
                             onClick={() => onMarkAsRead([notification.id], true)}
                             className="inline-flex items-center px-2 py-0.5 text-xs font-medium text-green-600 hover:text-green-900 hover:bg-green-50 rounded transition-colors"

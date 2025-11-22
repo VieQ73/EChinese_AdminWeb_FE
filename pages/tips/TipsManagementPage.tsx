@@ -35,7 +35,7 @@ const TipsManagementPage: React.FC = () => {
 
   // State cho pagination và filter
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(12); // 12 tips per page
+  const [pageSize, setPageSize] = useState(12); // 12 tips per page
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTopic, setSelectedTopic] = useState('Tất cả');
   const [selectedLevel, setSelectedLevel] = useState('Tất cả');
@@ -81,10 +81,10 @@ const TipsManagementPage: React.FC = () => {
     loadTips();
   }, [loadTips]);
 
-  // Reset về trang 1 khi filter thay đổi
+  // Reset về trang 1 khi filter hoặc pageSize thay đổi
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedTopic, selectedLevel, showPinnedOnly]);
+  }, [searchQuery, selectedTopic, selectedLevel, showPinnedOnly, pageSize]);
 
   // Xử lý tạo tip mới
   const handleCreateTip = async (tipData: TipPayload) => {
@@ -250,12 +250,38 @@ const TipsManagementPage: React.FC = () => {
         </>
       )}
 
-      {/* Pagination */}
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-      />
+      {/* Pagination với Page Size Selector */}
+      {tips.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>Hiển thị</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              >
+                <option value={6}>6</option>
+                <option value={12}>12</option>
+                <option value={24}>24</option>
+                <option value={48}>48</option>
+              </select>
+              <span>mẹo / trang</span>
+            </div>
+            <div className="text-sm text-gray-600">
+              Tổng cộng: <span className="font-semibold text-gray-900">{totalTips}</span> mẹo
+            </div>
+          </div>
+          
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          )}
+        </div>
+      )}
 
       {/* Create/Edit Modal */}
       <CreateEditTipModal

@@ -18,12 +18,14 @@ interface FetchAppealsParams {
 type AppealsEnvelope = { success: boolean; data: PaginatedResponse<Appeal> };
 
 export const fetchAppeals = (params: FetchAppealsParams): Promise<AppealsEnvelope> => {
-    const query = new URLSearchParams(
-        Object.entries(params).filter(([, v]) => v !== undefined && v !== 'all') as [string, string][]
-    ).toString();
-    const endpoint = query ? `/moderation/appeals?${query}` : '/moderation/appeals';
-    return apiClient.get<AppealsEnvelope>(endpoint);
-
+    if (!USE_MOCK_API) {
+        const query = new URLSearchParams(
+            Object.entries(params).filter(([, v]) => v !== undefined && v !== 'all') as [string, string][]
+        ).toString();
+        const endpoint = query ? `/moderation/appeals?${query}` : '/moderation/appeals';
+        return apiClient.get<AppealsEnvelope>(endpoint);
+    }
+    
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {

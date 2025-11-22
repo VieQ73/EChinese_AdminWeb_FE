@@ -19,9 +19,19 @@ interface FetchReportsParams {
 type ReportsEnvelope = { success: boolean; data: PaginatedResponse<Report> };
 
 export const fetchReports = (params: FetchReportsParams): Promise<ReportsEnvelope> => {
-
-    
-        return apiClient.get<ReportsEnvelope>('/moderation/reports');
+    if (!USE_MOCK_API) {
+        // Build query string from params
+        const queryParams = new URLSearchParams();
+        if (params.page) queryParams.append('page', params.page.toString());
+        if (params.limit) queryParams.append('limit', params.limit.toString());
+        if (params.search) queryParams.append('search', params.search);
+        if (params.status && params.status !== 'all') queryParams.append('status', params.status);
+        if (params.targetType && params.targetType !== 'all') queryParams.append('target_type', params.targetType);
+        
+        const queryString = queryParams.toString();
+        const endpoint = queryString ? `/moderation/reports?${queryString}` : '/moderation/reports';
+        return apiClient.get<ReportsEnvelope>(endpoint);
+    }
 
     if (USE_MOCK_API) {
         return new Promise(resolve => {

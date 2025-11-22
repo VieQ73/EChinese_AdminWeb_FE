@@ -42,6 +42,7 @@ const CommunityManagementPage: React.FC = () => {
         setIsLoading(true);
         try {
             const currentPage = isLoadMore ? page + 1 : 1;
+            
             const response: PaginatedResponse<Post> = await api.fetchPosts({
                 page: currentPage,
                 limit: 15, // Số lượng bài viết mỗi lần tải
@@ -66,7 +67,29 @@ const CommunityManagementPage: React.FC = () => {
 
     // Effect tải lại từ đầu khi filter thay đổi
     useEffect(() => {
-        loadPosts(false);
+        // Reset về trang 1 và reload posts khi topic filter thay đổi
+        setPage(1);
+        setPosts([]); // Clear posts cũ để tránh hiển thị data cũ
+        
+        // Gọi API trực tiếp thay vì dùng loadPosts để tránh dependency issue
+        const fetchData = async () => {
+            setIsLoading(true);
+            try {
+                const response: PaginatedResponse<Post> = await api.fetchPosts({
+                    page: 1,
+                    limit: 15,
+                    topic: state.filters.topic === 'all' ? undefined : state.filters.topic,
+                });
+                setPosts(response.data);
+                setHasMore(response.data.length > 0 && response.meta.totalPages > 1);
+            } catch (error) {
+                console.error("Failed to load posts", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        
+        fetchData();
     }, [state.filters.topic]);
 
     // --- Fetch Community Stats from API ---
@@ -183,6 +206,15 @@ const CommunityManagementPage: React.FC = () => {
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold text-gray-900">Quản lý Cộng đồng</h1>
+            
+            {/* Debug info - Xóa sau khi fix */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
+                <p><strong>Debug Info:</strong></p>
+                <p>Posts count: {posts.length}</p>
+                <p>Is Loading: {isLoading ? 'Yes' : 'No'}</p>
+                <p>Current Topic: {state.filters.topic}</p>
+                <p>Current Page: {page}</p>
+            </div>
             
             <div className="flex gap-8 items-start">
                 {/* Main Content: Composer + Feed */}

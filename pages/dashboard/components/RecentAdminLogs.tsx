@@ -18,7 +18,7 @@ interface RecentAdminLogsProps {
 }
 
 /**
- * Component hiển thị danh sách 10 hành động mới nhất của Admin.
+ * Component hiển thị danh sách 5 hành động mới nhất của Admin.
  */
 const RecentAdminLogs: React.FC<RecentAdminLogsProps> = ({ logs }) => {
   const navigate = useNavigate();
@@ -38,7 +38,7 @@ const RecentAdminLogs: React.FC<RecentAdminLogsProps> = ({ logs }) => {
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 h-full flex flex-col">
       <h2 className="text-xl font-semibold text-gray-900 mb-4">Hoạt động Admin gần đây</h2>
       <ul className="divide-y divide-gray-100 flex-1">
-        {logs.length > 0 ? logs.map(log => {
+        {logs.length > 0 ? logs.slice(0, 5).map(log => {
           const { icon: Icon, color } = getLogActionInfo(log.action_type);
           // Tạo class cho background của icon từ class màu text
           const bgColor = color.replace('text-', 'bg-') + '/10';

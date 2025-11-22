@@ -29,7 +29,11 @@ export const useLogActions = ({ setAdminLogs, currentUser }: UseLogActionsProps)
     };
 
     // Thêm log mới vào đầu danh sách để hiển thị mới nhất trước
-    setAdminLogs(prevLogs => [newLog, ...prevLogs]);
+    // Đảm bảo prevLogs luôn là array để tránh lỗi "not iterable"
+    setAdminLogs(prevLogs => {
+      const safePrevLogs = Array.isArray(prevLogs) ? prevLogs : [];
+      return [newLog, ...safePrevLogs];
+    });
   }, [currentUser, setAdminLogs]);
 
   return { addAdminLog };

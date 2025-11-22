@@ -28,80 +28,108 @@ const CommunityActivityFeed: React.FC<CommunityActivityFeedProps> = ({
     unreadNotificationsCount
 }) => {
     const navigate = useNavigate();
-    const hasActionItems = pendingReportsCount > 0 || pendingAppealsCount > 0 || unreadNotificationsCount > 0;
+    
+    // Tạo danh sách các items theo thứ tự ưu tiên
+    const items: Array<{ type: string; component: React.ReactNode }> = [];
+    
+    // 1. Báo cáo (ưu tiên cao nhất)
+    if (pendingReportsCount >= 0) {
+        items.push({
+            type: 'report',
+            component: (
+                <ActionItem
+                    key="reports"
+                    icon={AlertTriangle}
+                    iconColor="text-red-500"
+                    bgColor="bg-red-50/50 hover:bg-red-100/70"
+                    borderColor="border-red-400"
+                    onClick={() => navigate('/reports')}
+                >
+                    Bạn có <span className="font-bold text-red-600">{pendingReportsCount} báo cáo</span> đang chờ xử lý.
+                </ActionItem>
+            )
+        });
+    }
+    
+    // 2. Khiếu nại
+    if (pendingAppealsCount >= 0) {
+        items.push({
+            type: 'appeal',
+            component: (
+                <ActionItem
+                    key="appeals"
+                    icon={ChatAlt2Icon}
+                    iconColor="text-yellow-500"
+                    bgColor="bg-yellow-50/50 hover:bg-yellow-100/70"
+                    borderColor="border-yellow-400"
+                    onClick={() => navigate('/reports?tab=appeals')}
+                >
+                    Bạn có <span className="font-bold text-yellow-600">{pendingAppealsCount} khiếu nại</span> đang chờ xử lý.
+                </ActionItem>
+            )
+        });
+    }
+    
+    // 3. Thông báo
+    if (unreadNotificationsCount >= 0) {
+        items.push({
+            type: 'notification',
+            component: (
+                <ActionItem
+                    key="notifications"
+                    icon={BellIcon}
+                    iconColor="text-blue-500"
+                    bgColor="bg-blue-50/50 hover:bg-blue-100/70"
+                    borderColor="border-blue-400"
+                    onClick={() => navigate('/reports?tab=notifications')}
+                >
+                    Bạn có <span className="font-bold text-blue-600">{unreadNotificationsCount} thông báo</span> chưa đọc.
+                </ActionItem>
+            )
+        });
+    }
+    
+    // 4. Người dùng mới (hiển thị tổng số)
+    if (recentUsers.length > 0) {
+        items.push({
+            type: 'users',
+            component: (
+                <ActionItem
+                    key="users"
+                    icon={() => (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                    )}
+                    iconColor="text-green-500"
+                    bgColor="bg-green-50/50 hover:bg-green-100/70"
+                    borderColor="border-green-400"
+                    onClick={() => navigate('/users')}
+                >
+                    Có <span className="font-bold text-green-600">{recentUsers.length} người dùng mới</span> đã đăng ký gần đây.
+                </ActionItem>
+            )
+        });
+    }
 
     return (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 h-full flex flex-col">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Hoạt động Cộng đồng</h2>
             <div className="flex-1 space-y-2">
-                {/* Mục báo cáo - được làm nổi bật */}
-                {pendingReportsCount > 0 && (
-                    <ActionItem
-                        icon={AlertTriangle}
-                        iconColor="text-red-500"
-                        bgColor="bg-red-50/50 hover:bg-red-100/70"
-                        borderColor="border-red-400"
-                        onClick={() => navigate('/reports')}
-                    >
-                        Bạn có <span className="font-bold text-red-600">{pendingReportsCount} báo cáo</span> đang chờ xử lý.
-                    </ActionItem>
+                {items.length > 0 ? (
+                    items.map(item => item.component)
+                ) : (
+                    <p className="text-center text-sm text-gray-400 pt-4">
+                        Không có hoạt động nào gần đây.
+                    </p>
                 )}
-                
-                {/* Mục khiếu nại - mới */}
-                {pendingAppealsCount > 0 && (
-                    <ActionItem
-                        icon={ChatAlt2Icon}
-                        iconColor="text-yellow-500"
-                        bgColor="bg-yellow-50/50 hover:bg-yellow-100/70"
-                        borderColor="border-yellow-400"
-                        onClick={() => navigate('/reports?tab=appeals')}
-                    >
-                        Bạn có <span className="font-bold text-yellow-600">{pendingAppealsCount} khiếu nại</span> đang chờ xử lý.
-                    </ActionItem>
-                )}
-
-                {/* Mục thông báo - mới */}
-                {unreadNotificationsCount > 0 && (
-                    <ActionItem
-                        icon={BellIcon}
-                        iconColor="text-blue-500"
-                        bgColor="bg-blue-50/50 hover:bg-blue-100/70"
-                        borderColor="border-blue-400"
-                        onClick={() => navigate('/reports?tab=notifications')}
-                    >
-                         Bạn có <span className="font-bold text-blue-600">{unreadNotificationsCount} thông báo</span> chưa đọc.
-                    </ActionItem>
-                )}
-                
-                {/* Divider */}
-                {hasActionItems && (
-                    <div className="pt-2">
-                        <hr className="border-gray-100" />
-                    </div>
-                )}
-                
-                {/* Danh sách người dùng mới */}
-                <ul className="divide-y divide-gray-100">
-                    {recentUsers.map(user => (
-                        <li key={user.id} className="py-2">
-                            <button onClick={() => navigate(`/users/${user.id}`)} className="w-full text-left flex items-center space-x-3 p-3 hover:bg-slate-50 rounded-lg transition-colors">
-                                <img src={user.avatar_url || ''} alt={user.name} className="w-10 h-10 rounded-full" />
-                                <div>
-                                    <p className="text-gray-800">
-                                        Người dùng mới <span className="font-semibold text-primary-600">{user.name}</span> đã đăng ký.
-                                    </p>
-                                    <p className="text-xs text-gray-500">{new Date(user.created_at).toLocaleDateString()}</p>
-                                </div>
-                            </button>
-                        </li>
-                    ))}
-                     {recentUsers.length === 0 && (
-                         <li className="text-center text-sm text-gray-400 pt-4">
-                             Không có người dùng mới nào gần đây.
-                         </li>
-                     )}
-                </ul>
             </div>
+            <button
+                onClick={() => navigate('/reports')}
+                className="w-full mt-4 text-center text-sm font-medium text-primary-600 hover:text-primary-800"
+            >
+                Xem chi tiết
+            </button>
         </div>
     );
 };

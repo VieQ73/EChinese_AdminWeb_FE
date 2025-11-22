@@ -19,12 +19,14 @@ interface FetchViolationsParams {
 type ViolationsEnvelope = { success: boolean; data: PaginatedResponse<Violation> };
 
 export const fetchViolations = (params: FetchViolationsParams): Promise<ViolationsEnvelope> => {
-    const query = new URLSearchParams(
-        Object.entries(params).filter(([, v]) => v !== undefined && v !== 'all') as [string, string][]
-    ).toString();
-    const endpoint = query ? `/moderation/violations?${query}` : '/moderation/violations';
-    return apiClient.get<ViolationsEnvelope>(endpoint);
-
+    if (!USE_MOCK_API) {
+        const query = new URLSearchParams(
+            Object.entries(params).filter(([, v]) => v !== undefined && v !== 'all') as [string, string][]
+        ).toString();
+        const endpoint = query ? `/moderation/violations?${query}` : '/moderation/violations';
+        return apiClient.get<ViolationsEnvelope>(endpoint);
+    }
+    
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {

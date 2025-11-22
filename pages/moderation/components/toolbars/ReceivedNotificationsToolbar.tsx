@@ -10,7 +10,17 @@ interface ReceivedNotificationsToolbarProps {
     onDatesChange: (dates: DateRange) => void;
 }
 
-const NOTIFICATION_TYPES = ['system', 'report', 'violation', 'appeal', 'subscription', 'community', 'achievement', 'reminder', 'feedback'];
+const NOTIFICATION_TYPES = [
+    { value: 'system', label: 'Hệ thống' },
+    { value: 'report', label: 'Báo cáo' },
+    { value: 'violation', label: 'Vi phạm' },
+    { value: 'appeal', label: 'Khiếu nại' },
+    { value: 'subscription', label: 'Đăng ký' },
+    { value: 'community', label: 'Cộng đồng' },
+    { value: 'achievement', label: 'Thành tích' },
+    { value: 'reminder', label: 'Nhắc nhở' },
+    { value: 'feedback', label: 'Phản hồi' }
+];
 
 const ReceivedNotificationsToolbar: React.FC<ReceivedNotificationsToolbarProps> = ({ searchTerm, onSearchChange, filters, onFilterChange, dates, onDatesChange }) => {
     return (
@@ -27,7 +37,7 @@ const ReceivedNotificationsToolbar: React.FC<ReceivedNotificationsToolbarProps> 
                     <DateRangePicker dates={dates} onDatesChange={onDatesChange} />
                     <select value={filters.type} onChange={(e) => onFilterChange({ ...filters, type: e.target.value })} className="p-2.5 border border-gray-300 rounded-lg bg-white">
                         <option value="all">Tất cả loại</option>
-                        {NOTIFICATION_TYPES.map(type => <option key={type} value={type} className="capitalize">{type}</option>)}
+                        {NOTIFICATION_TYPES.map(type => <option key={type.value} value={type.value}>{type.label}</option>)}
                     </select>
                     <select value={filters.status} onChange={(e) => onFilterChange({ ...filters, status: e.target.value })} className="p-2.5 border border-gray-300 rounded-lg bg-white">
                         <option value="all">Tất cả trạng thái</option>

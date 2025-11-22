@@ -14,17 +14,35 @@ interface SentNotificationsViewProps {
     onCreate: () => void;
     onPublish: (ids: string[]) => void;
     onDelete: (ids: string[]) => void;
+    loading?: boolean;
+    onPageChange?: (page: number, filters?: any) => void;
+    currentPage?: number;
+    totalPages?: number;
 }
 
-const SentNotificationsView: React.FC<SentNotificationsViewProps> = ({ notifications, onViewDetails, onCreate, onPublish, onDelete }) => {
-    // Dynamic pagination cho notification cards
+const SentNotificationsView: React.FC<SentNotificationsViewProps> = ({ 
+    notifications, 
+    onViewDetails, 
+    onCreate, 
+    onPublish, 
+    onDelete, 
+    loading = false,
+    onPageChange,
+    currentPage: externalCurrentPage,
+    totalPages: externalTotalPages
+}) => {
+    // Dynamic pagination cho notification cards (chỉ dùng khi không có server-side pagination)
     const itemsPerPage = useCardPagination('notification');
     
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({ audience: 'all_audience', type: 'all', status: 'all' });
     const [dates, setDates] = useState<DateRange>({ start: null, end: null });
-    const [currentPage, setCurrentPage] = useState(1);
+    const [localCurrentPage, setLocalCurrentPage] = useState(1);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    
+    // Sử dụng external page nếu có, nếu không dùng local page
+    const currentPage = externalCurrentPage || localCurrentPage;
+    const useServerPagination = !!onPageChange;
 
     const sortedNotifications = useMemo(() => 
         [...notifications].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()), 
@@ -52,14 +70,58 @@ const SentNotificationsView: React.FC<SentNotificationsViewProps> = ({ notificat
         });
     }, [sortedNotifications, searchTerm, filters, dates]);
 
-    const paginated = useMemo(() => filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [filtered, currentPage, itemsPerPage]);
-    const pageCount = Math.ceil(filtered.length / itemsPerPage);
+    // Nếu có server-side pagination, hiển thị trực tiếp data từ server
+    const paginated = useMemo(() => {
+        if (useServerPagination) {
+            // Server đã filter và paginate, chỉ cần filter theo date ở client (nếu có)
+            return sortedNotifications.filter(n => {
+                if (dates.start) {
+                    const startDate = new Date(dates.start);
+                    startDate.setHours(0, 0, 0, 0);
+                    if (new Date(n.created_at) < startDate) return false;
+                }
+                if (dates.end) {
+                    const endDate = new Date(dates.end);
+                    endDate.setHours(23, 59, 59, 999);
+                    if (new Date(n.created_at) > endDate) return false;
+                }
+                return true;
+            });
+        }
+        // Client-side: filter và paginate
+        return filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    }, [sortedNotifications, filtered, currentPage, itemsPerPage, useServerPagination, dates]);
+    
+    const pageCount = externalTotalPages || Math.ceil(filtered.length / itemsPerPage);
 
     // Reset page and selection on filter change
     useEffect(() => {
-        setCurrentPage(1);
+        if (onPageChange) {
+            const apiFilters = {
+                status: filters.status !== 'all' ? filters.status : undefined,
+                audience: filters.audience !== 'all_audience' ? filters.audience : undefined,
+                type: filters.type !== 'all' ? filters.type : undefined
+            };
+            onPageChange(1, apiFilters);
+        } else {
+            setLocalCurrentPage(1);
+        }
         setSelectedIds(new Set());
-    }, [searchTerm, filters, dates]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchTerm, filters.status, filters.audience, filters.type, dates]);
+    
+    const handlePageChangeInternal = (page: number) => {
+        if (onPageChange) {
+            const apiFilters = {
+                status: filters.status !== 'all' ? filters.status : undefined,
+                audience: filters.audience !== 'all_audience' ? filters.audience : undefined,
+                type: filters.type !== 'all' ? filters.type : undefined
+            };
+            onPageChange(page, apiFilters);
+        } else {
+            setLocalCurrentPage(page);
+        }
+    };
 
     const handleSelect = useCallback((id: string) => {
         setSelectedIds(prev => {
@@ -96,14 +158,14 @@ const SentNotificationsView: React.FC<SentNotificationsViewProps> = ({ notificat
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden p-4">
                 <NotificationCardList
                     notifications={paginated}
-                    loading={false}
+                    loading={loading}
                     onViewDetails={onViewDetails}
                     showCheckboxes={true}
                     selectedIds={selectedIds}
                     onSelectAll={handleSelectAll}
                     onSelect={handleSelect}
                 />
-                {pageCount > 1 && <Pagination currentPage={currentPage} totalPages={pageCount} onPageChange={setCurrentPage} />}
+                {!loading && pageCount > 1 && <Pagination currentPage={currentPage} totalPages={pageCount} onPageChange={handlePageChangeInternal} />}
             </div>
             <FloatingBulkActionsBar isVisible={selectedIds.size > 0} selectedCount={selectedIds.size} onClearSelection={() => setSelectedIds(new Set())}>
                 {canPublish && <button onClick={() => onPublish(Array.from(selectedIds))} className="flex items-center text-xs font-medium text-green-600 hover:text-black"><SendIcon className="w-4 h-4 mr-1.5"/> Phát hành</button>}

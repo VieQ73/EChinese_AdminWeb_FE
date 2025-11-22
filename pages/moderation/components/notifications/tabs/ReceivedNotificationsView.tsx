@@ -12,23 +12,42 @@ interface ReceivedNotificationsViewProps {
     notifications: Notification[];
     onViewDetails: (notification: Notification) => void;
     onMarkAsRead: (ids: string[], asRead: boolean) => void;
+    loading?: boolean;
+    onPageChange?: (page: number, filters?: any) => void;
+    currentPage?: number;
+    totalPages?: number;
 }
 
-const ReceivedNotificationsView: React.FC<ReceivedNotificationsViewProps> = ({ notifications, onViewDetails, onMarkAsRead }) => {
-    // Dynamic pagination cho notification cards
+const ReceivedNotificationsView: React.FC<ReceivedNotificationsViewProps> = ({ 
+    notifications, 
+    onViewDetails, 
+    onMarkAsRead, 
+    loading = false,
+    onPageChange,
+    currentPage: externalCurrentPage,
+    totalPages: externalTotalPages
+}) => {
+    // Dynamic pagination cho notification cards (chỉ dùng khi không có server-side pagination)
     const itemsPerPage = useCardPagination('notification');
     
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({ type: 'all', status: 'all' });
     const [dates, setDates] = useState<DateRange>({ start: null, end: null });
-    const [currentPage, setCurrentPage] = useState(1);
+    const [localCurrentPage, setLocalCurrentPage] = useState(1);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    
+    // Sử dụng external page nếu có, nếu không dùng local page
+    const currentPage = externalCurrentPage || localCurrentPage;
+    const useServerPagination = !!onPageChange;
 
     const sortedNotifications = useMemo(() => 
         [...notifications].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()), 
     [notifications]);
 
     const filtered = useMemo(() => {
+        console.log('🔍 Filter applied:', filters);
+        console.log('📋 All notifications types:', sortedNotifications.map(n => ({ id: n.id, type: n.type, title: n.title })));
+        
         return sortedNotifications.filter(n => {
             // Date filtering
             if (dates.start) {
@@ -44,20 +63,66 @@ const ReceivedNotificationsView: React.FC<ReceivedNotificationsViewProps> = ({ n
 
             const lowerSearch = searchTerm.toLowerCase();
             const status = n.read_at ? 'read' : 'unread';
-            return n.title.toLowerCase().includes(lowerSearch) &&
-                   (filters.type === 'all' || n.type === filters.type) &&
-                   (filters.status === 'all' || status === filters.status);
+            const matchesSearch = n.title.toLowerCase().includes(lowerSearch);
+            const matchesType = filters.type === 'all' || n.type === filters.type;
+            const matchesStatus = filters.status === 'all' || status === filters.status;
+            
+            console.log(`Notification ${n.id}: type="${n.type}", filter="${filters.type}", matches=${matchesType}`);
+            
+            return matchesSearch && matchesType && matchesStatus;
         });
     }, [sortedNotifications, searchTerm, filters, dates]);
 
-    const paginated = useMemo(() => filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [filtered, currentPage, itemsPerPage]);
-    const pageCount = Math.ceil(filtered.length / itemsPerPage);
+    // Nếu có server-side pagination, hiển thị trực tiếp data từ server
+    const paginated = useMemo(() => {
+        if (useServerPagination) {
+            // Server đã filter và paginate, chỉ cần filter theo date ở client (nếu có)
+            return sortedNotifications.filter(n => {
+                if (dates.start) {
+                    const startDate = new Date(dates.start);
+                    startDate.setHours(0, 0, 0, 0);
+                    if (new Date(n.created_at) < startDate) return false;
+                }
+                if (dates.end) {
+                    const endDate = new Date(dates.end);
+                    endDate.setHours(23, 59, 59, 999);
+                    if (new Date(n.created_at) > endDate) return false;
+                }
+                return true;
+            });
+        }
+        // Client-side: filter và paginate
+        return filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    }, [sortedNotifications, filtered, currentPage, itemsPerPage, useServerPagination, dates]);
+    
+    const pageCount = externalTotalPages || Math.ceil(filtered.length / itemsPerPage);
     
     // Reset page and selection on filter change
     useEffect(() => {
-        setCurrentPage(1);
+        if (onPageChange) {
+            const apiFilters = {
+                read_status: filters.status !== 'all' ? filters.status : undefined,
+                type: filters.type !== 'all' ? filters.type : undefined
+            };
+            onPageChange(1, apiFilters);
+        } else {
+            setLocalCurrentPage(1);
+        }
         setSelectedIds(new Set());
-    }, [searchTerm, filters, dates]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchTerm, filters.status, filters.type, dates]);
+    
+    const handlePageChangeInternal = (page: number) => {
+        if (onPageChange) {
+            const apiFilters = {
+                read_status: filters.status !== 'all' ? filters.status : undefined,
+                type: filters.type !== 'all' ? filters.type : undefined
+            };
+            onPageChange(page, apiFilters);
+        } else {
+            setLocalCurrentPage(page);
+        }
+    };
 
     const handleSelect = useCallback((id: string) => {
         setSelectedIds(prev => {
@@ -91,7 +156,7 @@ const ReceivedNotificationsView: React.FC<ReceivedNotificationsViewProps> = ({ n
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden p-4">
                 <NotificationCardList
                     notifications={paginated}
-                    loading={false}
+                    loading={loading}
                     onViewDetails={onViewDetails}
                     onMarkAsRead={onMarkAsRead}
                     showCheckboxes={true}
@@ -99,7 +164,7 @@ const ReceivedNotificationsView: React.FC<ReceivedNotificationsViewProps> = ({ n
                     onSelectAll={handleSelectAll}
                     onSelect={handleSelect}
                 />
-                {pageCount > 1 && <Pagination currentPage={currentPage} totalPages={pageCount} onPageChange={setCurrentPage} />}
+                {!loading && pageCount > 1 && <Pagination currentPage={currentPage} totalPages={pageCount} onPageChange={handlePageChangeInternal} />}
             </div>
               <FloatingBulkActionsBar
                   isVisible={selectedIds.size > 0}

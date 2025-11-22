@@ -12,7 +12,12 @@ interface SentNotificationsToolbarProps {
     onDatesChange: (dates: DateRange) => void;
 }
 
-const NOTIFICATION_TYPES = ['system', 'community', 'reminder', 'feedback'];
+const NOTIFICATION_TYPES = [
+    { value: 'system', label: 'Hệ thống' },
+    { value: 'community', label: 'Cộng đồng' },
+    { value: 'reminder', label: 'Nhắc nhở' },
+    { value: 'feedback', label: 'Phản hồi' }
+];
 
 const SentNotificationsToolbar: React.FC<SentNotificationsToolbarProps> = ({ searchTerm, onSearchChange, filters, onFilterChange, onCreate, dates, onDatesChange }) => {
     return (

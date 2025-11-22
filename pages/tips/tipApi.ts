@@ -1,9 +1,6 @@
 import { apiClient } from '../../services/apiClient';
 import type { Tip } from '../../types';
 import type { PaginatedResponse } from '../../types';
-import { mockPaginatedTips, mockTips } from '../../mock/tips';
-
-const USE_MOCK_API = (import.meta as any).env?.VITE_USE_MOCK_API !== 'false';
 
 // ========================
 // TIPS API - Quản lý mẹo học tập
@@ -36,102 +33,70 @@ export interface TipPayload {
  * Lấy danh sách tips với filter và pagination
  */
 export const fetchTips = async (params: GetTipsParams = {}): Promise<PaginatedResponse<Tip>> => {
+  // Xây dựng query params, chỉ thêm các param có giá trị
+  const queryParams = new URLSearchParams();
   
-    // Kết nối API thật
-  const queryParams = new URLSearchParams(params as any).toString();
-  const response = await apiClient.get(`/admin/tips?${queryParams}`);
-  console.log(response);
-  
-  return (response as any).data; // API trả về { success, message, data: { data: PaginatedResponse<Tip>, meta: ... } }
-
-  if (USE_MOCK_API) {
-    // Sử dụng mock data để test
-    return Promise.resolve(mockPaginatedTips(
-      params.page || 1,
-      params.limit || 12,
-      {
-        topic: params.topic,
-        level: params.level,
-        search: params.search,
-        is_pinned: params.is_pinned
-      }
-    ));
+  // Pagination params
+  if (params.page) {
+    queryParams.append('page', params.page.toString());
   }
-
+  if (params.limit) {
+    queryParams.append('limit', params.limit.toString());
+  }
+  
+  // Filter params - chỉ thêm khi có giá trị
+  if (params.search && params.search.trim()) {
+    queryParams.append('search', params.search.trim());
+  }
+  if (params.topic && params.topic !== 'Tất cả') {
+    queryParams.append('topic', params.topic);
+  }
+  if (params.level && params.level !== 'Tất cả') {
+    queryParams.append('level', params.level);
+  }
+  if (params.is_pinned !== undefined) {
+    queryParams.append('is_pinned', params.is_pinned.toString());
+  }
+  
+  // Gọi API với query string
+  const queryString = queryParams.toString();
+  const url = queryString ? `/admin/tips?${queryString}` : '/admin/tips';
+  
+  const response = await apiClient.get(url);
+  console.log('📥 Fetched tips:', response);
+  
+  return (response as any).data; // API trả về { success, message, data: { data: Tip[], meta: { total, page, limit } } }
 };
 
 /**
  * Lấy chi tiết một tip theo ID
  */
 export const fetchTipById = async (id: string): Promise<Tip> => {
-
-    // Kết nối API thật
   const response = await apiClient.get(`/admin/tips/${id}`);
   return (response as any).data; // API trả về { success, message, data: Tip }
-
-  if (USE_MOCK_API) {
-    const tip = mockTips.find(t => t.id === id);
-    return tip ? Promise.resolve(tip) : Promise.reject(new Error('Tip not found'));
-  }
-
 };
 
 /**
  * Tạo tip mới
  */
 export const createTip = async (payload: TipPayload): Promise<Tip> => {
-  // Kết nối API thật
   const response = await apiClient.post('/admin/tips', payload);
   return (response as any).data; // API trả về { success, message, data: Tip }
-
-  if (USE_MOCK_API) {
-    const newTip: Tip = {
-      id: Date.now().toString(),
-      ...payload,
-      is_pinned: payload.is_pinned ?? false,
-      created_by: 'admin-mock'
-    };
-    mockTips.unshift(newTip);
-    return new Promise(resolve => setTimeout(() => resolve(newTip), 500));
-  }
-
 };
 
 /**
  * Cập nhật tip
  */
 export const updateTip = async (id: string, payload: Partial<TipPayload>): Promise<Tip> => {
-  // Kết nối API thật
   const response = await apiClient.put(`/admin/tips/${id}`, payload);
   return (response as any).data; // API trả về { success, message, data: Tip }
-
-  if (USE_MOCK_API) {
-    const tipIndex = mockTips.findIndex(t => t.id === id);
-    if (tipIndex === -1) return Promise.reject(new Error('Tip not found'));
-    
-    const existingTip = mockTips[tipIndex];
-    const updatedTip: Tip = { ...existingTip, ...payload };
-    
-    mockTips[tipIndex] = updatedTip;
-    return new Promise(resolve => setTimeout(() => resolve(updatedTip), 500));
-  }
 };
 
 /**
  * Xóa tip
  */
 export const deleteTip = (id: string): Promise<void> => {
-    // Kết nối API thật
   return apiClient.delete(`/admin/tips/${id}`); // API trả về { success, message }
-
-  if (USE_MOCK_API) {
-    const tipIndex = mockTips.findIndex(t => t.id === id);
-    if (tipIndex !== -1) {
-      mockTips.splice(tipIndex, 1);
-    }
-    return new Promise(resolve => setTimeout(() => resolve(), 500));
-  }
-
 };
 
 /**
@@ -150,32 +115,8 @@ export const bulkUploadTips = async (tips: TipPayload[]): Promise<{
   errors: string[];
   created_tips: Tip[];
 }> => {
-    // Kết nối API thật
   const response = await apiClient.post('/admin/tips/bulk-upload', { tips });
   return (response as any).data; // API trả về { success, message, data: { success_count, ... } }
-  
-  if (USE_MOCK_API) {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const created_tips: Tip[] = tips.map((tipPayload, index) => ({
-          id: (Date.now() + index).toString(),
-          ...tipPayload,
-          is_pinned: tipPayload.is_pinned ?? false,
-          created_by: 'admin-mock'
-        }));
-        
-        mockTips.unshift(...created_tips);
-        
-        resolve({
-          success_count: tips.length,
-          error_count: 0,
-          errors: [],
-          created_tips
-        });
-      }, 1500);
-    });
-  }
-
 };
 
 // ========================

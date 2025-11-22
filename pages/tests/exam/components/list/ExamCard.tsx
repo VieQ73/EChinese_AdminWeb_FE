@@ -32,6 +32,28 @@ const ExamCard: React.FC<ExamCardProps> = ({ exam, onAction }) => {
     const [hasAttempts, setHasAttempts] = useState(false);
     const [isChecking, setIsChecking] = useState(false);
     const [isUnpublishing, setIsUnpublishing] = useState(false);
+    const [attemptsData, setAttemptsData] = useState<any>(null);
+    const [attemptsChecked, setAttemptsChecked] = useState(false);
+    
+    // Modal states cho delete action
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteModalType, setDeleteModalType] = useState<'cannot-delete' | 'unpublish-first' | null>(null);
+
+    // Load attempts data khi component mount (chỉ cho exam chưa bị xóa)
+    React.useEffect(() => {
+        if (!isDeleted && !attemptsChecked) {
+            checkExamAttempts(exam.id)
+                .then(response => {
+                    setHasAttempts(response.has_attempts);
+                    setAttemptsData(response);
+                    setAttemptsChecked(true);
+                })
+                .catch(error => {
+                    console.error('Error checking exam attempts on mount:', error);
+                    setAttemptsChecked(true);
+                });
+        }
+    }, [exam.id, isDeleted, attemptsChecked]);
 
     const handleCardClick = async (e: React.MouseEvent) => {
         console.log('Card clicked', { target: e.target, isDeleted, isPublished: exam.is_published });
@@ -54,6 +76,7 @@ const ExamCard: React.FC<ExamCardProps> = ({ exam, onAction }) => {
             const response = await checkExamAttempts(exam.id);
             console.log('Check attempts response:', response);
             setHasAttempts(response.has_attempts);
+            setAttemptsData(response);
             
             // Nếu có người làm, hiển thị modal cảnh báo
             if (response.has_attempts) {
@@ -73,7 +96,7 @@ const ExamCard: React.FC<ExamCardProps> = ({ exam, onAction }) => {
             }
         } catch (error) {
             console.error('Error checking exam attempts:', error);
-            alert('Không thể kiểm tra trạng thái bài thi');
+            // Có thể thêm toast notification ở đây thay vì alert
         } finally {
             setIsChecking(false);
         }
@@ -98,7 +121,7 @@ const ExamCard: React.FC<ExamCardProps> = ({ exam, onAction }) => {
                 navigate(`/mock-tests/edit/${exam.id}`);
             } catch (error) {
                 console.error('Error unpublishing exam:', error);
-                alert('Không thể hủy xuất bản bài thi. Vui lòng thử lại.');
+                // Có thể thêm toast notification ở đây
                 setIsUnpublishing(false);
             }
         } else {
@@ -112,8 +135,65 @@ const ExamCard: React.FC<ExamCardProps> = ({ exam, onAction }) => {
         setShowConfirmModal(false);
     };
 
-    // Render modal
-    const renderModal = () => {
+    // Xử lý action với kiểm tra attempts
+    const handleActionWithCheck = async (action: 'copy' | 'publish' | 'unpublish' | 'delete' | 'restore' | 'delete-permanently', exam: ExamSummary) => {
+        // Nếu là action delete, cần kiểm tra attempts trước
+        if (action === 'delete') {
+            try {
+                const response = await checkExamAttempts(exam.id);
+                setHasAttempts(response.has_attempts);
+                setAttemptsData(response);
+                
+                // Nếu đã có người làm → cấm xóa
+                if (response.has_attempts) {
+                    setDeleteModalType('cannot-delete');
+                    setShowDeleteModal(true);
+                    return;
+                }
+                
+                // Nếu chưa có người làm nhưng đang xuất bản → yêu cầu thu hồi trước
+                if (exam.is_published) {
+                    setDeleteModalType('unpublish-first');
+                    setShowDeleteModal(true);
+                    return;
+                }
+                
+                // Nếu chưa có người làm và chưa xuất bản → cho phép xóa
+                onAction('delete', exam);
+            } catch (error) {
+                console.error('Error checking exam attempts:', error);
+                // Có thể thêm toast notification ở đây
+            }
+        } else {
+            // Các action khác thì gọi trực tiếp
+            onAction(action, exam);
+        }
+    };
+
+    // Xử lý xác nhận unpublish và delete
+    const handleConfirmUnpublishAndDelete = async () => {
+        setIsUnpublishing(true);
+        try {
+            // Thu hồi trước
+            await unpublishExam(exam.id);
+            onAction('unpublish', exam);
+            
+            // Đóng modal
+            setShowDeleteModal(false);
+            setDeleteModalType(null);
+            
+            // Sau đó xóa
+            onAction('delete', exam);
+        } catch (error) {
+            console.error('Error unpublishing exam:', error);
+            // Có thể thêm toast notification ở đây
+        } finally {
+            setIsUnpublishing(false);
+        }
+    };
+
+    // Render modal cho edit
+    const renderEditModal = () => {
         if (!showConfirmModal) return null;
 
         return createPortal(
@@ -160,6 +240,102 @@ const ExamCard: React.FC<ExamCardProps> = ({ exam, onAction }) => {
                             )}
                             {isUnpublishing ? 'Đang xử lý...' : 'Xác nhận'}
                         </button>
+                    </div>
+                </div>
+            </div>,
+            document.body
+        );
+    };
+
+    // Render modal cho delete action
+    const renderDeleteModal = () => {
+        if (!showDeleteModal || !deleteModalType) return null;
+
+        const isCannotDelete = deleteModalType === 'cannot-delete';
+        const isUnpublishFirst = deleteModalType === 'unpublish-first';
+
+        return createPortal(
+            <div 
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]" 
+                onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeleteModalType(null);
+                }}
+                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+            >
+                <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-start mb-4">
+                        <div className={`p-2 rounded-full mr-3 flex-shrink-0 ${isCannotDelete ? 'bg-red-100' : 'bg-orange-100'}`}>
+                            <AlertTriangle className={`${isCannotDelete ? 'text-red-600' : 'text-orange-600'}`} size={24} />
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                {isCannotDelete ? 'Không thể xóa bài thi' : 'Yêu cầu thu hồi trước khi xóa'}
+                            </h3>
+                            {isCannotDelete && attemptsData && (
+                                <div className="space-y-2">
+                                    <p className="text-gray-600 text-sm">
+                                        Bài thi này đã có người làm và không thể xóa.
+                                    </p>
+                                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-3">
+                                        <div className="space-y-1 text-sm">
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-600">Tổng số lượt làm:</span>
+                                                <span className="font-semibold text-red-700">{attemptsData.total_attempts}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-600">Số người dùng:</span>
+                                                <span className="font-semibold text-red-700">{attemptsData.unique_users}</span>
+                                            </div>
+                                            {attemptsData.first_attempt_at && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Lần làm đầu tiên:</span>
+                                                    <span className="font-medium text-gray-700">{formatDateTime(attemptsData.first_attempt_at)}</span>
+                                                </div>
+                                            )}
+                                            {attemptsData.last_attempt_at && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Lần làm gần nhất:</span>
+                                                    <span className="font-medium text-gray-700">{formatDateTime(attemptsData.last_attempt_at)}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            {isUnpublishFirst && (
+                                <p className="text-gray-600 text-sm">
+                                    Bài thi đang được xuất bản. Bạn cần thu hồi bài thi trước khi chuyển vào thùng rác.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-3 mt-6">
+                        <button
+                            onClick={() => {
+                                setShowDeleteModal(false);
+                                setDeleteModalType(null);
+                            }}
+                            disabled={isUnpublishing}
+                            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isCannotDelete ? 'Đã hiểu' : 'Hủy'}
+                        </button>
+                        {isUnpublishFirst && (
+                            <button
+                                onClick={handleConfirmUnpublishAndDelete}
+                                disabled={isUnpublishing}
+                                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {isUnpublishing && (
+                                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                )}
+                                {isUnpublishing ? 'Đang xử lý...' : 'Thu hồi và xóa'}
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>,
@@ -247,14 +423,15 @@ const ExamCard: React.FC<ExamCardProps> = ({ exam, onAction }) => {
 
                     {/* Right Actions */}
                     <div className="self-end exam-card-actions">
-                        <ExamCardActions exam={exam} onAction={onAction} />
+                        <ExamCardActions exam={exam} onAction={handleActionWithCheck} hasAttempts={hasAttempts} />
                     </div>
                 </div>
             </div>
         </div>
 
-        {/* Render modal using portal */}
-        {renderModal()}
+        {/* Render modals using portal */}
+        {renderEditModal()}
+        {renderDeleteModal()}
         </>
     );
 };

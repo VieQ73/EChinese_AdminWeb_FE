@@ -75,6 +75,7 @@ export interface ExamSummary extends Exam {
   exam_level_name?: string;
   section_count?: number;
   question_count?: number;
+  total_questions?: number; // Alias for question_count from API
   sections?: Section[];
 }
 

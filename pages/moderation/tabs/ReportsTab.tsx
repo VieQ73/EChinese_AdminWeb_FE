@@ -12,13 +12,15 @@ interface ReportsTabProps {
     onOpenReport: (report: Report) => void;
     loading: boolean;
     communityRules: CommunityRule[];
+    refreshData?: (page: number, limit: number, filters?: { status?: string; target_type?: string; search?: string }) => void;
 }
 
-const ReportsTab: React.FC<ReportsTabProps> = ({ reportsData, onOpenReport, loading, communityRules }) => {
+const ReportsTab: React.FC<ReportsTabProps> = ({ reportsData, onOpenReport, loading, communityRules, refreshData }) => {
     // Dynamic pagination dựa trên responsive grid layout
     const itemsPerPage = useCardPagination('report');
+    const limit = 12; // Server-side pagination limit
     
-    // State cục bộ cho filter và pagination, không còn phụ thuộc vào data từ context
+    // State cục bộ cho filter và pagination
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({
         status: 'all',
@@ -26,6 +28,9 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ reportsData, onOpenReport, load
     });
     const [dates, setDates] = useState<DateRange>({ start: null, end: null });
     const [currentPage, setCurrentPage] = useState(1);
+    
+    // Xác định có dùng server-side pagination không
+    const useServerPagination = !!refreshData;
     
     // Sử dụng reportsData từ props để tính toán
     const filteredAndSortedReports = useMemo(() => {
@@ -60,17 +65,46 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ reportsData, onOpenReport, load
         return processedReports;
     }, [reportsData, searchTerm, filters, dates]);
     
-    // Reset page khi filter thay đổi
+    // Reset page khi filter thay đổi và gọi API với filters
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, filters, dates]);
+        if (useServerPagination && refreshData) {
+            const apiFilters = {
+                status: filters.status !== 'all' ? filters.status : undefined,
+                target_type: filters.targetType !== 'all' ? filters.targetType : undefined,
+                search: searchTerm || undefined
+            };
+            refreshData(1, limit, apiFilters);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchTerm, filters.status, filters.targetType, dates]);
 
+    // Nếu dùng server-side pagination, không cần filter/sort ở client
+    // Server đã xử lý tất cả
     const paginatedReports = useMemo(() => {
+        if (useServerPagination) {
+            return reportsData?.data || []; // Hiển thị trực tiếp data từ server
+        }
+        // Client-side: filter, sort và paginate
         const start = (currentPage - 1) * itemsPerPage;
         return filteredAndSortedReports.slice(start, start + itemsPerPage);
-    }, [filteredAndSortedReports, currentPage, itemsPerPage]);
+    }, [reportsData, filteredAndSortedReports, currentPage, itemsPerPage, useServerPagination]);
 
-    const pageCount = Math.ceil(filteredAndSortedReports.length / itemsPerPage);
+    const pageCount = useServerPagination 
+        ? (reportsData?.meta?.totalPages || 1)
+        : Math.ceil(filteredAndSortedReports.length / itemsPerPage);
+    
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page);
+        if (useServerPagination && refreshData) {
+            const apiFilters = {
+                status: filters.status !== 'all' ? filters.status : undefined,
+                target_type: filters.targetType !== 'all' ? filters.targetType : undefined,
+                search: searchTerm || undefined
+            };
+            refreshData(page, limit, apiFilters);
+        }
+    };
     
     return (
         <div className="space-y-4">
@@ -89,12 +123,12 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ reportsData, onOpenReport, load
                     onViewDetails={onOpenReport}
                 />
                 
-                {pageCount > 1 && (
+                {!loading && pageCount > 1 && (
                     <div className="mt-6">
                         <Pagination
                             currentPage={currentPage}
                             totalPages={pageCount}
-                            onPageChange={setCurrentPage}
+                            onPageChange={handlePageChange}
                         />
                     </div>
                 )}

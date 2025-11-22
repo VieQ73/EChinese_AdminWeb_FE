@@ -4,22 +4,27 @@ import AppealsToolbar from '../components/toolbars/AppealsToolbar';
 import { Pagination } from '../../../components/ui/pagination';
 import AppealCardList from '../components/cards/AppealCardList';
 import { useCardPagination } from '../hooks/useDynamicPagination';
-import DateRangePicker, { DateRange } from '../components/shared/DateRangePicker';
+import { DateRange } from '../components/shared/DateRangePicker';
 
 interface AppealsTabProps {
     appealsData: PaginatedResponse<Appeal> | null;
     onOpenAppeal: (appeal: Appeal) => void;
     loading: boolean;
+    refreshData?: (page: number, limit: number, filters?: { status?: string; search?: string }) => void;
 }
 
-const AppealsTab: React.FC<AppealsTabProps> = ({ appealsData, onOpenAppeal, loading }) => {
+const AppealsTab: React.FC<AppealsTabProps> = ({ appealsData, onOpenAppeal, loading, refreshData }) => {
     // Dynamic pagination dựa trên responsive grid layout
     const itemsPerPage = useCardPagination('appeal');
+    const limit = 12; // Server-side pagination limit
     
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({ status: 'all' });
     const [dates, setDates] = useState<DateRange>({ start: null, end: null });
     const [currentPage, setCurrentPage] = useState(1);
+
+    // Xác định có dùng server-side pagination không
+    const useServerPagination = !!refreshData;
 
     const enrichedAndFilteredAppeals = useMemo(() => {
         if (!appealsData) return [];
@@ -31,9 +36,8 @@ const AppealsTab: React.FC<AppealsTabProps> = ({ appealsData, onOpenAppeal, load
             return { ...appeal, daysLeft };
         });
 
-        // Filtering
+        // Date filtering ở client (vì API không hỗ trợ date range)
         processedAppeals = processedAppeals.filter(appeal => {
-            // Date filtering
             if (dates.start) {
                 const startDate = new Date(dates.start);
                 startDate.setHours(0, 0, 0, 0);
@@ -44,26 +48,49 @@ const AppealsTab: React.FC<AppealsTabProps> = ({ appealsData, onOpenAppeal, load
                 endDate.setHours(23, 59, 59, 999);
                 if (new Date(appeal.created_at) > endDate) return false;
             }
-
-            const lowerSearch = searchTerm.toLowerCase();
-            const matchesSearch = appeal.user?.name?.toLowerCase().includes(lowerSearch) || appeal.user_id.toLowerCase().includes(lowerSearch);
-            const matchesStatus = filters.status === 'all' || appeal.status === filters.status;
-            return matchesSearch && matchesStatus;
+            return true;
         });
 
         return processedAppeals;
-    }, [appealsData, searchTerm, filters, dates]);
+    }, [appealsData, dates]);
     
+    // Reset page khi filter thay đổi và gọi API với filters
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, filters, dates]);
+        if (useServerPagination && refreshData) {
+            const apiFilters = {
+                status: filters.status !== 'all' ? filters.status : undefined,
+                search: searchTerm || undefined
+            };
+            refreshData(1, limit, apiFilters);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchTerm, filters.status]);
 
+    // Nếu dùng server-side pagination, không cần filter ở client
     const paginatedAppeals = useMemo(() => {
+        if (useServerPagination) {
+            return enrichedAndFilteredAppeals; // Hiển thị trực tiếp data từ server (đã filter theo date)
+        }
+        // Client-side: paginate
         const start = (currentPage - 1) * itemsPerPage;
         return enrichedAndFilteredAppeals.slice(start, start + itemsPerPage);
-    }, [enrichedAndFilteredAppeals, currentPage, itemsPerPage]);
+    }, [enrichedAndFilteredAppeals, currentPage, itemsPerPage, useServerPagination]);
 
-    const pageCount = Math.ceil(enrichedAndFilteredAppeals.length / itemsPerPage);
+    const pageCount = useServerPagination 
+        ? (appealsData?.meta?.totalPages || 1)
+        : Math.ceil(enrichedAndFilteredAppeals.length / itemsPerPage);
+
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page);
+        if (useServerPagination && refreshData) {
+            const apiFilters = {
+                status: filters.status !== 'all' ? filters.status : undefined,
+                search: searchTerm || undefined
+            };
+            refreshData(page, limit, apiFilters);
+        }
+    };
 
     return (
         <div className="space-y-4">
@@ -81,11 +108,11 @@ const AppealsTab: React.FC<AppealsTabProps> = ({ appealsData, onOpenAppeal, load
                     loading={loading}
                     onViewDetails={onOpenAppeal}
                 />
-                {pageCount > 1 && (
+                {!loading && pageCount > 1 && (
                     <Pagination
                         currentPage={currentPage}
                         totalPages={pageCount}
-                        onPageChange={setCurrentPage}
+                        onPageChange={handlePageChange}
                     />
                 )}
             </div>
