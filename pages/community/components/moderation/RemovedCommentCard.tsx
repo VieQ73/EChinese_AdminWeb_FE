@@ -7,13 +7,14 @@ interface RemovedCommentCardProps {
     comment: CommentWithUser;
     onRestore: (comment: CommentWithUser) => void;
     canRestore: boolean;
+    highlight?: boolean;
 }
 
-const RemovedCommentCard: React.FC<RemovedCommentCardProps> = ({ comment, onRestore, canRestore }) => {
+const RemovedCommentCard: React.FC<RemovedCommentCardProps> = ({ comment, onRestore, canRestore, highlight }) => {
     const deletedByAdmin = mockUsers.find(u => u.id === comment.deleted_by);
 
     return (
-        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 opacity-80">
+        <div id={comment.id} className={`bg-gray-50 p-4 rounded-lg border opacity-80 ${highlight ? 'border-primary-500 ring-2 ring-primary-400' : 'border-gray-200'}`}>
             <blockquote className="border-l-4 border-gray-300 pl-4 text-sm text-gray-700 italic">
                 "{comment.content.text}"
             </blockquote>

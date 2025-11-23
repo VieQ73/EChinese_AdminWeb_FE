@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { ExamSummary } from '../../../../../types/mocktest_extended';
-import { MOCK_EXAM_LEVELS } from '../../../../../mock/exam_meta';
+import { ExamLevel } from '../../../../../types';
 import { ChevronRight } from 'lucide-react';
 import ExamCard from './ExamCard';
 import { useHorizontalScroll } from '../../hooks/useHorizontalScroll';
@@ -12,21 +12,18 @@ interface ExamTypeGroupProps {
     title: string;
     typeId: string;
     exams: ExamSummary[];
+    levels: ExamLevel[]; // Passed from context instead of using mock constant
     onAction: (action: 'copy' | 'publish' | 'unpublish' | 'delete' | 'restore' | 'delete-permanently', exam: ExamSummary) => void;
 }
 
-const ExamTypeGroup: React.FC<ExamTypeGroupProps> = ({ title, typeId, exams, onAction }) => {
-    const [activeLevelId, setActiveLevelId] = useState<string | 'all'>('all');
+const ExamTypeGroup: React.FC<ExamTypeGroupProps> = ({ title, typeId, exams, levels, onAction }) => {
+    const [activeLevelId, setActiveLevelId] = useState<string>(levels[0]?.id || '');
     const scrollRef = useHorizontalScroll();
     const navigate = useNavigate();
 
-    // Lấy TẤT CẢ các cấp độ thuộc về loại bài thi này, không phụ thuộc vào `exams` prop
-    const levels = useMemo(() => {
-        return MOCK_EXAM_LEVELS.filter(level => level.exam_type_id === typeId);
-    }, [typeId]);
-
+    // Filter exams by active level (levels already filtered by type in parent)
     const filteredExams = useMemo(() => {
-        if (activeLevelId === 'all') return exams;
+        if (!activeLevelId) return exams; // fallback if no level
         return exams.filter(e => e.exam_level_id === activeLevelId);
     }, [exams, activeLevelId]);
 

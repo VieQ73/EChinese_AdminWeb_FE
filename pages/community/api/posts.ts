@@ -36,6 +36,9 @@ interface FetchPostsParams {
 
 
 export const fetchPosts = (params: FetchPostsParams): Promise<PaginatedResponse<Post>> => {
+    return apiClient.get('/community/posts');
+    
+    
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -57,23 +60,25 @@ export const fetchPosts = (params: FetchPostsParams): Promise<PaginatedResponse<
                 const total = filtered.length;
                 const totalPages = Math.ceil(total / limit);
                 const data = filtered.slice((page - 1) * limit, page * limit).map(enrichPost);
-
+                                
                 resolve({ data, meta: { total, page, limit, totalPages } });
             }, 500);
         });
     }
-    return apiClient.get('/community/posts', { body: params as any });
 };
 
 /**
  * Tải chi tiết một bài viết theo ID.
  */
 export const fetchPostById = (postId: string): Promise<Post | null> => {
+    return apiClient.get(`/community/posts/${postId}`);
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
                 const post = mockPosts.find(p => p.id === postId);
                 if (post) {
+
                     resolve(enrichPost(post));
                 } else {
                     resolve(null);
@@ -81,13 +86,15 @@ export const fetchPostById = (postId: string): Promise<Post | null> => {
             }, 300);
         });
     }
-    return apiClient.get(`/community/posts/${postId}`);
+    
 };
 
 /**
  * Tạo một bài viết mới.
  */
 export const createPost = (postData: Omit<RawPost, 'id' | 'created_at' | 'user_id' | 'likes' | 'views'>, currentUser: User): Promise<RawPost> => {
+    return apiClient.post('/community/posts', postData);
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -101,17 +108,21 @@ export const createPost = (postData: Omit<RawPost, 'id' | 'created_at' | 'user_i
                 };
                 // Cập nhật "database" giả lập
                 mockPosts.unshift(newPost);
+
                 resolve(newPost);
             }, 300);
         });
     }
-    return apiClient.post('/community/posts', postData);
+    
 };
 
 /**
  * Cập nhật một bài viết.
  */
 export const updatePost = (postId: string, postData: Partial<Omit<RawPost, 'id'>>): Promise<Post> => {
+    
+    return apiClient.put(`/community/posts/${postId}`, postData);
+
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -119,9 +130,44 @@ export const updatePost = (postId: string, postData: Partial<Omit<RawPost, 'id'>
                 if (index === -1) return reject(new Error("Post not found"));
                 
                 mockPosts[index] = { ...mockPosts[index], ...postData };
+                
                 resolve(enrichPost(mockPosts[index]));
             }, 300);
         });
     }
-    return apiClient.put(`/community/posts/${postId}`, postData);
+    
+};
+
+/**
+ * Moderate a post (e.g. remove with violation details).
+ * Combines the post status update and violation logging in a single request so
+ * the backend can ensure atomic consistency.
+ */
+export const moderatePost = (postId: string, payload: {
+    action: 'remove' | 'restore';
+    post_update: Partial<Omit<RawPost, 'id'>>;
+    violation?: {
+        ruleIds: string[];
+        severity: string; // Using string to avoid tight coupling; backend will validate
+        resolution: string;
+        reason: string;
+        performed_by: string; // user id of moderator
+        user_id: string; // owner of the post
+        target_type: 'post';
+        target_id: string;
+    };
+}): Promise<Post> => {
+    return apiClient.post(`/community/posts/${postId}/moderation`, payload);
+
+    if (USE_MOCK_API) {
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                const index = mockPosts.findIndex(p => p.id === postId);
+                if (index === -1) return reject(new Error('Post not found'));
+                // Apply post update
+                mockPosts[index] = { ...mockPosts[index], ...payload.post_update };
+                
+            }, 300);
+        });
+    }
 };

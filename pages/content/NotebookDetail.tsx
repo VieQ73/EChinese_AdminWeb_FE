@@ -39,7 +39,7 @@ const NotebookDetail: React.FC = () => {
         try {
             const [notebookData, vocabData] = await Promise.all([
                 api.fetchNotebookById(notebookId),
-                api.fetchVocabularies({ notebookId, limit: 1000 }) // Tải tất cả vocab trong sổ tay
+                api.fetchVocabularies({ notebookId, limit: 5000 }) // Tải tất cả vocab trong sổ tay
             ]);
             setNotebook(notebookData);
             setVocabItems(vocabData.data);

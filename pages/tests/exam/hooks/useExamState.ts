@@ -5,7 +5,7 @@ import { MOCK_EXAM_TYPES } from '../../../../mock/exam_meta';
 
 // Định nghĩa kiểu dữ liệu cho state của modal xác nhận
 export interface ActionState {
-    action: 'delete' | 'restore' | 'delete-permanently';
+    action: 'copy' | 'publish' | 'unpublish' | 'delete' | 'restore' | 'delete-permanently';
     exam: ExamSummary;
 }
 
@@ -22,8 +22,8 @@ export const useExamState = () => {
     // Tab đang hoạt động ('current' hoặc 'deleted')
     const [activeTab, setActiveTab] = useState<'current' | 'deleted'>('current');
     
-    // Danh sách tất cả bài thi (nguồn dữ liệu chính)
-    const [allExams, setAllExams] = useState<ExamSummary[]>([]);
+    // Danh sách tất cả bài thi sẽ được lấy trực tiếp từ AppDataContext
+    // const [allExams, setAllExams] = useState<ExamSummary[]>([]);
     
     // Trạng thái cho các hành động bất đồng bộ
     const [isCopying, setIsCopying] = useState(false);
@@ -38,7 +38,7 @@ export const useExamState = () => {
     // Trả về tất cả state và hàm setter của chúng
     return {
         activeTab, setActiveTab,
-        allExams, setAllExams,
+        // allExams, setAllExams,
         isCopying, setIsCopying,
         actionState, setActionState,
         isInfoModalOpen, setIsInfoModalOpen,

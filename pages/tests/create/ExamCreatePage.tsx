@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { Loader2 } from 'lucide-react';
 import { useExamForm } from './hooks/useExamForm';
@@ -7,10 +7,15 @@ import SectionEditor from './components/SectionEditor';
 import { PlusIcon } from '../../../components/icons';
 import { QuestionNumberingProvider } from '../contexts/QuestionNumberingContext';
 import { MOCK_QUESTION_TYPES } from '../../../mock';
+import { useAppData } from '../../../contexts/AppDataContext';
+import { ExamPayload } from '../api';
 
 const ExamCreatePage: React.FC = () => {
     const { examId } = useParams<{ examId: string }>();
     const navigate = useNavigate();
+    const { createExam, updateExam } = useAppData();
+    const [isSaving, setIsSaving] = useState(false);
+
     const {
         exam,
         loading,
@@ -47,16 +52,40 @@ const ExamCreatePage: React.FC = () => {
         );
     }
 
-    const handleSave = () => {
+    const handleSave = async () => {
         const validationError = getValidationError();
         if (validationError) {
             alert(validationError);
             return;
         }
-        console.log('Lưu bài thi:', exam);
-        // Logic lưu API sẽ ở đây
-        alert('Đã lưu (giả lập)!');
-        navigate('/mock-tests');
+
+        setIsSaving(true);
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { id, created_by, created_at, updated_at, is_deleted, ...payload } = exam;
+            
+            const finalPayload: ExamPayload = {
+                ...payload,
+                description: payload.description || { html: '' },
+                instructions: payload.instructions || '',
+                total_time_minutes: payload.total_time_minutes || 0,
+                is_published: payload.is_published || false,
+            };
+
+            if (examId) {
+                await updateExam(examId, finalPayload);
+                alert('Cập nhật bài thi thành công!');
+            } else {
+                await createExam(finalPayload);
+                alert('Tạo bài thi thành công!');
+            }
+            navigate('/mock-tests');
+        } catch (err) {
+            console.error('Failed to save exam:', err);
+            alert(`Lưu bài thi thất bại: ${(err as Error).message}`);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -69,8 +98,13 @@ const ExamCreatePage: React.FC = () => {
                     </h1>
                     <div className="flex gap-2">
                         <button onClick={() => navigate('/mock-tests')} className="px-4 py-2 text-sm font-medium bg-gray-200 rounded-lg hover:bg-gray-300">Hủy</button>
-                        <button onClick={handleSave} disabled={!isFormValid} className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50">
-                            Lưu đề thi
+                        <button 
+                            onClick={handleSave} 
+                            disabled={!isFormValid || isSaving} 
+                            className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center"
+                        >
+                            {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            {isSaving ? 'Đang lưu...' : 'Lưu đề thi'}
                         </button>
                     </div>
                 </div>

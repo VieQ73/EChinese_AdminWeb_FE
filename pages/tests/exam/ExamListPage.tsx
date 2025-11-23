@@ -1,7 +1,6 @@
-import React, { useEffect } from 'react';
+import React from 'react'; // useEffect không còn cần thiết
 import { useNavigate } from 'react-router';
-import { MOCK_EXAMS } from '../../../mock/exams';
-import { MOCK_EXAM_TYPES } from '../../../mock/exam_meta';
+import { useAppData } from '../../../contexts/AppDataContext';
 import Modal from '../../../components/Modal';
 import ConfirmationModal from '../../monetization/components/ConfirmationModal';
 
@@ -15,35 +14,31 @@ import { useExamActions } from './hooks/useExamActions';
 
 const ExamListPage: React.FC = () => {
     const navigate = useNavigate();
-    // 1. Hook quản lý State
+    // Lấy dữ liệu trực tiếp từ context, đây là "source of truth"
+    const { exams: allExams, examTypes, examLevels } = useAppData();
+
+    // 1. Hook quản lý State (đã loại bỏ allExams và setAllExams)
     const {
         activeTab, setActiveTab,
-        allExams, setAllExams,
         isCopying, setIsCopying,
         actionState, setActionState,
         isInfoModalOpen, setIsInfoModalOpen,
         infoModalContent, setInfoModalContent
     } = useExamState();
 
-    // Khởi tạo state với dữ liệu mock khi component được mount
-    useEffect(() => {
-        const initialExams = MOCK_EXAMS.map(exam => ({
-            ...exam,
-            exam_type_name: MOCK_EXAM_TYPES.find(t => t.id === exam.exam_type_id)?.name || 'N/A',
-            exam_level_name: 'N/A', // Tên cấp độ sẽ được xử lý trong ExamTypeGroup
-            section_count: exam.sections?.length || 0,
-        }));
-        setAllExams(initialExams);
-    }, [setAllExams]);
+    // useEffect không còn cần thiết nữa
+    // useEffect(() => {
+    //     setAllExams(allExamsFromContext);
+    // }, [allExamsFromContext, setAllExams]);
 
-    // 2. Hook xử lý dữ liệu (lọc, nhóm)
+    // 2. Hook xử lý dữ liệu (lọc, nhóm) - sử dụng trực tiếp `allExams` từ context
     const { groupedExams } = useExamData(allExams, activeTab);
 
-    // 3. Hook quản lý các hành động
+    // 3. Hook quản lý các hành động (đã loại bỏ setAllExams)
     const { handleAction, handleConfirmAction, getConfirmModalContent } = useExamActions({
         isCopying,
         setIsCopying,
-        setAllExams,
+        // setAllExams,
         setActionState,
         setInfoModalContent,
         setIsInfoModalOpen,
@@ -85,15 +80,16 @@ const ExamListPage: React.FC = () => {
             {/* Exam Groups */}
             <div className="space-y-8">
                 {Object.entries(groupedExams).map(([typeId, exams]) => {
-                    const examType = MOCK_EXAM_TYPES.find(t => t.id === typeId);
+                    const examType = examTypes.find(t => t.id === typeId);
                     if (!examType) return null;
-
+                    const levelsForType = examLevels.filter(l => l.exam_type_id === typeId);
                     return (
                         <ExamTypeGroup
                             key={typeId}
                             typeId={typeId}
                             title={examType.name}
                             exams={exams}
+                            levels={levelsForType}
                             onAction={handleAction}
                         />
                     );

@@ -66,7 +66,8 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
     let newCorrectAnswers: CorrectAnswer[] | undefined = undefined; // Reset correct_answers
 
     if (newType) {
-        if (newType.id === 'true_false') {
+        // Sử dụng 'name' để kiểm tra thay vì 'id'
+        if (newType.name === 'Đúng/Sai') {
             newOptions = [
                 { id: uuidv4(), question_id: question.id, label: 'A', content: 'Đúng', is_correct: false },
                 { id: uuidv4(), question_id: question.id, label: 'B', content: 'Sai', is_correct: false },
@@ -79,7 +80,7 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
                 content: '',
                 is_correct: false,
             }));
-        } else if (['arrange_words', 'arrange_sentences', 'write_text', 'record_audio'].includes(newType.id)) {
+        } else if (['Sắp xếp từ', 'Sắp xếp câu', 'Viết văn bản', 'Ghi âm'].includes(newType.name)) {
             // Các loại câu hỏi này sử dụng correct_answers
             newCorrectAnswers = [];
             newCorrectAnswer = undefined; 
@@ -89,21 +90,21 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
     onQuestionChange({ ...question, question_type_id: typeId, options: newOptions, correct_answer: newCorrectAnswer, correct_answers: newCorrectAnswers });
   };
   
-  const isArrangeType = selectedQuestionType?.id === 'arrange_words' || selectedQuestionType?.id === 'arrange_sentences';
+  const isArrangeType = selectedQuestionType?.name === 'Sắp xếp từ' || selectedQuestionType?.name === 'Sắp xếp câu';
 
   const generatePreviewHtml = () => {
     if (!isArrangeType) return '';
 
     const options = question.options || [];
 
-    if (selectedQuestionType?.id === 'arrange_words') {
+    if (selectedQuestionType?.name === 'Sắp xếp từ') {
         if (options.length === 0) return '<p class="text-slate-400">Thêm các từ/cụm từ ở phần "Các lựa chọn trả lời" bên dưới để xem trước.</p>';
         return options.map(opt => 
             `<span class="inline-block bg-slate-200 text-slate-800 text-sm font-medium mr-2 mb-2 px-3 py-1.5 rounded-full">${opt.content || '...'}</span>`
         ).join('');
     }
 
-    if (selectedQuestionType?.id === 'arrange_sentences') {
+    if (selectedQuestionType?.name === 'Sắp xếp câu') {
         if (options.length === 0) return '<p class="text-slate-400">Thêm các câu ở phần "Các lựa chọn trả lời" bên dưới để xem trước.</p>';
         return options.map(opt => 
             `<div class="flex items-start gap-2 mb-2 p-2 border rounded-md bg-slate-100">
@@ -119,20 +120,20 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
   const renderOptions = () => {
     if (!selectedQuestionType) return null;
 
-    switch(selectedQuestionType.id) {
-        case 'true_false':
+    switch(selectedQuestionType.name) {
+        case 'Đúng/Sai':
             return <TrueFalseEditor question={question} onQuestionChange={onQuestionChange} />;
-        case 'multiple_choice_3':
-        case 'multiple_choice_4':
-        case 'multiple_choice_5':
+        case 'Trắc nghiệm (3 đáp án)':
+        case 'Trắc nghiệm (4 đáp án)':
+        case 'Trắc nghiệm (5 đáp án - Nối)':
             return <MultipleChoiceEditor question={question} onQuestionChange={onQuestionChange} />;
-        case 'arrange_words':
+        case 'Sắp xếp từ':
             return <ArrangeWordsEditor question={question} onQuestionChange={onQuestionChange} />;
-        case 'arrange_sentences':
+        case 'Sắp xếp câu':
             return <ArrangeSentencesEditor question={question} onQuestionChange={onQuestionChange} />;
-        case 'write_text':
+        case 'Viết câu trả lời':
             return <WriteTextEditor question={question} onQuestionChange={onQuestionChange} />;
-        case 'record_audio': // Thêm case mới
+        case 'Trả lời bằng ghi âm':
             return <RecordAudioEditor question={question} onQuestionChange={onQuestionChange} />;
         default:
             return null;
@@ -195,14 +196,14 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
               id={`question-image-${question.id}`}
               label="Ảnh câu hỏi"
               value={question.image_url}
-              onFileChange={(file) => handleFieldChange('image_url', file ? URL.createObjectURL(file) : '')} 
+              onFileChange={(url) => handleFieldChange('image_url', url)} 
               accept="image/*"
           />
           <FileInput 
               id={`question-audio-${question.id}`}
               label="Âm thanh câu hỏi"
               value={question.audio_url}
-              onFileChange={(file) => handleFieldChange('audio_url', file ? URL.createObjectURL(file) : '')} 
+              onFileChange={(url) => handleFieldChange('audio_url', url)} 
               accept="audio/*"
           />
         </div>

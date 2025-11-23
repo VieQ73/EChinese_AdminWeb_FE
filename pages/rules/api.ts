@@ -24,6 +24,21 @@ interface FetchRulesParams {
  * Lấy danh sách quy tắc với filter và phân trang.
  */
 export const fetchRules = (params: FetchRulesParams): Promise<PaginatedResponse<CommunityRule>> => {
+    
+
+        type FetchRulesResponse = {
+            success: boolean;
+            message?: string;
+            data: {
+                data: CommunityRule[];
+                meta: { page: number; limit: number; total: number; totalPages: number };
+            };
+        };
+
+        const query = new URLSearchParams(params as any).toString();
+        return apiClient
+            .get<FetchRulesResponse>(`/admin/settings/community-rules?${query}`)
+            .then(res => ({ data: res.data.data, meta: res.data.meta }));
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -45,19 +60,23 @@ export const fetchRules = (params: FetchRulesParams): Promise<PaginatedResponse<
                 const total = filtered.length;
                 const totalPages = Math.ceil(total / limit);
                 const data = filtered.slice((page - 1) * limit, page * limit);
+                console.log({ data, meta: { total, page, limit, totalPages } });
                 
                 resolve({ data, meta: { total, page, limit, totalPages } });
             }, 400);
         });
     }
-    const query = new URLSearchParams(params as any).toString();
-    return apiClient.get(`/rules?${query}`);
+
+
 };
 
 /**
  * Tạo quy tắc mới.
  */
 export const createRule = (payload: RulePayload): Promise<CommunityRule> => {
+    type CreateRuleResponse = { success: boolean; message?: string; data: CommunityRule };
+    return apiClient.post<CreateRuleResponse>('/admin/settings/community-rules', payload).then(res => res.data);
+
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -75,13 +94,16 @@ export const createRule = (payload: RulePayload): Promise<CommunityRule> => {
             }, 300);
         });
     }
-    return apiClient.post('/rules', payload);
+
 };
 
 /**
  * Cập nhật quy tắc.
  */
 export const updateRule = (id: string, payload: Partial<RulePayload>): Promise<CommunityRule> => {
+    type UpdateRuleResponse = { success: boolean; message?: string; data: CommunityRule };
+    return apiClient.put<UpdateRuleResponse>(`/admin/settings/community-rules/${id}`, payload).then(res => res.data);
+
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -97,13 +119,16 @@ export const updateRule = (id: string, payload: Partial<RulePayload>): Promise<C
             }, 300);
         });
     }
-    return apiClient.put(`/rules/${id}`, payload);
+
 };
 
 /**
  * Xóa quy tắc.
  */
 export const deleteRule = (id: string): Promise<{ success: boolean }> => {
+    type DeleteRuleResponse = { success: boolean; message?: string };
+    return apiClient.delete<DeleteRuleResponse>(`/admin/settings/community-rules/${id}`).then(res => ({ success: res.success }));
+
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -122,5 +147,5 @@ export const deleteRule = (id: string): Promise<{ success: boolean }> => {
             }, 400);
         });
     }
-    return apiClient.delete(`/rules/${id}`);
+
 };

@@ -1,5 +1,6 @@
 
-import React from 'react';
+import React, { useContext } from 'react';
+import { AuthContext } from '../../../../contexts/AuthContext';
 import type { User, Subscription } from '../../../../types';
 import { PencilIcon } from '../../../../constants';
 
@@ -18,6 +19,19 @@ interface UserSummaryTabProps {
 }
 
 const UserSummaryTab: React.FC<UserSummaryTabProps> = ({ user, subscription, onOpenModal, isViewingSelf }) => {
+    // Lấy currentUser từ AuthContext
+    const currentUser = useContext(AuthContext)?.user;
+    const isAdmin = currentUser?.role === 'admin';
+    const isTargetAdminOrSuperAdmin = user.role === 'admin' || user.role === 'super admin';
+    // Chỉ ẩn khi admin xem admin/superadmin khác, không phải chính mình
+    const hideActions = isAdmin && isTargetAdminOrSuperAdmin && !isViewingSelf;
+    const isSuperAdmin = user.role === 'super admin';
+    // Debug
+    console.log('currentUser.role:', currentUser?.role);
+    console.log('user.role:', user.role);
+    
+    
+
     return (
         <div>
             <h3 className="text-xl font-semibold mb-4">Thông tin người dùng</h3>
@@ -33,16 +47,20 @@ const UserSummaryTab: React.FC<UserSummaryTabProps> = ({ user, subscription, onO
                 <InfoItem label="Đăng nhập lần cuối" value={user.last_login ? new Date(user.last_login).toLocaleString() : 'Chưa từng'} />
             </div>
             <div className="mt-6 flex flex-wrap gap-4 border-t border-gray-200 pt-6">
-                <button onClick={() => onOpenModal('edit-info', 'Sửa thông tin')} className="flex items-center px-4 py-2 text-sm font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700">
+                <button 
+                    onClick={() => onOpenModal('edit-info', 'Sửa thông tin')}
+                    className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700${hideActions ? ' opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
+                    disabled={hideActions}
+                >
                     <PencilIcon className="w-4 h-4 mr-2" /> Sửa thông tin
                 </button>
                 <button 
                     onClick={() => onOpenModal(
                         user.is_active ? 'ban-user' : 'unban-user', 
                         user.is_active ? 'Cấm người dùng' : 'Bỏ cấm người dùng'
-                    )} 
-                    className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg text-white ${user.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'} disabled:opacity-50 disabled:cursor-not-allowed`}
-                    disabled={isViewingSelf}
+                    )}
+                    className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg text-white ${user.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}${(hideActions || (isAdmin && isViewingSelf) || isSuperAdmin) ? ' opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
+                    disabled={hideActions || (isAdmin && isViewingSelf)|| isSuperAdmin}
                 >
                     {user.is_active ? 'Cấm người dùng' : 'Bỏ cấm'}
                 </button>

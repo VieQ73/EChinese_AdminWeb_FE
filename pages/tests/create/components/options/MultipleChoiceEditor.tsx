@@ -50,7 +50,7 @@ const MultipleChoiceEditor: React.FC<MultipleChoiceEditorProps> = ({ question, o
                 id={`option-image-${option.id}`}
                 label={`Ảnh ${option.label}`}
                 value={option.image_url}
-                onFileChange={(file) => handleOptionChange(option.id, 'image_url', file ? URL.createObjectURL(file) : undefined)}
+                onFileChange={(url) => handleOptionChange(option.id, 'image_url', url)}
                 accept="image/*"
                 variant="compact"
             />

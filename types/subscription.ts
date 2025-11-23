@@ -32,10 +32,11 @@ export interface EnrichedUserSubscription {
     user: Pick<User, 'id' | 'name' | 'email' | 'avatar_url'>;
     userSubscription?: UserSubscription; // Có thể không có nếu là user free chưa từng mua
     subscription?: Subscription; // Gói hiện tại (kể cả gói free)
-    quotas: {
-        ai_lesson: UserUsage;
-        ai_translate: UserUsage;
-    };
+  // Quotas có thể thiếu từ backend => đánh dấu optional + từng field optional
+  quotas?: {
+    ai_lesson?: UserUsage;
+    ai_translate?: UserUsage;
+  };
 }
 
 // Kiểu dữ liệu cho lịch sử các gói của một người dùng

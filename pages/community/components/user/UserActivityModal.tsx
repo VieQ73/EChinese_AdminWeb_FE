@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { User, Post, CommentWithUser } from '../../../../types';
+import type { UserCommunityActivity } from '../../api/activity';
 import Modal from '../../../../components/Modal';
 import Badge from '../ui/Badge';
 import { mockBadges } from '../../../../mock/settings';
@@ -16,6 +17,7 @@ interface UserActivityModalProps {
     currentUser: User | null;
     initialTab?: string;
     initialSubTab?: string;
+    activityData?: UserCommunityActivity | null; // Aggregated data from API
     getPostsByUserId: (userId: string) => Post[];
     getLikedPostsByUserId: (userId: string) => Post[];
     getCommentedPostsByUserId: (userId: string) => Post[];
@@ -53,6 +55,7 @@ const UserActivityModal: React.FC<UserActivityModalProps> = ({
     currentUser,
     initialTab,
     initialSubTab,
+    activityData,
     getPostsByUserId,
     getLikedPostsByUserId,
     getCommentedPostsByUserId,
@@ -60,7 +63,7 @@ const UserActivityModal: React.FC<UserActivityModalProps> = ({
     onPostSelect,
     ...rest
 }) => {
-    const { violations } = useAppData(); // Lấy dữ liệu vi phạm từ context
+    const { violations, posts: contextPosts, users: contextUsers, badges: contextBadges } = useAppData(); // Lấy dữ liệu từ context
     const [activeTab, setActiveTab] = useState(initialTab || 'posts');
     const userBadge = mockBadges.find(b => b.level === user.badge_level);
     
@@ -78,13 +81,41 @@ const UserActivityModal: React.FC<UserActivityModalProps> = ({
 
     const content = useMemo(() => {
         let posts: Post[] = [];
-        
-        if (activeTab === 'posts') posts = getPostsByUserId(user.id);
-        else if (activeTab === 'likes') posts = getLikedPostsByUserId(user.id);
-        else if (activeTab === 'comments') posts = getCommentedPostsByUserId(user.id);
-        else if (activeTab === 'views') posts = getViewedPostsByUserId(user.id);
+
+        // Use aggregated data if available, else fallback to getter functions
+        if (activeTab === 'posts') {
+            const base = (activityData?.posts || getPostsByUserId(user.id)).filter(p => p.status !== 'removed');
+            // Đảm bảo post có user/badge bằng cách lấy bản enrich từ context
+            posts = base.map(p => contextPosts.find(cp => cp.id === p.id) || p);
+        }
+        else if (activeTab === 'likes') posts = activityData?.likedPosts || getLikedPostsByUserId(user.id);
+        else if (activeTab === 'comments') posts = activityData?.commentedPosts || getCommentedPostsByUserId(user.id);
+        else if (activeTab === 'views') posts = activityData?.viewedPosts || getViewedPostsByUserId(user.id);
         else if (activeTab === 'removed') {
-            return <RemovedContentTab user={user} currentUser={currentUser} onPostSelect={onPostSelect} initialSubTab={initialSubTab as 'posts' | 'comments'} {...rest} />;
+            // Enrich removed posts/comments bằng dữ liệu context nếu phía API trả về dạng thô
+            const removedPostsEnriched = (activityData?.removedPosts || []).map(p => contextPosts.find(cp => cp.id === p.id) || p);
+            const removedCommentsEnriched = (activityData?.removedComments || []).map((c: any) => {
+                if (c.user) return c;
+                const u = contextUsers.find(u => u.id === (c.user_id || c.user?.id));
+                const badge = u ? (contextBadges.find(b => b.level === u.badge_level) || contextBadges[0]) : undefined;
+                return { ...c, user: u, badge, replies: c.replies || [] };
+            });
+            return (
+                <RemovedContentTab
+                    user={user}
+                    currentUser={currentUser}
+                    onPostSelect={onPostSelect}
+                    initialSubTab={initialSubTab as 'posts' | 'comments'}
+                    removedPosts={removedPostsEnriched as any}
+                    removedComments={removedCommentsEnriched as any}
+                    {...rest}
+                />
+            );
+        }
+
+        const loading = isOpen && activityData === undefined; // undefined => still loading
+        if (loading) {
+            return <p className="text-center text-gray-400 py-16">Đang tải dữ liệu hoạt động...</p>;
         }
 
         return posts.length > 0 
@@ -106,7 +137,7 @@ const UserActivityModal: React.FC<UserActivityModalProps> = ({
             ))
             : <p className="text-center text-gray-500 py-16">Không có hoạt động nào.</p>;
             
-    }, [activeTab, user, currentUser, getPostsByUserId, getLikedPostsByUserId, getCommentedPostsByUserId, getViewedPostsByUserId, onPostSelect, initialSubTab, rest]);
+    }, [activeTab, user, currentUser, getPostsByUserId, getLikedPostsByUserId, getCommentedPostsByUserId, getViewedPostsByUserId, onPostSelect, initialSubTab, rest, activityData, isOpen]);
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={`Hoạt động của ${user.name}`} className="max-w-4xl">

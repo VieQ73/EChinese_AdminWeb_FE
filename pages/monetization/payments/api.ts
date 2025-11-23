@@ -36,7 +36,14 @@ export const enrichPayment = (payment: Payment): Payment => {
     };
 };
 
-export const fetchPayments = (params: FetchPaymentsParams = {}): Promise<PaginatedResponse<Payment>> => {
+export const fetchPayments = async (params: FetchPaymentsParams = {}): Promise<PaginatedResponse<Payment>> => {
+    
+        // Kết nối API thật
+    const queryParams = new URLSearchParams(params as any).toString();
+    const response = await apiClient.get<any>(`/monetization/payments?${queryParams}`);
+    // API trả về { success, data: { data, meta } }
+    return (response as any).data as PaginatedResponse<Payment>;
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -90,12 +97,18 @@ export const fetchPayments = (params: FetchPaymentsParams = {}): Promise<Paginat
             }, 500);
         });
     }
-    // Kết nối API thật
-    const queryParams = new URLSearchParams(params as any).toString();
-    return apiClient.get(`/monetization/payments?${queryParams}`);
+
 };
 
-export const updatePaymentStatus = (paymentId: string, status: 'manual_confirmed' | 'failed', adminId: string): Promise<Payment> => {
+export const updatePaymentStatus = async (paymentId: string, status: 'manual_confirmed' | 'failed', adminId: string): Promise<Payment> => {
+    
+    // Kết nối API thật
+    const response = await apiClient.put<any>(`/monetization/payments/${paymentId}/status`, { status, adminId });
+    // API trả về { success, data: Payment }
+
+    
+    return (response as any).data as Payment;
+
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -113,11 +126,15 @@ export const updatePaymentStatus = (paymentId: string, status: 'manual_confirmed
             }, 300);
         });
     }
-    // Kết nối API thật
-    return apiClient.put(`/monetization/payments/${paymentId}/status`, { status, adminId });
+
 };
 
-export const bulkUpdatePaymentStatus = (paymentIds: string[], status: 'manual_confirmed', adminId: string): Promise<{ successCount: number }> => {
+export const bulkUpdatePaymentStatus = async (paymentIds: string[], status: 'manual_confirmed', adminId: string): Promise<{ successCount: number }> => {
+        // Kết nối API thật
+    const response = await apiClient.put<any>(`/monetization/payments/bulk-status`, { paymentIds, status, adminId });
+    // API trả về { success, successCount }
+    return { successCount: (response as any).successCount };
+
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -134,6 +151,6 @@ export const bulkUpdatePaymentStatus = (paymentIds: string[], status: 'manual_co
             }, 800);
         });
     }
-    // Kết nối API thật
-    return apiClient.put(`/monetization/payments/bulk-status`, { paymentIds, status, adminId });
+
 };
+

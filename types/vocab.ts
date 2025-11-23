@@ -12,6 +12,22 @@ export interface Vocabulary {
   word_types: string[];
 }
 
+export enum WordTypeEnum {
+  NOUN = 'Danh từ',
+  PRONOUN = 'Đại từ',
+  VERB = 'Động từ',
+  ADJECTIVE = 'Tính từ',
+  ADVERB = 'Trạng từ',
+  PREPOSITION = 'Giới từ',
+  CONJUNCTION = 'Liên từ',
+  AUXILIARY = 'Trợ từ',
+  INTERJECTION = 'Thán từ',
+  NUMERAL = 'Số từ',
+  CLASSIFIER = 'Lượng từ',
+  SENTENCE_COMPONENT = 'Thành phần câu',
+  PHRASE = 'Cụm từ'
+}
+
 export interface WordType {
   code: string; //Danh từ, Đại từ, Động từ, Tính từ, Trạng từ, Giới từ, Liên từ, Trợ từ, Thán từ, Số từ, Lượng từ, Thành phần câu, Cụm từ
 }

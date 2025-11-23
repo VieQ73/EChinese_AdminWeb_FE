@@ -15,14 +15,22 @@ interface FetchAppealsParams {
     status?: 'all' | 'pending' | 'accepted' | 'rejected';
 }
 
-export const fetchAppeals = (params: FetchAppealsParams): Promise<PaginatedResponse<Appeal>> => {
+type AppealsEnvelope = { success: boolean; data: PaginatedResponse<Appeal> };
+
+export const fetchAppeals = (params: FetchAppealsParams): Promise<AppealsEnvelope> => {
+    const query = new URLSearchParams(
+        Object.entries(params).filter(([, v]) => v !== undefined && v !== 'all') as [string, string][]
+    ).toString();
+    const endpoint = query ? `/moderation/appeals?${query}` : '/moderation/appeals';
+    return apiClient.get<AppealsEnvelope>(endpoint);
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
                 const { page = 1, limit = 10, search, status } = params;
                 let filtered = mockAppeals.map(a => enrichAppeal(a));
 
-                if (search) { /* ... filtering logic ... */ }
+                if (search) { /* filtering placeholder */ }
                 if (status && status !== 'all') { filtered = filtered.filter(a => a.status === status); }
 
                 filtered.sort((a, b) => {
@@ -34,12 +42,12 @@ export const fetchAppeals = (params: FetchAppealsParams): Promise<PaginatedRespo
                 const total = filtered.length;
                 const totalPages = Math.ceil(total / limit);
                 const data = filtered.slice((page - 1) * limit, page * limit);
-                
-                resolve({ data, meta: { total, page, limit, totalPages } });
+                const payload: PaginatedResponse<Appeal> = { data, meta: { total, page, limit, totalPages } };
+                resolve({ success: true, data: payload });
             }, 300);
         });
     }
-    return apiClient.get('/moderation/appeals', { body: params as any });
+    
 };
 
 interface ProcessAppealPayload {
@@ -48,8 +56,12 @@ interface ProcessAppealPayload {
     notes: string;
 }
 
-export const processAppeal = (appealId: string, payload: ProcessAppealPayload): Promise<Appeal> => {
-     if (USE_MOCK_API) {
+type ProcessAppealEnvelope = { success: boolean; data: Appeal };
+
+export const processAppeal = (appealId: string, payload: ProcessAppealPayload): Promise<ProcessAppealEnvelope> => {
+        return apiClient.put<ProcessAppealEnvelope>(`/moderation/appeals/${appealId}/process`, payload);
+
+    if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
                 const appealIndex = mockAppeals.findIndex(a => a.id === appealId);
@@ -63,33 +75,28 @@ export const processAppeal = (appealId: string, payload: ProcessAppealPayload): 
                 appeal.resolved_at = new Date().toISOString();
                 appeal.notes = payload.notes;
 
-                // Logic if appeal is accepted
                 if (payload.action === 'accepted') {
                     const violationIndex = mockViolations.findIndex(v => v.id === appeal.violation_id);
                     if (violationIndex !== -1) {
                         const violation = mockViolations[violationIndex];
-                        appeal.violation_snapshot = enrichAppeal(appeal).violation; // snapshot before removing
-                        
-                        // Restore content
-                        if(violation.target_type === 'post') {
+                        appeal.violation_snapshot = enrichAppeal(appeal).violation;
+
+                        if (violation.target_type === 'post') {
                             const post = mockPosts.find(p => p.id === violation.target_id);
                             if (post) post.status = 'published';
-                        } else if(violation.target_type === 'comment') {
+                        } else if (violation.target_type === 'comment') {
                             const comment = mockComments.find(c => c.id === violation.target_id);
-                            if(comment) comment.deleted_at = null;
-                        } else if(violation.target_type === 'user') {
+                            if (comment) comment.deleted_at = null;
+                        } else if (violation.target_type === 'user') {
                             const user = mockUsers.find(u => u.id === violation.target_id);
-                            if(user) user.is_active = true;
+                            if (user) user.is_active = true;
                         }
-                        
-                        // Remove violation
                         mockViolations.splice(violationIndex, 1);
                     }
                 }
-                
-                resolve(enrichAppeal(appeal));
+
+                resolve({ success: true, data: enrichAppeal(appeal) });
             }, 500);
         });
-     }
-     return apiClient.put(`/moderation/appeals/${appealId}/process`, payload);
+    }
 };

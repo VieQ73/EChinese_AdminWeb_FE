@@ -3,6 +3,7 @@ import Modal from '../../../../components/Modal';
 import { Achievement } from '../../../../types';
 import { AchievementPayload } from '../api';
 import { Loader2 } from 'lucide-react';
+import FileInput from '../../../tests/create/components/shared/FileInput';
 
 interface AddEditAchievementModalProps {
     isOpen: boolean;
@@ -112,8 +113,13 @@ const AddEditAchievementModal: React.FC<AddEditAchievementModalProps> = ({ isOpe
                 </div>
                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="font-medium">Icon URL</label>
-                        <input value={icon} onChange={e => setIcon(e.target.value)} className="w-full mt-1 p-2 border rounded"/>
+                        <FileInput
+                            id="achievement-icon-upload"
+                            label="Icon"
+                            value={icon || null}
+                            onFileChange={(url) => setIcon(url || '')}
+                            accept="image/*"
+                        />
                     </div>
                      <div>
                         <label className="font-medium">Điểm thưởng *</label>

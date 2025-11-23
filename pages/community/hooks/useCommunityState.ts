@@ -20,6 +20,8 @@ export const useCommunityState = () => {
     const [viewingPost, setViewingPost] = useState<Post | null>(null);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [moderationAction, setModerationAction] = useState<ModerationAction | null>(null);
+    // undefined => loading, null => not loaded / error, object => loaded
+    const [selectedUserActivity, setSelectedUserActivity] = useState<any | null | undefined>(null); // Will hold aggregated activity data
 
     // State for URL-driven actions
     const [initialActivityTab, setInitialActivityTab] = useState<string | undefined>();
@@ -39,6 +41,7 @@ export const useCommunityState = () => {
             viewingPost,
             selectedUser,
             moderationAction,
+            selectedUserActivity,
             initialActivityTab,
             initialActivitySubTab,
             searchTerm,
@@ -53,6 +56,7 @@ export const useCommunityState = () => {
             setViewingPost,
             setSelectedUser,
             setModerationAction,
+            setSelectedUserActivity,
             setInitialActivityTab,
             setInitialActivitySubTab,
             setSearchTerm,
