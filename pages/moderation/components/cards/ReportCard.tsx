@@ -17,7 +17,8 @@ const ReportCard: React.FC<ReportCardProps> = ({ report, onViewDetails }) => {
 
     // Lấy mô tả đối tượng bị báo cáo
     const getTargetDescription = () => {
-        return `${report.target_type}: ${report.target_id.substring(0,4)}...`;
+        const targetId = report.target_id ? report.target_id.substring(0, 4) : 'N/A';
+        return `${report.target_type}: ${targetId}...`;
     };
 
     return (
