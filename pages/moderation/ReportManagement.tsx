@@ -7,6 +7,7 @@ import NotificationsTab from './tabs/NotificationsTab';
 import { ReportIcon, ShieldExclamationIcon, ChatAlt2Icon, BellIcon } from '../../constants';
 import { Report, Violation, Appeal, Notification, PaginatedResponse } from '../../types';
 import { AuthContext } from '../../contexts/AuthContext';
+import { useNotification } from '../../contexts/NotificationContext';
 import * as api from './api'; // Import API mới
 
 // Import modals từ vị trí mới
@@ -51,12 +52,14 @@ const TabButton: React.FC<{
 const ModerationCenter: React.FC = () => {
     const { user: currentUser } = useContext(AuthContext)!;
     const location = useLocation();
+    const { refreshUnreadCount } = useNotification();
     // Lấy các hàm action từ context để đảm bảo đồng bộ
     const { communityRules, updatePost, updateComment, updateUser, removeViolationByTarget } = useAppData();
     
     // Đọc tab từ URL query params
     const searchParams = new URLSearchParams(location.search);
     const tabFromUrl = searchParams.get('tab') as ActiveTab;
+    const notificationIdFromUrl = searchParams.get('notificationId'); // Lấy ID thông báo từ URL
     const [activeTab, setActiveTab] = useState<ActiveTab>(tabFromUrl || 'reports');
     
     // Cập nhật activeTab khi URL thay đổi
@@ -65,6 +68,11 @@ const ModerationCenter: React.FC = () => {
             setActiveTab(tabFromUrl);
         }
     }, [tabFromUrl]);
+    
+    // Refresh unread count khi vào trang Kiểm duyệt
+    useEffect(() => {
+        refreshUnreadCount();
+    }, [refreshUnreadCount]);
     
     // State cục bộ cho dữ liệu của module
     const [reports, setReports] = useState<PaginatedResponse<Report> | null>(null);
@@ -296,7 +304,7 @@ const ModerationCenter: React.FC = () => {
             case 'appeals':
                 return <AppealsTab appealsData={appeals} onOpenAppeal={handleOpenAppeal} loading={loadingStates.appeals} refreshData={loadAppealsData} />;
             case 'notifications':
-                return <NotificationsTab notifications={notifications} onNavigateToAction={handleNavigateFromNotification} refreshData={loadNotificationsData} loading={loadingStates.notifications} />;
+                return <NotificationsTab notifications={notifications} onNavigateToAction={handleNavigateFromNotification} refreshData={loadNotificationsData} loading={loadingStates.notifications} notificationIdToOpen={notificationIdFromUrl} />;
             default:
                 return null;
         }

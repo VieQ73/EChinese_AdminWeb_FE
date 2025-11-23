@@ -145,6 +145,10 @@ export const fetchUserCommunityActivity = async (userId: string, options?: { for
       moderationLogs = [],
     } = (payload.success ? payload.data : payload) || {};
 
+    console.log('[fetchUserCommunityActivity] API response for userId:', userId);
+    console.log('[fetchUserCommunityActivity] removedComments:', removedComments);
+    console.log('[fetchUserCommunityActivity] removedPosts:', removedPosts);
+    
     const result: UserCommunityActivity = { posts, likedPosts, commentedPosts, viewedPosts, removedPosts, removedComments, violations, moderationLogs } as UserCommunityActivity;
     activityCache.set(userId, result);
     return result;

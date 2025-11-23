@@ -68,10 +68,10 @@ export const fetchEnrichedUserSubscriptions = async (params: FetchEnrichedUserSu
 };
 
 export type UpdateUserSubscriptionDetailsPayload = 
-    | { action: 'change_expiry'; new_expiry_date: string }
+    | { action: 'change_expiry'; new_expiry_date: string | null }
     | { action: 'toggle_renew'; auto_renew: boolean }
     | { action: 'cancel_now' }
-    | { action: 'change_plan'; new_subscription_id: string; change_type: 'immediate' | 'end_of_term' };
+    | { action: 'change_plan'; new_subscription_id: string; change_type: 'immediate' | 'end_of_term'; new_expiry_date?: string | null };
 
 export const updateUserSubscriptionDetails = async (userSubId: string, payload: UpdateUserSubscriptionDetailsPayload): Promise<any> => {
     
@@ -104,7 +104,10 @@ export const updateUserSubscriptionDetails = async (userSubId: string, payload: 
                     case 'change_plan':
                         if (payload.change_type === 'immediate') {
                             sub.subscription_id = payload.new_subscription_id;
-                            // Logic tính lại ngày hết hạn hoặc prorate có thể được thêm ở đây
+                            // Cập nhật ngày hết hạn nếu có
+                            if ('new_expiry_date' in payload) {
+                                sub.expiry_date = payload.new_expiry_date || null;
+                            }
                         }
                         // Logic cho 'end_of_term' sẽ phức tạp hơn, cần hệ thống cron job
                         break;

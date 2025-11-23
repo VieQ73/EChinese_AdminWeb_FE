@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 //  Changed import of `useNavigate` from `react-router-dom` to `react-router` to resolve module export error.
 import { useNavigate } from 'react-router';
 import Modal from '../../../../components/Modal';
 import { Notification } from '../../../../types';
-import { LinkIcon } from 'lucide-react';
+import { LinkIcon, Loader2 } from 'lucide-react';
+import { handleNotificationNavigation, shouldShowNavigationButton } from '../../../../services/notificationNavigationService';
+import * as api from '../../../community/api';
 
 interface NotificationDetailModalProps {
     isOpen: boolean;
@@ -20,14 +22,88 @@ const DetailRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label,
 );
 
 const NotificationDetailModal: React.FC<NotificationDetailModalProps> = ({ isOpen, onClose, notification, onNavigateToAction }) => {
+    const navigate = useNavigate();
+    const [isNavigating, setIsNavigating] = useState(false);
+    
     const isRead = (notification as any).is_read ?? (notification.read_at ? true : false);
     const redirectType = (notification as any).redirect_type || notification.related_type;
     const redirectId = notification.related_id;
+    
+    // Lấy type và id từ data của notification
+    const notificationData = notification.data as any;
+    const dataType = notificationData?.type;
+    const dataId = notificationData?.id;
+    
+    // Kiểm tra xem có nên hiển thị nút "Đi tới chi tiết" không
+    // Hỗ trợ cả format mới (post_id/comment_id) và format cũ (id)
+    const hasNavigationData = dataType && (
+        dataId || // Format cũ: có id
+        notificationData?.post_id || // Format mới: có post_id
+        notificationData?.comment_id // Format mới: có comment_id
+    );
+    const showNavigateButton = hasNavigationData && shouldShowNavigationButton(dataType);
     
     const handleNavigate = () => {
         if (redirectType && redirectId) {
             onNavigateToAction(redirectType, redirectId);
             onClose();
+        }
+    };
+    
+    const handleNavigateToDetail = async () => {
+        setIsNavigating(true);
+        
+        try {
+            let postId: string | null = null;
+            let commentId: string | null = null;
+            
+            // Ưu tiên sử dụng post_id và comment_id từ data
+            if (notificationData?.post_id) {
+                postId = notificationData.post_id;
+                commentId = notificationData.comment_id || null;
+            } 
+            // Fallback: sử dụng data.id và data.type (format cũ)
+            else if (dataType && dataId) {
+                if (dataType === 'post' || dataType === 'post_remove') {
+                    // Nếu type là 'post', data.id chính là postId
+                    postId = dataId;
+                } else if (dataType === 'comment' || dataType === 'comment_remove') {
+                    // Nếu type là 'comment', cần fetch comment để lấy post_id
+                    commentId = dataId;
+                    const comment = await api.fetchCommentById(dataId);
+                    if (comment && comment.post_id) {
+                        postId = comment.post_id;
+                    } else {
+                        navigate('/community');
+                        setIsNavigating(false);
+                        return;
+                    }
+                }
+            }
+            
+            if (postId) {
+                // Đóng modal notification trước
+                onClose();
+                // Navigate đến community page với query params
+                if (commentId) {
+                    navigate(`/community?post=${postId}&comment=${commentId}`);
+                } else {
+                    navigate(`/community?post=${postId}`);
+                }
+            } else {
+                // Fallback: dùng navigation
+                if (dataType && dataId) {
+                    await handleNotificationNavigation(dataType, dataId, (url) => navigate(url), notificationData);
+                }
+                onClose();
+            }
+        } catch (error) {
+            console.error('Error navigating:', error);
+            // Fallback: navigate to community
+            navigate('/community');
+            onClose();
+        } finally {
+            setIsNavigating(false);
         }
     };
     
@@ -90,8 +166,9 @@ const NotificationDetailModal: React.FC<NotificationDetailModalProps> = ({ isOpe
     const content = getContent();
     
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết thông báo" className="max-w-2xl">
-            <div className="space-y-6">
+        <>
+            <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết thông báo" className="max-w-2xl">
+                <div className="space-y-6">
                 <h2 className="text-xl font-bold">{notification.title}</h2>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                     {notification.audience && (
@@ -119,7 +196,7 @@ const NotificationDetailModal: React.FC<NotificationDetailModalProps> = ({ isOpe
                 )}
                 
                 {/* Hiển thị data bổ sung nếu có */}
-                {notification.data && typeof notification.data === 'object' && (
+                {/* {notification.data && typeof notification.data === 'object' && (
                     <div>
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Thông tin bổ sung</p>
                         <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-sm space-y-2">
@@ -134,21 +211,38 @@ const NotificationDetailModal: React.FC<NotificationDetailModalProps> = ({ isOpe
                             })}
                         </div>
                     </div>
-                )}
+                )} */}
                 
-                {redirectId && (
-                    <div>
+                {/* Nút điều hướng */}
+                <div className="flex gap-3">
+                    {redirectId && (
                         <button 
                             onClick={handleNavigate}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700"
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors"
                         >
                             <LinkIcon size={16} />
                             Đi đến chi tiết
                         </button>
-                    </div>
-                )}
-            </div>
-        </Modal>
+                    )}
+                    
+                    {showNavigateButton && (
+                        <button 
+                            onClick={handleNavigateToDetail}
+                            disabled={isNavigating}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isNavigating ? (
+                                <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                                <LinkIcon size={16} />
+                            )}
+                            {dataType?.includes('post') ? 'Xem bài viết' : 'Xem bình luận'}
+                        </button>
+                    )}
+                </div>
+                </div>
+            </Modal>
+        </>
     );
 };
 

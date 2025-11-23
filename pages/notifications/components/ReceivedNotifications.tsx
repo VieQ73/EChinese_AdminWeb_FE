@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../../services/apiClient';
 import { CheckCheck, Trash2, Search, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import * as api from '../../community/api';
 
 interface Notification {
   id: string;
@@ -116,7 +117,55 @@ const ReceivedNotifications: React.FC<ReceivedNotificationsProps> = ({ onStatsUp
       return;
     }
 
-    // Kiểm tra xem có phải thông báo liên quan đến bài đăng/comment không
+    // Sử dụng data.type và data.id để điều hướng
+    const dataType = notification.data?.type;
+    const dataId = notification.data?.id;
+
+    if (dataType && dataId) {
+      try {
+        let postId: string | null = null;
+
+        if (dataType === 'post' || dataType === 'post_remove') {
+          // Nếu type là 'post', data.id chính là postId
+          postId = dataId;
+        } else if (dataType === 'comment' || dataType === 'comment_remove') {
+          // Nếu type là 'comment', cần fetch comment để lấy post_id
+          const comment = await api.fetchCommentById(dataId);
+          if (comment) {
+            postId = comment.post_id || null;
+          }
+        }
+
+        if (postId) {
+          // Fetch post để kiểm tra trạng thái
+          const post = await api.fetchPostById(postId);
+          if (post) {
+            // Nếu bài viết bị gỡ, mở UserActivityModal tab "Đã gỡ"
+            if (post.status === 'removed') {
+              navigate(`/community?user=${post.user_id}&tab=removed`);
+            } else {
+              // Bài viết bình thường, mở PostDetailModal
+              if (dataType === 'comment' || dataType === 'comment_remove') {
+                // Nếu là comment, thêm commentId vào URL để highlight
+                navigate(`/community?post=${postId}&comment=${dataId}`);
+              } else {
+                navigate(`/community?post=${postId}`);
+              }
+            }
+          } else {
+            navigate('/community');
+          }
+        } else {
+          navigate('/community');
+        }
+      } catch (error) {
+        console.error('Error handling notification click:', error);
+        navigate('/community');
+      }
+      return;
+    }
+
+    // Fallback: Kiểm tra legacy format (post_id, comment_id)
     const isPostRelated = (notification.type === 'community' || notification.type === 'violation') && 
                           (notification.redirect_type === 'post' || notification.redirect_type === 'post_comment');
 
@@ -126,16 +175,11 @@ const ReceivedNotifications: React.FC<ReceivedNotificationsProps> = ({ onStatsUp
 
       if (postId) {
         try {
-          const response = await fetch(`/api/community/posts/${postId}`);
-          if (response.ok) {
-            const data = await response.json();
-            const post = data.data || data;
-            
-            // Nếu bài viết bị gỡ, mở UserActivityModal tab "Đã gỡ"
+          const post = await api.fetchPostById(postId);
+          if (post) {
             if (post.status === 'removed') {
               navigate(`/community?user=${post.user_id}&tab=removed`);
             } else {
-              // Bài viết bình thường, mở PostDetailModal
               navigate(`/community?post=${postId}`);
             }
           } else {
@@ -150,17 +194,12 @@ const ReceivedNotifications: React.FC<ReceivedNotificationsProps> = ({ onStatsUp
 
       if (commentId) {
         try {
-          const response = await fetch(`/api/community/comments/${commentId}`);
-          if (response.ok) {
-            const data = await response.json();
-            const comment = data.data || data;
-            
-            // Nếu comment bị gỡ, mở UserActivityModal tab "Đã gỡ"
+          const comment = await api.fetchCommentById(commentId);
+          if (comment) {
             if (comment.deleted_at) {
               navigate(`/community?user=${comment.user_id}&tab=removed`);
             } else if (comment.post_id) {
-              // Comment bình thường, mở bài viết chứa comment
-              navigate(`/community?post=${comment.post_id}`);
+              navigate(`/community?post=${comment.post_id}&comment=${commentId}`);
             } else {
               navigate('/community');
             }

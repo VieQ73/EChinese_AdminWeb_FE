@@ -66,7 +66,15 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({ payload, onClose,
     
     // Lấy nguồn đầu tiên có giá trị
     for (const source of sources) {
-      if (source && typeof source === 'string' && source.trim()) {
+      if (!source) continue;
+      
+      // Nếu source là object có thuộc tính html
+      if (typeof source === 'object' && (source as any).html) {
+        return (source as any).html;
+      }
+      
+      // Nếu source là string
+      if (typeof source === 'string' && source.trim()) {
         return source;
       }
     }
@@ -112,79 +120,18 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({ payload, onClose,
 
   const handleClick = async () => {
     if (onNavigate) {
-      // Ưu tiên redirect_url nếu có
-      if (payload?.data?.redirect_url) {
-        const path = payload.data.redirect_url.replace('app:/', '');
-        onNavigate(path);
+      // Lấy notification ID từ payload
+      const notificationId = payload?.data?.notification_id || payload?.data?.id;
+      
+      // Nếu có notification ID, chuyển đến trang Trung tâm Kiểm duyệt & Thông báo, tab Thông báo
+      if (notificationId) {
+        onNavigate(`/reports?tab=notifications&notificationId=${notificationId}`);
         handleClose();
         return;
       }
 
-      // Kiểm tra xem có phải thông báo liên quan đến bài đăng/comment không
-      // Dựa vào type (community/violation) và có post_id hoặc comment_id
-      const notificationType = payload?.data?.type;
-      const isPostRelated = (notificationType === 'community' || notificationType === 'violation') && 
-                            (payload?.data?.post_id || payload?.data?.comment_id);
-
-      if (isPostRelated) {
-        const postId = payload.data?.post_id;
-        const commentId = payload.data?.comment_id;
-
-        if (postId) {
-          try {
-            const response = await fetch(`/api/community/posts/${postId}`);
-            if (response.ok) {
-              const data = await response.json();
-              const post = data.data || data;
-              
-              // Nếu bài viết bị gỡ, mở UserActivityModal tab "Đã gỡ"
-              if (post.status === 'removed') {
-                onNavigate(`/community?user=${post.user_id}&tab=removed`);
-              } else {
-                // Bài viết bình thường, mở PostDetailModal
-                onNavigate(`/community?post=${postId}`);
-              }
-            } else {
-              onNavigate('/community');
-            }
-          } catch (error) {
-            console.error('Error checking post status:', error);
-            onNavigate('/community');
-          }
-          handleClose();
-          return;
-        }
-
-        if (commentId) {
-          try {
-            const response = await fetch(`/api/community/comments/${commentId}`);
-            if (response.ok) {
-              const data = await response.json();
-              const comment = data.data || data;
-              
-              // Nếu comment bị gỡ, mở UserActivityModal tab "Đã gỡ"
-              if (comment.deleted_at) {
-                onNavigate(`/community?user=${comment.user_id}&tab=removed`);
-              } else if (comment.post_id) {
-                // Comment bình thường, mở bài viết chứa comment
-                onNavigate(`/community?post=${comment.post_id}`);
-              } else {
-                onNavigate('/community');
-              }
-            } else {
-              onNavigate('/community');
-            }
-          } catch (error) {
-            console.error('Error checking comment status:', error);
-            onNavigate('/community');
-          }
-          handleClose();
-          return;
-        }
-      }
-
-      // Thông báo không liên quan đến bài đăng/comment: chuyển đến trang Quản lý Thông báo
-      onNavigate('/notifications');
+      // Fallback: chuyển đến trang Trung tâm Kiểm duyệt & Thông báo, tab Thông báo
+      onNavigate('/reports?tab=notifications');
     }
     handleClose();
   };
@@ -248,9 +195,7 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({ payload, onClose,
                 </h3>
                 <div className="mt-2">
                   <span className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                    {payload.data?.redirect_url || payload.data?.post_id 
-                      ? 'Nhấn để xem chi tiết →' 
-                      : 'Nhấn để xem tất cả thông báo →'}
+                    Nhấn để xem chi tiết →
                   </span>
                 </div>
               </div>

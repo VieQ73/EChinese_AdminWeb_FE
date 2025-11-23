@@ -61,7 +61,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
   const [newComment, setNewComment] = useState('');
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [loadedComments, setLoadedComments] = useState<CommentWithUser[] | null>(null);
-  const [isCommentsLoading, setIsCommentsLoading] = useState(false);
+  const [isCommentsLoading, setIsCommentsLoading] = useState(true);
 
   // Lấy và xây dựng cây bình luận từ context thay vì fetch
   const fallbackEnriched = useMemo(() => {
@@ -76,6 +76,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
     const loadComments = async () => {
       if (!post) return;
       setIsCommentsLoading(true);
+      setLoadedComments(null); // Reset để tránh hiển thị comments cũ
       try {
         const result = await api.fetchCommentsByPostId(post.id);
         // Support both raw array and envelope { success, data }
@@ -90,10 +91,16 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
     };
     if (isOpen) {
       loadComments();
+    } else {
+      // Reset state khi đóng modal
+      setLoadedComments(null);
+      setIsCommentsLoading(true);
     }
   }, [isOpen, post]);
 
-  if (!isOpen || !post) return null;
+  if (!isOpen || !post) {
+    return null;
+  }
 
   const isPostRemoved = post.status === 'removed';
 
@@ -147,7 +154,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
         <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
           <div className="p-4 border-b flex justify-between items-center flex-shrink-0 relative">
             <h3 className="text-xl font-bold">Chi tiết bài viết</h3>

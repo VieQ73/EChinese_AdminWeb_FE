@@ -24,6 +24,7 @@ const ManageUserSubscriptionModal: React.FC<ManageUserSubscriptionModalProps> = 
     // State cho form
     const [newPlanId, setNewPlanId] = useState('');
     const [newExpiry, setNewExpiry] = useState('');
+    const [isLifetime, setIsLifetime] = useState(false);
     const [allPlans, setAllPlans] = useState<Subscription[]>([]);
 
     // State cho modal xác nhận con
@@ -34,7 +35,9 @@ const ManageUserSubscriptionModal: React.FC<ManageUserSubscriptionModalProps> = 
         if(isOpen) {
             setView('main'); // Reset view khi mở lại
             if(userSub?.userSubscription) {
-                setNewExpiry(userSub.userSubscription.expiry_date?.split('T')[0] || '');
+                const hasExpiry = !!userSub.userSubscription.expiry_date;
+                setIsLifetime(!hasExpiry);
+                setNewExpiry(hasExpiry ? userSub.userSubscription.expiry_date.split('T')[0] : '');
             }
             // Tải danh sách các gói có thể chuyển đổi
             fetchSubscriptions({ status: 'active' }).then(res => setAllPlans(res.data));
@@ -104,26 +107,85 @@ const ManageUserSubscriptionModal: React.FC<ManageUserSubscriptionModalProps> = 
     const renderChangePlanView = () => {
         const selectedNewPlan = allPlans.find(p => p.id === newPlanId);
         const priceDiff = selectedNewPlan && currentSub ? selectedNewPlan.price - currentSub.price : 0;
+        
+        // Tính ngày hết hạn mới dựa trên duration_months của gói mới
+        let newExpiryDate: Date | null = null;
+        let newExpiryDisplay = '';
+        
+        if (selectedNewPlan && userSubscription?.start_date) {
+            const startDate = new Date(userSubscription.start_date);
+            
+            if (selectedNewPlan.duration_months === null) {
+                // Gói vĩnh viễn
+                newExpiryDisplay = 'Vĩnh viễn (không hết hạn)';
+                newExpiryDate = null;
+            } else {
+                // Tính ngày hết hạn = start_date + duration_months
+                newExpiryDate = new Date(startDate);
+                newExpiryDate.setMonth(newExpiryDate.getMonth() + selectedNewPlan.duration_months);
+                newExpiryDisplay = formatDateTime(newExpiryDate.toISOString());
+            }
+        }
+        
         return (
             <div className="space-y-4">
                 <h4 className="font-semibold">Thay đổi gói đăng ký</h4>
+                
+                {/* Thông tin gói hiện tại */}
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                    <p><strong>Gói hiện tại:</strong> {currentSub?.name}</p>
+                    <p><strong>Ngày bắt đầu:</strong> {formatDateTime(userSubscription?.start_date)}</p>
+                    <p><strong>Ngày hết hạn hiện tại:</strong> {userSubscription?.expiry_date ? formatDateTime(userSubscription.expiry_date) : 'Vĩnh viễn'}</p>
+                </div>
+                
                 <div>
-                    <label>Chọn gói mới</label>
-                    <select value={newPlanId} onChange={e => setNewPlanId(e.target.value)} className="w-full p-2 border rounded mt-1">
+                    <label className="block text-sm font-medium mb-1">Chọn gói mới</label>
+                    <select value={newPlanId} onChange={e => setNewPlanId(e.target.value)} className="w-full p-2 border rounded">
                         <option value="">-- Chọn gói --</option>
                         {allPlans.filter(p => p.id !== currentSub?.id).map(p => (
-                            <option key={p.id} value={p.id}>{p.name} ({formatCurrency(p.price)})</option>
+                            <option key={p.id} value={p.id}>
+                                {p.name} ({formatCurrency(p.price)}) - {p.duration_months ? `${p.duration_months} tháng` : 'Vĩnh viễn'}
+                            </option>
                         ))}
                     </select>
                 </div>
-                 {selectedNewPlan && (
-                    <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-sm">
-                        <strong>Chênh lệch chi phí: </strong> {formatCurrency(priceDiff)}. Cần thông báo cho người dùng về việc thanh toán bù trừ.
-                    </div>
+                
+                {selectedNewPlan && (
+                    <>
+                        {/* Preview ngày hết hạn mới */}
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm space-y-1">
+                            <p><strong>📅 Ngày hết hạn mới:</strong> <span className="text-blue-700 font-semibold">{newExpiryDisplay}</span></p>
+                            <p className="text-xs text-gray-600">
+                                Tính từ ngày bắt đầu: {formatDateTime(userSubscription?.start_date)} + {selectedNewPlan.duration_months ? `${selectedNewPlan.duration_months} tháng` : 'vĩnh viễn'}
+                            </p>
+                        </div>
+                        
+                        {/* Chênh lệch chi phí */}
+                        <div className={`p-3 border rounded-lg text-sm ${priceDiff >= 0 ? 'bg-yellow-50 border-yellow-200' : 'bg-green-50 border-green-200'}`}>
+                            <p><strong>💰 Chênh lệch chi phí:</strong> {formatCurrency(Math.abs(priceDiff))} {priceDiff >= 0 ? '(cần thu thêm)' : '(hoàn lại)'}</p>
+                            <p className="text-xs text-gray-600 mt-1">
+                                {priceDiff >= 0 
+                                    ? 'Cần thông báo người dùng thanh toán bù trừ.' 
+                                    : 'Cần xử lý hoàn tiền cho người dùng.'}
+                            </p>
+                        </div>
+                    </>
                 )}
+                
                 <div className="flex justify-end gap-2">
                     <button onClick={() => setView('main')} className="btn-secondary">Hủy</button>
-                    <button onClick={() => handleAction({action: 'change_plan', new_subscription_id: newPlanId, change_type: 'immediate'})} disabled={!newPlanId} className="btn-primary">Lưu thay đổi</button>
+                    <button 
+                        onClick={() => handleAction({
+                            action: 'change_plan', 
+                            new_subscription_id: newPlanId, 
+                            change_type: 'immediate',
+                            new_expiry_date: newExpiryDate ? newExpiryDate.toISOString() : null
+                        } as any)} 
+                        disabled={!newPlanId} 
+                        className="btn-primary"
+                    >
+                        Xác nhận thay đổi
+                    </button>
                 </div>
             </div>
         );
@@ -132,13 +194,57 @@ const ManageUserSubscriptionModal: React.FC<ManageUserSubscriptionModalProps> = 
      const renderChangeExpiryView = () => (
         <div className="space-y-4">
             <h4 className="font-semibold">Thay đổi ngày hết hạn</h4>
-            <div>
-                <label>Ngày hết hạn mới</label>
-                <input type="date" value={newExpiry} onChange={e => setNewExpiry(e.target.value)} className="w-full p-2 border rounded mt-1" />
+            
+            {/* Checkbox cho vĩnh viễn */}
+            <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <input 
+                    type="checkbox" 
+                    id="lifetime-checkbox"
+                    checked={isLifetime}
+                    onChange={(e) => {
+                        setIsLifetime(e.target.checked);
+                        if (e.target.checked) {
+                            setNewExpiry(''); // Clear date khi chọn vĩnh viễn
+                        }
+                    }}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="lifetime-checkbox" className="text-sm font-medium text-blue-900 cursor-pointer">
+                    Gói vĩnh viễn (không hết hạn)
+                </label>
             </div>
+
+            {/* Input date - disabled khi chọn vĩnh viễn */}
+            <div>
+                <label className={`block text-sm font-medium mb-1 ${isLifetime ? 'text-gray-400' : 'text-gray-700'}`}>
+                    Ngày hết hạn mới
+                </label>
+                <input 
+                    type="date" 
+                    value={newExpiry} 
+                    onChange={e => setNewExpiry(e.target.value)} 
+                    disabled={isLifetime}
+                    className={`w-full p-2 border rounded ${isLifetime ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
+                />
+                {isLifetime && (
+                    <p className="text-xs text-gray-500 mt-1">
+                        Gói vĩnh viễn không cần ngày hết hạn
+                    </p>
+                )}
+            </div>
+
             <div className="flex justify-end gap-2">
                 <button onClick={() => setView('main')} className="btn-secondary">Hủy</button>
-                <button onClick={() => handleAction({action: 'change_expiry', new_expiry_date: new Date(newExpiry).toISOString()})} disabled={!newExpiry} className="btn-primary">Lưu thay đổi</button>
+                <button 
+                    onClick={() => {
+                        const expiryDate = isLifetime ? null : new Date(newExpiry).toISOString();
+                        handleAction({action: 'change_expiry', new_expiry_date: expiryDate as string});
+                    }} 
+                    disabled={!isLifetime && !newExpiry} 
+                    className="btn-primary"
+                >
+                    Lưu thay đổi
+                </button>
             </div>
         </div>
     );

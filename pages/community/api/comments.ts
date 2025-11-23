@@ -10,6 +10,31 @@ const USE_MOCK_API = (import.meta as any).env?.VITE_USE_MOCK_API !== 'false';
 // =============================
 
 /**
+ * Lấy thông tin chi tiết một comment theo ID.
+ * Hữu ích khi cần lấy thông tin comment từ notification để navigate đến bài viết chứa comment đó.
+ */
+export const fetchCommentById = async (commentId: string): Promise<CommentWithUser | null> => {
+    try {
+        const response = await apiClient.get(`/community/comments/${commentId}`);
+        
+        // Kiểm tra các format response khác nhau
+        if ((response as any).data) {
+            return (response as any).data; // API trả về { success, message, data: Comment }
+        }
+        
+        // Nếu response chính là Comment
+        if ((response as any).id) {
+            return response as CommentWithUser;
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Error fetching comment by ID:', error);
+        return null;
+    }
+};
+
+/**
  * Tải tất cả bình luận (đã được làm giàu và sắp xếp dạng cây) cho một bài viết.
  */
 export const fetchCommentsByPostId = (postId: string): Promise<CommentWithUser[]> => {

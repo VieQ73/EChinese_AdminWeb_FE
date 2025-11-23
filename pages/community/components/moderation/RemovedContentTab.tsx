@@ -51,11 +51,16 @@ const RemovedContentTab: React.FC<RemovedContentTabProps> = ({
     const [activeSubTab, setActiveSubTab] = useState<'posts' | 'comments'>(initialSubTab || 'posts');
 
     useEffect(() => {
+        console.log('[RemovedContentTab] initialSubTab changed:', initialSubTab);
         setActiveSubTab(initialSubTab || 'posts');
     }, [initialSubTab]);
 
     const removedPosts = useMemo(() => removedPostsProp ?? getRemovedPostsByUserId(user.id), [user.id, getRemovedPostsByUserId, removedPostsProp]);
     const removedComments = useMemo(() => removedCommentsProp ?? getRemovedCommentsByUserId(user.id), [user.id, getRemovedCommentsByUserId, removedCommentsProp]);
+    
+    console.log('[RemovedContentTab] activeSubTab:', activeSubTab);
+    console.log('[RemovedContentTab] removedPosts:', removedPosts);
+    console.log('[RemovedContentTab] removedComments:', removedComments);
 
     const renderContent = () => {
         if (activeSubTab === 'posts') {

@@ -77,8 +77,24 @@ export const fetchPosts = async (params: FetchPostsParams = {}): Promise<Paginat
  * Tải chi tiết một bài viết theo ID.
  */
 export const fetchPostById = async (postId: string): Promise<Post | null> => {
-    const response = await apiClient.get(`/community/posts/${postId}`);
-    return (response as any).data; // API trả về { success, message, data: Post }
+    try {
+        const response = await apiClient.get(`/community/posts/${postId}`);
+        
+        // Kiểm tra các format response khác nhau
+        if ((response as any).data) {
+            return (response as any).data; // API trả về { success, message, data: Post }
+        }
+        
+        // Nếu response chính là Post
+        if ((response as any).id) {
+            return response as Post;
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Error fetching post by ID:', error);
+        return null;
+    }
 };
 
 /**

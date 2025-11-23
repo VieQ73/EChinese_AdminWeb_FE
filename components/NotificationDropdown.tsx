@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Notification } from '../types';
 import { useNavigate } from 'react-router-dom';
-import { fetchReceivedNotifications } from '../pages/moderation/api/notifications';
+import { fetchReceivedNotifications, markNotificationsAsRead } from '../pages/moderation/api/notifications';
+import { useNotification } from '../contexts/NotificationContext';
+import { CheckCheck } from 'lucide-react';
 
 interface NotificationDropdownProps {
   isOpen: boolean;
@@ -11,7 +13,9 @@ interface NotificationDropdownProps {
 const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onClose }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
+  const [markingAllRead, setMarkingAllRead] = useState(false);
   const navigate = useNavigate();
+  const { refreshUnreadCount } = useNotification();
 
   useEffect(() => {
     if (isOpen) {
@@ -22,10 +26,10 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
   const fetchRecentNotifications = async () => {
     setLoading(true);
     try {
-      // Lấy thông báo chưa đọc, giới hạn 7 cái
+      // Lấy TẤT CẢ thông báo chưa đọc (không giới hạn)
       const response = await fetchReceivedNotifications({ 
         read_status: 'unread',
-        limit: 7 
+        limit: 999 // Lấy tất cả
       });
       
       if (response.success && response.data) {
@@ -43,10 +47,42 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
     }
   };
 
-  const handleNotificationClick = (notification: Notification) => {
+  const handleMarkAllAsRead = async () => {
+    if (notifications.length === 0) return;
+    
+    setMarkingAllRead(true);
+    try {
+      const unreadIds = notifications.filter(n => !n.read_at).map(n => n.id);
+      
+      if (unreadIds.length > 0) {
+        await markNotificationsAsRead(unreadIds, true);
+        
+        // Cập nhật state local
+        setNotifications([]);
+        
+        // Refresh unread count
+        await refreshUnreadCount();
+      }
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+    } finally {
+      setMarkingAllRead(false);
+    }
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
+    // Đánh dấu thông báo này đã đọc
+    try {
+      await markNotificationsAsRead([notification.id], true);
+      // Cập nhật số lượng thông báo chưa đọc
+      await refreshUnreadCount();
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+    
     onClose();
-    // Chuyển đến trang Kiểm duyệt & Thông báo, tab Thông báo
-    navigate('/reports?tab=notifications');
+    // Chuyển đến trang Kiểm duyệt & Thông báo, tab Thông báo, và truyền ID thông báo
+    navigate(`/reports?tab=notifications&notificationId=${notification.id}`);
   };
 
   const handleViewAll = () => {
@@ -97,22 +133,45 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
         onClick={onClose}
       />
       
-      {/* Dropdown */}
-      <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[500px] flex flex-col">
+      {/* Dropdown - Giới hạn chiều cao và cải thiện thanh cuộn */}
+      <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 flex flex-col max-h-[600px]">
         {/* Header */}
-        <div className="px-4 py-3 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Thông báo</h3>
+        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Thông báo chưa đọc
+            {notifications.length > 0 && (
+              <span className="ml-2 text-sm font-normal text-gray-500">
+                ({notifications.length})
+              </span>
+            )}
+          </h3>
+          {notifications.length > 0 && (
+            <button
+              onClick={handleMarkAllAsRead}
+              disabled={markingAllRead}
+              className="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Đánh dấu tất cả đã đọc"
+            >
+              {markingAllRead ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+              ) : (
+                <CheckCheck className="w-4 h-4" />
+              )}
+              <span className="whitespace-nowrap">Đọc hết</span>
+            </button>
+          )}
         </div>
 
-        {/* Notifications List */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Notifications List với thanh cuộn đẹp hơn */}
+        <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400">
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : notifications.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <p>Không có thông báo chưa đọc</p>
+            <div className="text-center py-12 text-gray-500">
+              <div className="text-4xl mb-2">✓</div>
+              <p className="text-sm">Không có thông báo chưa đọc</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
@@ -120,9 +179,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
                 <div
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
-                  className={`px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors ${
-                    !notification.read_at ? 'bg-blue-50' : ''
-                  }`}
+                  className="px-4 py-3 hover:bg-blue-100 cursor-pointer transition-colors bg-blue-50"
                 >
                   <div className="flex items-start space-x-3">
                     <div className="flex-shrink-0 text-2xl">
@@ -136,11 +193,9 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
                         {formatTime(notification.created_at)}
                       </p>
                     </div>
-                    {!notification.read_at && (
-                      <div className="flex-shrink-0">
-                        <span className="inline-block w-2 h-2 bg-blue-600 rounded-full"></span>
-                      </div>
-                    )}
+                    <div className="flex-shrink-0 mt-1">
+                      <span className="inline-block w-2 h-2 bg-blue-600 rounded-full"></span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -149,7 +204,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-3 border-t border-gray-200">
+        <div className="px-4 py-3 border-t border-gray-200 flex-shrink-0">
           <button
             onClick={handleViewAll}
             className="w-full text-center text-sm font-medium text-blue-600 hover:text-blue-700 py-2 rounded-lg hover:bg-blue-50 transition-colors"

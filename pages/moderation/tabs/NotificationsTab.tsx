@@ -5,6 +5,7 @@ import NotificationDetailModal from '../components/notifications/NotificationDet
 import Modal from '../../../components/Modal';
 import ReceivedNotificationsView from '../components/notifications/tabs/ReceivedNotificationsView';
 import SentNotificationsView from '../components/notifications/tabs/SentNotificationsView';
+import { useNotification } from '../../../contexts/NotificationContext';
 import * as api from '../api';
 
 type ActiveSubTab = 'received' | 'sent';
@@ -14,6 +15,7 @@ interface NotificationsTabProps {
     onNavigateToAction: (type?: string, id?: string) => void;
     refreshData: (page?: number, limit?: number, filters?: any) => void; // Hàm để tải lại dữ liệu từ component cha
     loading?: boolean; // Trạng thái loading
+    notificationIdToOpen?: string | null; // ID thông báo cần mở chi tiết
 }
 
 // Nút chuyển tab con
@@ -32,7 +34,8 @@ const SubTabButton: React.FC<{ tabId: ActiveSubTab; activeTab: ActiveSubTab; onC
 };
 
 // Component container chính
-const NotificationsTab: React.FC<NotificationsTabProps> = ({ notifications, onNavigateToAction, refreshData, loading = false }) => {
+const NotificationsTab: React.FC<NotificationsTabProps> = ({ notifications, onNavigateToAction, refreshData, loading = false, notificationIdToOpen }) => {
+    const { refreshUnreadCount } = useNotification();
     const [activeSubTab, setActiveSubTab] = useState<ActiveSubTab>('received');
     const [currentPage, setCurrentPage] = useState(1);
     const limit = 15; // Server-side pagination limit
@@ -67,13 +70,35 @@ const NotificationsTab: React.FC<NotificationsTabProps> = ({ notifications, onNa
 
     // --- Handlers cho Modal và Actions ---
     const handleViewDetails = async (notification: Notification) => {
+        // Chỉ mở modal, không tự động đánh dấu đã đọc
+        // Người dùng sẽ tự đánh dấu đã đọc bằng nút riêng
         setViewingNotification(notification);
         setDetailModalOpen(true);
-        if (!notification.read_at && (notification.audience === 'admin' || notification.from_system)) {
-            await api.markNotificationsAsRead([notification.id], true);
-            refreshData(currentPage, limit);
-        }
     };
+    
+    // Tự động mở modal chi tiết khi có notificationIdToOpen
+    const [hasOpenedNotification, setHasOpenedNotification] = React.useState(false);
+    
+    React.useEffect(() => {
+        if (notificationIdToOpen && notifications.length > 0 && !hasOpenedNotification) {
+            const notification = notifications.find(n => n.id === notificationIdToOpen);
+            if (notification) {
+                handleViewDetails(notification);
+                setHasOpenedNotification(true);
+                // Xóa notificationId khỏi URL sau khi mở modal
+                const url = new URL(window.location.href);
+                url.searchParams.delete('notificationId');
+                window.history.replaceState({}, '', url.toString());
+            }
+        }
+    }, [notificationIdToOpen, notifications, hasOpenedNotification]);
+    
+    // Reset flag khi notificationIdToOpen thay đổi (người dùng click thông báo khác)
+    React.useEffect(() => {
+        if (notificationIdToOpen) {
+            setHasOpenedNotification(false);
+        }
+    }, [notificationIdToOpen]);
 
     const handleSaveNotification = async (data: Omit<Notification, 'id' | 'created_at'>) => {
         await api.createNotification(data);
@@ -108,6 +133,8 @@ const NotificationsTab: React.FC<NotificationsTabProps> = ({ notifications, onNa
     const handleMarkAsRead = async (ids: string[], asRead: boolean) => {
         await api.markNotificationsAsRead(ids, asRead);
         refreshData(currentPage, limit);
+        // Cập nhật số lượng thông báo chưa đọc trên chuông
+        await refreshUnreadCount();
     };
 
     return (

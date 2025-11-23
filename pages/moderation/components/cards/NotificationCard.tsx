@@ -131,7 +131,10 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
                 <div className="flex items-center justify-between">
                     {onMarkAsRead && !isRead && (
                         <button
-                            onClick={() => onMarkAsRead([notification.id], true)}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onMarkAsRead([notification.id], true);
+                            }}
                             className="inline-flex items-center px-2 py-0.5 text-xs font-medium text-green-600 hover:text-green-900 hover:bg-green-50 rounded transition-colors"
                         >
                             <CheckCircleIcon className="w-3 h-3 mr-1" />
@@ -140,7 +143,10 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
                     )}
                     
                     <button 
-                        onClick={() => onViewDetails(notification)}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onViewDetails(notification);
+                        }}
                         className="inline-flex items-center px-2 py-0.5 text-xs font-medium text-primary-600 hover:text-primary-900 hover:bg-primary-50 rounded transition-colors ml-auto"
                     >
                         <EyeIcon className="w-3 h-3 mr-1" />

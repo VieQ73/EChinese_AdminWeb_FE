@@ -63,23 +63,24 @@ const UserActivityModal: React.FC<UserActivityModalProps> = ({
     onPostSelect,
     ...rest
 }) => {
-    const { violations, posts: contextPosts, users: contextUsers, badges: contextBadges } = useAppData(); // Lấy dữ liệu từ context
+    const { violations, posts: contextPosts, users: contextUsers, badges: contextBadges } = useAppData();
     const [activeTab, setActiveTab] = useState(initialTab || 'posts');
-    const userBadge = mockBadges.find(b => b.level === user.badge_level);
     
-    // Đảm bảo tab được cập nhật nếu prop thay đổi khi modal đang mở
+    // ⚠️ TẤT CẢ HOOKS PHẢI Ở TRÊN CÙNG, TRƯỚC BẤT KỲ EARLY RETURN NÀO
     React.useEffect(() => {
         if (isOpen) {
             setActiveTab(initialTab || 'posts');
         }
     }, [initialTab, isOpen]);
 
-    // Tính toán số vi phạm
+    // Tính toán số vi phạm - phải tính trước khi check user
     const violationCount = useMemo(() => {
+        if (!user) return 0;
         return violations.filter(v => v.user_id === user.id).length;
-    }, [violations, user.id]);
+    }, [violations, user]);
 
     const content = useMemo(() => {
+        if (!user) return null;
         let posts: Post[] = [];
 
         // Use aggregated data if available, else fallback to getter functions
@@ -92,6 +93,9 @@ const UserActivityModal: React.FC<UserActivityModalProps> = ({
         else if (activeTab === 'comments') posts = activityData?.commentedPosts || getCommentedPostsByUserId(user.id);
         else if (activeTab === 'views') posts = activityData?.viewedPosts || getViewedPostsByUserId(user.id);
         else if (activeTab === 'removed') {
+            console.log('[UserActivityModal] Rendering removed tab');
+            console.log('[UserActivityModal] activityData:', activityData);
+            console.log('[UserActivityModal] initialSubTab:', initialSubTab);
             // Enrich removed posts/comments bằng dữ liệu context nếu phía API trả về dạng thô
             const removedPostsEnriched = (activityData?.removedPosts || []).map(p => contextPosts.find(cp => cp.id === p.id) || p);
             const removedCommentsEnriched = (activityData?.removedComments || []).map((c: any) => {
@@ -100,6 +104,8 @@ const UserActivityModal: React.FC<UserActivityModalProps> = ({
                 const badge = u ? (contextBadges.find(b => b.level === u.badge_level) || contextBadges[0]) : undefined;
                 return { ...c, user: u, badge, replies: c.replies || [] };
             });
+            console.log('[UserActivityModal] removedPostsEnriched:', removedPostsEnriched);
+            console.log('[UserActivityModal] removedCommentsEnriched:', removedCommentsEnriched);
             return (
                 <RemovedContentTab
                     user={user}
@@ -137,7 +143,20 @@ const UserActivityModal: React.FC<UserActivityModalProps> = ({
             ))
             : <p className="text-center text-gray-500 py-16">Không có hoạt động nào.</p>;
             
-    }, [activeTab, user, currentUser, getPostsByUserId, getLikedPostsByUserId, getCommentedPostsByUserId, getViewedPostsByUserId, onPostSelect, initialSubTab, rest, activityData, isOpen]);
+    }, [activeTab, user, currentUser, getPostsByUserId, getLikedPostsByUserId, getCommentedPostsByUserId, getViewedPostsByUserId, onPostSelect, initialSubTab, rest, activityData, isOpen, contextPosts, contextUsers, contextBadges]);
+
+    // Xử lý trường hợp user chưa load - PHẢI SAU TẤT CẢ HOOKS
+    if (!user) {
+        return (
+            <Modal isOpen={isOpen} onClose={() => {}} title="Đang tải..." className="max-w-4xl">
+                <div className="flex items-center justify-center py-16">
+                    <p className="text-gray-500">Đang tải thông tin người dùng...</p>
+                </div>
+            </Modal>
+        );
+    }
+    
+    const userBadge = mockBadges.find(b => b.level === user.badge_level);
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={`Hoạt động của ${user.name}`} className="max-w-4xl">

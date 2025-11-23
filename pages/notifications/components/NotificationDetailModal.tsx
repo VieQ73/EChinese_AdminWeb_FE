@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Modal from '../../../components/Modal';
-import { Clock, Tag, ExternalLink, CheckCheck } from 'lucide-react';
+import { Clock, Tag, ExternalLink, CheckCheck, Loader2 } from 'lucide-react';
+import { handleNotificationNavigation, shouldShowNavigationButton } from '../../../services/notificationNavigationService';
+import * as api from '../../community/api';
 
 interface NotificationDetailModalProps {
   isOpen: boolean;
@@ -85,12 +87,9 @@ const NotificationDetailModal: React.FC<NotificationDetailModalProps> = ({
       if (postId) {
         try {
           // Kiểm tra trạng thái bài viết
-          const response = await fetch(`/api/community/posts/${postId}`);
+          const post = await api.fetchPostById(postId);
           
-          if (response.ok) {
-            const data = await response.json();
-            const post = data.data || data;
-            
+          if (post) {
             // Nếu bài viết bị gỡ, chuyển đến trang Hoạt động của người dùng, tab "Đã gỡ"
             if (post.status === 'removed') {
               onNavigate(`/community?user=${post.user_id}&tab=removed`);
@@ -114,12 +113,9 @@ const NotificationDetailModal: React.FC<NotificationDetailModalProps> = ({
       if (commentId) {
         try {
           // Kiểm tra trạng thái comment
-          const response = await fetch(`/api/community/comments/${commentId}`);
+          const comment = await api.fetchCommentById(commentId);
           
-          if (response.ok) {
-            const data = await response.json();
-            const comment = data.data || data;
-            
+          if (comment) {
             // Nếu comment bị gỡ, chuyển đến trang Hoạt động của người dùng, tab "Đã gỡ"
             if (comment.deleted_at) {
               onNavigate(`/community?user=${comment.user_id}&tab=removed`);
@@ -147,10 +143,86 @@ const NotificationDetailModal: React.FC<NotificationDetailModalProps> = ({
     onClose();
   };
 
+  const [isNavigating, setIsNavigating] = useState(false);
+  
   const hasRedirect = notification.data?.redirect_url || 
                      (notification.type === 'community' && (notification.data?.post_id || notification.data?.comment_id));
 
+  // Kiểm tra xem có nên hiển thị nút "Đi tới chi tiết" không
+  const dataType = notification.data?.type;
+  const dataId = notification.data?.id;
+  const notificationData = notification.data as any;
+  
+  // Hỗ trợ cả format mới (post_id/comment_id) và format cũ (id)
+  const hasNavigationData = dataType && (
+    dataId || // Format cũ: có id
+    notificationData?.post_id || // Format mới: có post_id
+    notificationData?.comment_id // Format mới: có comment_id
+  );
+  const showNavigateButton = hasNavigationData && shouldShowNavigationButton(dataType);
+
+  const handleNavigateToDetail = async () => {
+    if (!onNavigate) return;
+    
+    setIsNavigating(true);
+    
+    try {
+      let postId: string | null = null;
+      let commentId: string | null = null;
+      
+      // Ưu tiên sử dụng post_id và comment_id từ data
+      const notificationData = notification.data as any;
+      if (notificationData?.post_id) {
+        postId = notificationData.post_id;
+        commentId = notificationData.comment_id || null;
+      } 
+      // Fallback: sử dụng data.id và data.type (format cũ)
+      else if (dataType && dataId) {
+        if (dataType === 'post' || dataType === 'post_remove') {
+          // Nếu type là 'post', data.id chính là postId
+          postId = dataId;
+        } else if (dataType === 'comment' || dataType === 'comment_remove') {
+          // Nếu type là 'comment', cần fetch comment để lấy post_id
+          commentId = dataId;
+          const comment = await api.fetchCommentById(dataId);
+          if (comment && comment.post_id) {
+            postId = comment.post_id;
+          } else {
+            onNavigate('/community');
+            setIsNavigating(false);
+            return;
+          }
+        }
+      }
+      
+      if (postId) {
+        // Đóng modal notification trước
+        onClose();
+        // Navigate đến community page với query params
+        if (commentId) {
+          onNavigate(`/community?post=${postId}&comment=${commentId}`);
+        } else {
+          onNavigate(`/community?post=${postId}`);
+        }
+      } else {
+        // Fallback: dùng navigation
+        if (dataType && dataId) {
+          await handleNotificationNavigation(dataType, dataId, onNavigate, notification.data);
+        }
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error navigating:', error);
+      // Fallback: navigate to community
+      onNavigate('/community');
+      onClose();
+    } finally {
+      setIsNavigating(false);
+    }
+  };
+
   return (
+    <>
     <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết thông báo" className="max-w-2xl">
       <div className="space-y-6">
         {/* Header */}
@@ -210,15 +282,15 @@ const NotificationDetailModal: React.FC<NotificationDetailModalProps> = ({
           )}
         </div>
 
-        {/* Additional Data */}
-        {notification.data && Object.keys(notification.data).length > 0 && (
+        {/* Additional Data - Ẩn phần này
+        {false && notification.data && Object.keys(notification.data).length > 0 && (
           <div className="border-t pt-4">
             <h3 className="text-sm font-semibold text-gray-700 mb-2">Thông tin bổ sung:</h3>
             <div className="bg-gray-50 rounded p-3 text-xs font-mono text-gray-600 max-h-40 overflow-auto">
               <pre>{JSON.stringify(notification.data, null, 2)}</pre>
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Actions */}
         <div className="flex items-center justify-end space-x-3 pt-4 border-t">
@@ -228,6 +300,22 @@ const NotificationDetailModal: React.FC<NotificationDetailModalProps> = ({
           >
             Đóng
           </button>
+          
+          {showNavigateButton && dataType !== 'comment_remove' && (
+            <button
+              onClick={handleNavigateToDetail}
+              disabled={isNavigating}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isNavigating ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <ExternalLink className="w-4 h-4" />
+              )}
+              <span>{dataType?.includes('post') ? 'Xem bài viết' : 'Xem bình luận'}</span>
+            </button>
+          )}
+          
           {hasRedirect && (
             <button
               onClick={handleRedirect}
@@ -240,6 +328,7 @@ const NotificationDetailModal: React.FC<NotificationDetailModalProps> = ({
         </div>
       </div>
     </Modal>
+    </>
   );
 };
 

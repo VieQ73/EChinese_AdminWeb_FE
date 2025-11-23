@@ -96,13 +96,15 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({ isOpen, onClose, 
       const p = posts.find(p => p.id === target_id);
       if (p) userId = (p as any).user_id || p.user?.id;
     }
+    if (!userId && target_type === 'comment') {
+      const c = comments.find(c => c.id === target_id);
+      if (c) userId = c.user_id;
+    }
     
 
-    if (isRemoved && (target_type === 'post')) {
+    if (isRemoved && (target_type === 'post' || target_type === 'comment')) {
       const subTab = target_type === 'post' ? 'posts' : 'comments';
-      console.log(subTab);
-      const uid = (content as any)?.author_id
-      path = `/community?openUserActivity=${uid}&tab=removed&subTab=posts`;
+      path = `/community?user=${userId}&tab=removed&subTab=${subTab}`;
     } else {
       switch (target_type) {
         case 'user':

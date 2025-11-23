@@ -32,12 +32,15 @@ export const useCommunityHandlers = ({ currentUser, state, setters, context, ref
     }, [setters]);
 
     const handleOpenDetailModal = useCallback(async (post: Post) => {
-        // Mở modal trước để tạo cảm giác phản hồi nhanh (có thể thêm spinner sau)
+        // Mở modal trước để tạo cảm giác phản hồi nhanh
         setters.setDetailModalOpen(true);
+        setters.setViewingPost(post); // Set ngay để modal hiển thị
         try {
+            // Fetch dữ liệu mới nhất
             const fresh = await api.fetchPostById(post.id);
             setters.setViewingPost(fresh || post);
         } catch (e) {
+            console.error('Error fetching fresh post data:', e);
             // Nếu lỗi, vẫn hiển thị dữ liệu tạm thời
             setters.setViewingPost(post);
         }
@@ -52,8 +55,14 @@ export const useCommunityHandlers = ({ currentUser, state, setters, context, ref
         }
 
         setters.setDetailModalOpen(false);
-        setters.setInitialActivityTab(undefined);
-        setters.setInitialActivitySubTab(undefined);
+        
+        // Chỉ reset initial tabs nếu đang không có giá trị được set từ URL
+        // (để giữ lại giá trị khi navigate từ report/notification)
+        if (!state.initialActivityTab && !state.initialActivitySubTab) {
+            setters.setInitialActivityTab(undefined);
+            setters.setInitialActivitySubTab(undefined);
+        }
+        
         setters.setSelectedUser(user);
 
         // If we already have loaded activity for this user, just open modal
@@ -74,7 +83,7 @@ export const useCommunityHandlers = ({ currentUser, state, setters, context, ref
             console.error('Failed to load user community activity', e);
             setters.setSelectedUserActivity(null);
         }
-    }, [setters, state.selectedUser, state.selectedUserActivity]);
+    }, [setters, state.selectedUser, state.selectedUserActivity, state.initialActivityTab, state.initialActivitySubTab]);
 
     const handleOpenModerationModal = useCallback((action: 'remove' | 'restore', type: 'post' | 'comment', item: Post | CommentWithUser) => {
         const isSelfAction = currentUser?.id === item.user_id;

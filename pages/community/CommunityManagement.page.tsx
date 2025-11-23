@@ -11,7 +11,7 @@ import { useCommunityEffects } from './hooks/useCommunityEffects';
 
 // API
 import * as api from './api';
-import { Post, PaginatedResponse } from '../../types';
+import { Post, PaginatedResponse, User } from '../../types';
 
 // Components
 import CommunitySidebar from './components/sidebar/CommunitySidebar';
@@ -29,6 +29,9 @@ const CommunityManagementPage: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     
     const { state, setters } = useCommunityState();
+    
+    // Ref để track query params đã xử lý
+    const processedQueryRef = React.useRef<string | null>(null);
 
     // --- Local State for Posts ---
     const [posts, setPosts] = useState<Post[]>([]);
@@ -150,46 +153,153 @@ const CommunityManagementPage: React.FC = () => {
     // Effect xử lý query params để mở modal
     useEffect(() => {
         const postId = searchParams.get('post');
+        const commentId = searchParams.get('comment');
         const userId = searchParams.get('user');
         const tab = searchParams.get('tab');
+        const subTab = searchParams.get('subTab');
+        
+        // Tạo key để track query đã xử lý
+        const queryKey = `${postId || ''}-${commentId || ''}-${userId || ''}-${tab || ''}-${subTab || ''}`;
+        
+        // Nếu không có query params nào, reset processed ref
+        if (!postId && !userId) {
+            // Chỉ reset nếu không phải là empty key đã xử lý
+            if (processedQueryRef.current !== queryKey) {
+                processedQueryRef.current = null;
+            }
+            return;
+        }
+        
+        // Nếu đã xử lý query này rồi, không làm gì
+        if (processedQueryRef.current === queryKey) {
+            console.log('[CommunityManagement] Query already processed, skipping:', queryKey);
+            return;
+        }
+        
+        console.log('[CommunityManagement] Processing query:', queryKey);
         
         // Xử lý mở PostDetailModal
         if (postId) {
-            // Tìm post từ danh sách hoặc fetch từ API
+            // Tìm post từ danh sách
             const post = posts.find(p => p.id === postId);
+            
             if (post) {
+                // Đánh dấu đã xử lý
+                processedQueryRef.current = queryKey;
                 handlers.handleOpenDetailModal(post);
+                // Xóa query params sau khi mở modal thành công
+                setSearchParams({});
+                // Nếu có commentId, scroll đến comment sau khi modal đã mở
+                if (commentId) {
+                    setTimeout(() => {
+                        const commentElement = document.getElementById(`comment-${commentId}`);
+                        if (commentElement) {
+                            commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            commentElement.classList.add('bg-yellow-100');
+                            setTimeout(() => {
+                                commentElement.classList.remove('bg-yellow-100');
+                            }, 2000);
+                        }
+                    }, 500);
+                }
             } else {
-                // Nếu không tìm thấy trong list, fetch từ API
+                // Không tìm thấy trong list, fetch từ API
                 api.fetchPostById(postId).then(fetchedPost => {
                     if (fetchedPost) {
+                        // Đánh dấu đã xử lý
+                        processedQueryRef.current = queryKey;
                         handlers.handleOpenDetailModal(fetchedPost);
+                        // Xóa query params sau khi mở modal thành công
+                        setSearchParams({});
+                        // Nếu có commentId, scroll đến comment sau khi modal đã mở
+                        if (commentId) {
+                            setTimeout(() => {
+                                const commentElement = document.getElementById(`comment-${commentId}`);
+                                if (commentElement) {
+                                    commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    commentElement.classList.add('bg-yellow-100');
+                                    setTimeout(() => {
+                                        commentElement.classList.remove('bg-yellow-100');
+                                    }, 2000);
+                                }
+                            }, 500);
+                        }
                     }
                 }).catch(err => {
                     console.error('Failed to fetch post:', err);
+                    // Xóa query params nếu có lỗi
+                    setSearchParams({});
                 });
             }
-            // Xóa query params sau khi xử lý
-            setSearchParams({});
             return;
         }
         
         // Xử lý mở UserActivityModal
         if (userId) {
+            console.log('[CommunityManagement] Opening UserActivityModal for userId:', userId, 'tab:', tab, 'subTab:', subTab);
+            
+            // Đánh dấu đã xử lý ngay để tránh xử lý lại
+            processedQueryRef.current = queryKey;
+            
+            // Set initial tab/subTab trước khi mở modal
+            if (tab) {
+                console.log('[CommunityManagement] Setting initialActivityTab:', tab);
+                setters.setInitialActivityTab(tab);
+            }
+            if (subTab) {
+                console.log('[CommunityManagement] Setting initialActivitySubTab:', subTab);
+                setters.setInitialActivitySubTab(subTab);
+            }
+            
             // Tìm user từ context
-            const user = context.users.find(u => u.id === userId);
-            if (user) {
-                // Set initial tab nếu có
-                if (tab) {
-                    setters.setInitialActivityTab(tab);
-                }
-                // Mở UserActivityModal
-                handlers.handleUserClick(user);
-                // Xóa query params sau khi xử lý
+            let user = context.users.find((u: any) => u.id === userId);
+            console.log('[CommunityManagement] Found user in context:', user);
+            
+            if (!user) {
+                // Nếu không tìm thấy trong context, fetch activity trước để lấy user info
+                console.warn('[CommunityManagement] User not found in context, will fetch from activity API');
+                
+                // Xóa query params ngay để tránh re-trigger
                 setSearchParams({});
+                
+                // Mở modal với loading state
+                setters.setSelectedUser(null);
+                setters.setSelectedUserActivity(undefined);
+                setters.setUserActivityModalOpen(true);
+                
+                // Fetch activity để lấy user info (chỉ gọi 1 lần nhờ cache trong API)
+                api.fetchUserCommunityActivity(userId).then(activity => {
+                    console.log('[CommunityManagement] Activity fetched:', activity);
+                    // Lấy user từ removedComments hoặc removedPosts
+                    const userFromActivity = 
+                        activity.removedComments?.[0]?.user ||
+                        activity.removedPosts?.[0]?.user ||
+                        activity.posts?.[0]?.user ||
+                        activity.likedPosts?.[0]?.user;
+                    
+                    if (userFromActivity) {
+                        console.log('[CommunityManagement] User found from activity:', userFromActivity);
+                        // Set cả user và activity cùng lúc để tránh trigger handleUserClick
+                        setters.setSelectedUser(userFromActivity as User);
+                        setters.setSelectedUserActivity(activity);
+                    } else {
+                        console.error('[CommunityManagement] Could not find user info from activity');
+                        setters.setSelectedUserActivity(null);
+                    }
+                }).catch(err => {
+                    console.error('[CommunityManagement] Failed to fetch activity:', err);
+                    setters.setSelectedUserActivity(null);
+                });
+            } else {
+                // Xóa query params ngay để tránh re-trigger
+                setSearchParams({});
+                
+                // User có trong context, mở modal bình thường
+                handlers.handleUserClick(user);
             }
         }
-    }, [searchParams, posts, context.users, handlers, setters, setSearchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
 
     // --- Derived Data ---
     // Sử dụng isLiked và isViewed từ API response thay vì tính toán từ context
@@ -206,15 +316,6 @@ const CommunityManagementPage: React.FC = () => {
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold text-gray-900">Quản lý Cộng đồng</h1>
-            
-            {/* Debug info - Xóa sau khi fix */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
-                <p><strong>Debug Info:</strong></p>
-                <p>Posts count: {posts.length}</p>
-                <p>Is Loading: {isLoading ? 'Yes' : 'No'}</p>
-                <p>Current Topic: {state.filters.topic}</p>
-                <p>Current Page: {page}</p>
-            </div>
             
             <div className="flex gap-8 items-start">
                 {/* Main Content: Composer + Feed */}
@@ -260,6 +361,7 @@ const CommunityManagementPage: React.FC = () => {
                 post={state.editingPost}
             />
 
+            {/* Modal chi tiết bài viết */}
             {state.viewingPost && (
                 <PostDetailModal
                     isOpen={state.isDetailModalOpen}
@@ -275,11 +377,14 @@ const CommunityManagementPage: React.FC = () => {
                 />
             )}
 
-            {state.selectedUser && (
+            {(state.selectedUser || state.isUserActivityModalOpen) && (
                 <UserActivityModal
                     isOpen={state.isUserActivityModalOpen}
-                    onClose={() => setters.setSelectedUser(null)}
-                    user={state.selectedUser}
+                    onClose={() => {
+                        setters.setSelectedUser(null);
+                        setters.setUserActivityModalOpen(false);
+                    }}
+                    user={state.selectedUser!}
                     currentUser={currentUser}
                     initialTab={state.initialActivityTab}
                     initialSubTab={state.initialActivitySubTab}

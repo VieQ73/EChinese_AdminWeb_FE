@@ -2,6 +2,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import './styles/scrollbar.css';
 
 // Register Service Worker for Firebase Cloud Messaging
 if ('serviceWorker' in navigator) {
