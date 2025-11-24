@@ -63,18 +63,6 @@ const BanUserForm: React.FC<BanUserFormProps> = ({ data, onChange, rules }) => {
                 </div>
                  <p className="text-xs text-gray-500 mt-1">Chọn một hoặc nhiều quy tắc mà người dùng đã vi phạm.</p>
             </div>
-             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Ghi chú hướng giải quyết (Ghi nhận cho vi phạm)
-                </label>
-                <textarea
-                    value={data.resolution}
-                    onChange={(e) => onChange({ resolution: e.target.value })}
-                    rows={2}
-                    className="w-full p-2.5 border border-gray-300 rounded-lg bg-gray-50 focus:ring-primary-500 focus:border-primary-500"
-                    placeholder="Ví dụ: Cấm tài khoản và gửi cảnh cáo..."
-                />
-            </div>
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Mức độ vi phạm *</label>
                 <div className="flex space-x-4">

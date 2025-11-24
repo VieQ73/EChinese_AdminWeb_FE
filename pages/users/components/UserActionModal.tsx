@@ -48,7 +48,7 @@ const UserActionModal: React.FC<UserActionModalProps> = ({
                 setFormData({
                     logReason: '',
                     ruleIds: [],
-                    resolution: '',
+                    resolution: 'Cấm tài khoản',
                     severity: 'high',
                 });
             } else if (modalContent.type === 'unban-user') {

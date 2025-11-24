@@ -30,6 +30,8 @@ export const fetchReports = (params: FetchReportsParams): Promise<ReportsEnvelop
         
         const queryString = queryParams.toString();
         const endpoint = queryString ? `/moderation/reports?${queryString}` : '/moderation/reports';
+        console.log(apiClient.get<ReportsEnvelope>(endpoint));
+        
         return apiClient.get<ReportsEnvelope>(endpoint);
     }
 

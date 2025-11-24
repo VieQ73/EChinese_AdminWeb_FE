@@ -42,7 +42,7 @@ export const useUserActions = ({
                     const response = await banUser(user.id, {
                         reason: logReason,
                         ruleIds: ruleIds,
-                        resolution: resolution || `Tài khoản bị cấm. Lý do: ${logReason}`,
+                        resolution: resolution || 'Cấm tài khoản',
                         severity: severity
                     });
                     
