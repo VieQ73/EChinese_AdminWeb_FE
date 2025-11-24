@@ -87,14 +87,18 @@ const UserActionModal: React.FC<UserActionModalProps> = ({
                             <>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-2">Ảnh đại diện</label>
-                                    <FileInput
-                                        id="user-avatar-upload"
-                                        label="Tải ảnh lên"
-                                        value={editableUser.avatar_url || null}
-                                        onFileChange={(url) => setEditableUser(prev => prev ? { ...prev, avatar_url: url || undefined } : null)}
-                                        accept="image/*"
-                                        variant="compact"
-                                    />
+                                    <div className="flex justify-center">
+                                        <div className="w-28">
+                                            <FileInput
+                                                id="user-avatar-upload"
+                                                label="Tải ảnh lên"
+                                                value={editableUser.avatar_url || null}
+                                                onFileChange={(url) => setEditableUser(prev => prev ? { ...prev, avatar_url: url || undefined } : null)}
+                                                accept="image/*"
+                                                variant="compact"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-gray-700">Trình độ HSK</label>

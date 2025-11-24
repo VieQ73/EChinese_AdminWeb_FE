@@ -1,7 +1,6 @@
 import React from 'react';
 import { Vocabulary } from '../../../../types';
 import Checkbox from '../../../../ui/Checkbox';
-import { MoreHorizontal } from 'lucide-react';
 
 interface VocabCardProps {
     vocab: Vocabulary;
@@ -18,21 +17,10 @@ const VocabCard: React.FC<VocabCardProps> = ({ vocab, isSelected, onSelect, onVi
                     ? 'border-blue-500 bg-blue-50 shadow-md' 
                     : 'border-gray-200 hover:border-blue-300'
             }`}
-            onClick={() => onSelect ? onSelect(vocab.id) : onViewDetails(vocab)}
+            onClick={() => onViewDetails(vocab)}
         >
             {/* Header với image */}
             <div className="relative">
-                {/* More actions button */}
-                <button 
-                    className="absolute top-3 right-3 z-10 p-2 text-gray-400 hover:text-blue-600 hover:bg-white hover:shadow-md rounded-full opacity-0 group-hover:opacity-100 transition-all"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onViewDetails(vocab);
-                    }}
-                    title="Xem chi tiết"
-                >
-                    <MoreHorizontal size={18} />
-                </button>
                 
                 {/* Vocabulary Image */}
                 <div className="aspect-square w-full bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
@@ -54,13 +42,10 @@ const VocabCard: React.FC<VocabCardProps> = ({ vocab, isSelected, onSelect, onVi
                 
                 {/* Meaning */}
                 <div className="text-center">
-                    <p className="text-sm text-gray-700 leading-relaxed"
-                       style={{
-                           display: '-webkit-box',
-                           WebkitLineClamp: 2,
-                           WebkitBoxOrient: 'vertical',
-                           overflow: 'hidden'
-                       }}>
+                    <p 
+                        className="text-sm text-gray-700 leading-relaxed line-clamp-2"
+                        title={vocab.meaning}
+                    >
                         {vocab.meaning}
                     </p>
                 </div>

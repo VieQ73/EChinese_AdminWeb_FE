@@ -3,7 +3,7 @@ import { Payment } from '../../../../types';
 import { formatCurrency, formatDateTime } from '../../utils';
 import Checkbox from '../../../../ui/Checkbox';
 import StatusBadge from '../../components/StatusBadge';
-import { CheckCircleIcon, XCircleIcon, EyeIcon } from '../../../../constants';
+import { CheckCircleIcon, XCircleIcon } from '../../../../constants';
 
 interface PaymentCardProps {
     payment: Payment;
@@ -23,7 +23,10 @@ const PaymentCard: React.FC<PaymentCardProps> = ({
     onFail,
 }) => {
     return (
-        <div className={`bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all max-w-md relative ${selected ? 'ring-2 ring-primary-500 bg-primary-50' : ''}`}>
+        <div 
+            onClick={() => onViewDetails(p)}
+            className={`bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all max-w-md relative cursor-pointer ${selected ? 'ring-2 ring-primary-500 bg-primary-50' : ''}`}
+        >
             <div className="p-4 pb-12">
                 {/* Header gọn gàng - bỏ checkbox */}
                 <div className="flex items-start justify-between mb-3">
@@ -41,33 +44,30 @@ const PaymentCard: React.FC<PaymentCardProps> = ({
                         </div>
                     </div>
                     
-                    <div className="flex items-start space-x-1 ml-2">
-                        <button 
-                            onClick={() => onViewDetails(p)} 
-                            className="text-gray-400 hover:text-primary-600 p-1.5 rounded-lg hover:bg-gray-100" 
-                            title="Xem chi tiết"
-                        >
-                            <EyeIcon className="w-4 h-4"/>
-                        </button>
-                        {p.status === 'pending' && p.payment_channel === 'manual' && (
-                            <>
-                                <button 
-                                    onClick={() => onConfirm(p)} 
-                                    className="text-green-500 hover:text-green-700 p-1.5 rounded-lg hover:bg-green-50" 
-                                    title="Xác nhận"
-                                >
-                                    <CheckCircleIcon className="w-4 h-4"/>
-                                </button>
-                                <button 
-                                    onClick={() => onFail(p)} 
-                                    className="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50" 
-                                    title="Đánh dấu thất bại"
-                                >
-                                    <XCircleIcon className="w-4 h-4"/>
-                                </button>
-                            </>
-                        )}
-                    </div>
+                    {p.status === 'pending' && p.payment_channel === 'manual' && (
+                        <div className="flex items-start space-x-1 ml-2">
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onConfirm(p);
+                                }}
+                                className="text-green-500 hover:text-green-700 p-1.5 rounded-lg hover:bg-green-50" 
+                                title="Xác nhận"
+                            >
+                                <CheckCircleIcon className="w-4 h-4"/>
+                            </button>
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onFail(p);
+                                }}
+                                className="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50" 
+                                title="Đánh dấu thất bại"
+                            >
+                                <XCircleIcon className="w-4 h-4"/>
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Thông tin gọn gàng */}
@@ -96,28 +96,33 @@ const PaymentCard: React.FC<PaymentCardProps> = ({
 
                 {/* Additional Info - compact */}
                 {(p.gateway_transaction_id || p.processedByAdminName || p.notes) && (
-                    <div className="pt-2 border-t border-gray-100">
+                    <div className="pt-2 border-t border-gray-100 space-y-1">
                         {p.gateway_transaction_id && (
-                            <div className="text-xs text-gray-500 mb-1">
-                                <span className="font-medium">Gateway:</span> {p.gateway_transaction_id}
+                            <div className="text-xs text-gray-500 flex items-start">
+                                <span className="font-medium flex-shrink-0">Gateway:</span> 
+                                <span className="truncate ml-1" title={p.gateway_transaction_id}>{p.gateway_transaction_id}</span>
                             </div>
                         )}
                         {p.processedByAdminName && (
-                            <div className="text-xs text-gray-500 mb-1">
-                                <span className="font-medium">Xử lý:</span> {p.processedByAdminName}
+                            <div className="text-xs text-gray-500 flex items-start">
+                                <span className="font-medium flex-shrink-0">Xử lý:</span> 
+                                <span className="truncate ml-1" title={p.processedByAdminName}>{p.processedByAdminName}</span>
                             </div>
                         )}
                         {p.notes && (
-                            <div className="text-xs text-gray-500">
-                                <span className="font-medium">Ghi chú:</span> 
-                                <span className="line-clamp-1" title={p.notes}> {p.notes}</span>
+                            <div className="text-xs text-gray-500 flex items-start">
+                                <span className="font-medium flex-shrink-0">Ghi chú:</span> 
+                                <span className="truncate ml-1" title={p.notes}>{p.notes}</span>
                             </div>
                         )}
                     </div>
                 )}
 
                 {/* Checkbox ở góc dưới bên phải */}
-                <div className="absolute bottom-2 right-2">
+                <div 
+                    className="absolute bottom-2 right-2"
+                    onClick={(e) => e.stopPropagation()}
+                >
                     <Checkbox 
                         checked={selected} 
                         onChange={() => onSelect(p.id)}

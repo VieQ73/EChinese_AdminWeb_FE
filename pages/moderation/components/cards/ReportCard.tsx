@@ -53,17 +53,14 @@ const ReportCard: React.FC<ReportCardProps> = ({ report, onViewDetails }) => {
                 <div className="flex items-start space-x-2">
                     <XCircleIcon className="w-4 h-4 text-red-500 flex-shrink-0 mt-1" />
                     <div className="min-w-0 flex-1">
-                        <p className="text-sm text-gray-600">
-                            <span className="font-medium">{getTargetTypeLabel()}</span>
-                            {report.reason && (
-                                <>
-                                    <br />
-                                    <span className="text-xs text-gray-500">
-                                        {report.reason}
-                                    </span>
-                                </>
-                            )}
+                        <p className="text-sm font-medium text-gray-600 mb-1">
+                            {getTargetTypeLabel()}
                         </p>
+                        {report.reason && (
+                            <p className="text-xs text-gray-500 truncate" title={report.reason}>
+                                Lý do: {report.reason}
+                            </p>
+                        )}
                     </div>
                 </div>
             </div>
