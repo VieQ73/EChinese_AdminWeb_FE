@@ -1,7 +1,7 @@
 import React from 'react';
 import { Report } from '../../../../types';
 import StatusBadge from '../ui/StatusBadge';
-import { EyeIcon, UsersIcon, XCircleIcon } from '../../../../constants';
+import { UsersIcon, ClockIcon, XCircleIcon } from '../../../../constants';
 
 interface ReportCardProps {
     report: Report;
@@ -15,58 +15,64 @@ const ReportCard: React.FC<ReportCardProps> = ({ report, onViewDetails }) => {
         return report.reporter?.name || 'Không rõ';
     };
 
-    // Lấy mô tả đối tượng bị báo cáo
-    const getTargetDescription = () => {
-        return `${report.target_type}: ${report.target_id.substring(0,4)}...`;
+    // Chuyển đổi target_type sang tiếng Việt
+    const getTargetTypeLabel = () => {
+        switch (report.target_type) {
+            case 'post': return 'Bài viết';
+            case 'comment': return 'Bình luận';
+            case 'user': return 'Người dùng';
+            case 'bug': return 'Lỗi';
+            case 'other': return 'Khác';
+            default: return report.target_type;
+        }
     };
 
     return (
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all max-w-sm">
-            <div className="p-4">
-                {/* Header với loại đối tượng và trạng thái */}
-                <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center space-x-2">
-                        <XCircleIcon className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-                        <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                                {getTargetDescription()}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                                {new Date(report.created_at).toLocaleDateString('vi-VN')}
-                            </p>
-                        </div>
-                    </div>
-                    <StatusBadge status={report.status} />
-                </div>
-
-                {/* Lý do báo cáo */}
-                <div className="mb-3">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                        {report.reason}
-                    </h3>
-                    {report.details && (
-                        <p className="text-xs text-gray-600 line-clamp-2" title={report.details}>
-                            {report.details}
-                        </p>
-                    )}
-                </div>
-
-                {/* Thông tin người báo cáo */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2 text-xs text-gray-500">
-                        <UsersIcon className="w-3 h-3" />
-                        <span className={report.auto_flagged ? 'italic text-purple-600' : ''}>
+        <div 
+            className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-gray-300 transition-all duration-200 cursor-pointer max-w-sm"
+            onClick={() => onViewDetails(report)}
+        >
+            {/* Header với user info */}
+            <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center space-x-2 min-w-0 flex-1">
+                    <UsersIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">
                             {getReporterName()}
-                        </span>
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                            ID: {report.reporter_id ? report.reporter_id.substring(0, 8) + '...' : 'N/A'}
+                        </p>
                     </div>
-                    
-                    <button 
-                        onClick={() => onViewDetails(report)}
-                        className="inline-flex items-center px-2 py-1 text-xs font-medium text-primary-600 hover:text-primary-900 hover:bg-primary-50 rounded-md transition-colors"
-                    >
-                        <EyeIcon className="w-3 h-3 mr-1" />
-                        Chi tiết
-                    </button>
+                </div>
+                <StatusBadge status={report.status} />
+            </div>
+
+            {/* Nội dung báo cáo */}
+            <div className="mb-3">
+                <div className="flex items-start space-x-2">
+                    <XCircleIcon className="w-4 h-4 text-red-500 flex-shrink-0 mt-1" />
+                    <div className="min-w-0 flex-1">
+                        <p className="text-sm text-gray-600">
+                            <span className="font-medium">{getTargetTypeLabel()}</span>
+                            {report.reason && (
+                                <>
+                                    <br />
+                                    <span className="text-xs text-gray-500">
+                                        {report.reason}
+                                    </span>
+                                </>
+                            )}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Footer với thời gian */}
+            <div className="flex items-center justify-between text-xs text-gray-500 border-t border-gray-100 pt-3">
+                <div className="flex items-center space-x-1">
+                    <ClockIcon className="w-3 h-3" />
+                    <span>{new Date(report.created_at).toLocaleDateString('vi-VN')}</span>
                 </div>
             </div>
         </div>

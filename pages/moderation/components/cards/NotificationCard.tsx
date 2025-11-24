@@ -55,9 +55,12 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
     };
 
     return (
-        <div className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all max-w-xs ${
-            notification.read_at ? 'border-gray-200' : 'border-primary-200 bg-primary-50/30'
-        } ${selected ? 'ring-2 ring-primary-500' : ''}`}>
+        <div 
+            className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer max-w-xs ${
+                notification.read_at ? 'border-gray-200' : 'border-primary-200 bg-primary-50/30'
+            } ${selected ? 'ring-2 ring-primary-500' : ''}`}
+            onClick={() => onViewDetails(notification)}
+        >
             <div className="p-3">
                 {/* Header với checkbox (nếu có) và trạng thái */}
                 <div className="flex items-start justify-between mb-2">
@@ -66,7 +69,10 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
                             <input
                                 type="checkbox"
                                 checked={selected}
-                                onChange={() => onSelect(notification.id)}
+                                onChange={(e) => {
+                                    e.stopPropagation();
+                                    onSelect(notification.id);
+                                }}
                                 className="h-3 w-3 text-primary-600 border-gray-300 rounded"
                             />
                         )}
@@ -105,25 +111,20 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center justify-between">
-                    {onMarkAsRead && !notification.read_at && (
+                {onMarkAsRead && !notification.read_at && (
+                    <div className="flex items-center justify-start">
                         <button
-                            onClick={() => onMarkAsRead([notification.id], true)}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onMarkAsRead([notification.id], true);
+                            }}
                             className="inline-flex items-center px-2 py-0.5 text-xs font-medium text-green-600 hover:text-green-900 hover:bg-green-50 rounded transition-colors"
                         >
                             <CheckCircleIcon className="w-3 h-3 mr-1" />
                             Đánh dấu đã đọc
                         </button>
-                    )}
-                    
-                    <button 
-                        onClick={() => onViewDetails(notification)}
-                        className="inline-flex items-center px-2 py-0.5 text-xs font-medium text-primary-600 hover:text-primary-900 hover:bg-primary-50 rounded transition-colors ml-auto"
-                    >
-                        <EyeIcon className="w-3 h-3 mr-1" />
-                        Chi tiết
-                    </button>
-                </div>
+                    </div>
+                )}
             </div>
         </div>
     );

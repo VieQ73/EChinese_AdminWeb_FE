@@ -1,7 +1,7 @@
 import React from 'react';
 import { Violation } from '../../../../types';
 import StatusBadge from '../ui/StatusBadge';
-import { EyeIcon, ShieldExclamationIcon, ClockIcon } from '../../../../constants';
+import { UsersIcon, ClockIcon, ShieldExclamationIcon } from '../../../../constants';
 
 interface ViolationCardProps {
     violation: Violation;
@@ -9,18 +9,14 @@ interface ViolationCardProps {
 }
 
 const ViolationCard: React.FC<ViolationCardProps> = ({ violation, onViewDetails }) => {
-    // Lấy mô tả đối tượng vi phạm
-    const getTargetDescription = () => {
-        return `${violation.target_type}: ${violation.target_id.substring(0,4)}...`;
-    };
-
-    // Lấy tên người phát hiện vi phạm
-    //  Correctly handle the string union type of 'detected_by'.
-    const getDetectedBy = () => {
-        if (violation.detected_by === 'auto_ai') return 'Hệ thống AI';
-        if (violation.detected_by === 'admin') return 'Admin';
-        if (violation.detected_by === 'super admin') return 'Super Admin';
-        return 'Hệ thống';
+    // Chuyển đổi target_type sang tiếng Việt
+    const getTargetTypeLabel = () => {
+        switch (violation.target_type) {
+            case 'post': return 'Bài viết';
+            case 'comment': return 'Bình luận';
+            case 'user': return 'Người dùng';
+            default: return violation.target_type;
+        }
     };
 
     // Lấy màu theo mức độ nghiêm trọng
@@ -43,61 +39,58 @@ const ViolationCard: React.FC<ViolationCardProps> = ({ violation, onViewDetails 
     };
 
     return (
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all max-w-sm">
-            <div className="p-4">
-                {/* Header với loại đối tượng và mức độ nghiêm trọng */}
-                <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center space-x-2">
-                        <ShieldExclamationIcon className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-                        <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                                {getTargetDescription()}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                                {new Date(violation.created_at).toLocaleDateString('vi-VN')}
-                            </p>
-                        </div>
-                    </div>
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor()}`}>
-                        {getSeverityLabel()}
-                    </span>
-                </div>
-
-                {/* Lý do vi phạm */}
-                <div className="mb-3">
-                    {/*  Replaced incorrect 'reason' and 'details' properties with 'rules' and 'resolution' from the Violation type. */}
-                    <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                        {violation.rules?.map(r => r.title).join(', ') || 'Vi phạm không xác định'}
-                    </h3>
-                    {violation.resolution && (
-                        <p className="text-xs text-gray-600 line-clamp-2" title={violation.resolution}>
-                            {violation.resolution}
+        <div 
+            className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-gray-300 transition-all duration-200 cursor-pointer max-w-sm"
+            onClick={() => onViewDetails(violation)}
+        >
+            {/* Header với user info */}
+            <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center space-x-2 min-w-0 flex-1">
+                    <UsersIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                            {violation.user?.name || 'Người dùng ẩn danh'}
                         </p>
-                    )}
-                </div>
-
-                {/* Thông tin phát hiện và trạng thái */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2 text-xs text-gray-500">
-                        <ClockIcon className="w-3 h-3" />
-                        <span>Phát hiện bởi: {getDetectedBy()}</span>
+                        <p className="text-xs text-gray-500 truncate">
+                            ID: {violation.user_id?.substring(0, 8)}...
+                        </p>
                     </div>
-                    
-                    <button 
-                        onClick={() => onViewDetails(violation)}
-                        className="inline-flex items-center px-2 py-1 text-xs font-medium text-primary-600 hover:text-primary-900 hover:bg-primary-50 rounded-md transition-colors"
-                    >
-                        <EyeIcon className="w-3 h-3 mr-1" />
-                        Chi tiết
-                    </button>
                 </div>
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor()}`}>
+                    {getSeverityLabel()}
+                </span>
+            </div>
 
-                {/* Trạng thái xử lý */}
+            {/* Nội dung vi phạm */}
+            <div className="mb-3">
+                <div className="flex items-start space-x-2">
+                    <ShieldExclamationIcon className="w-4 h-4 text-orange-500 flex-shrink-0 mt-1" />
+                    <div className="min-w-0 flex-1">
+                        <p className="text-sm text-gray-600">
+                            <span className="font-medium">{getTargetTypeLabel()}</span>
+                            {violation.rules && violation.rules.length > 0 && (
+                                <>
+                                    <br />
+                                    <span className="text-xs text-gray-500">
+                                        {violation.rules.map(r => r.title).join(', ')}
+                                    </span>
+                                </>
+                            )}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Footer với thời gian */}
+            <div className="flex items-center justify-between text-xs text-gray-500 border-t border-gray-100 pt-3">
+                <div className="flex items-center space-x-1">
+                    <ClockIcon className="w-3 h-3" />
+                    <span>{new Date(violation.created_at).toLocaleDateString('vi-VN')}</span>
+                </div>
+                
                 {violation.resolved_at && (
-                    <div className="mt-2 pt-2 border-t border-gray-100">
-                        <p className="text-xs text-green-600">
-                            ✓ Đã xử lý vào {new Date(violation.resolved_at).toLocaleDateString('vi-VN')}
-                        </p>
+                    <div className="flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-600">
+                        <span>✓ Đã xử lý</span>
                     </div>
                 )}
             </div>
