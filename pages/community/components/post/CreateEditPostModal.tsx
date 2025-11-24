@@ -132,7 +132,10 @@ const CreateEditPostModal: React.FC<CreateEditPostModalProps> = ({ isOpen, onClo
                 
                     <div className="p-3 border border-dashed border-gray-300 rounded-lg bg-gray-50 space-y-3">
                         <div className="flex justify-between items-center">
-                            <label className="block text-sm font-semibold text-gray-700">Hình ảnh</label>
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700">Hình ảnh</label>
+                                <p className="text-xs text-gray-500 mt-0.5">Tối đa 4 ảnh</p>
+                            </div>
                             <label
                                 htmlFor="image-upload"
                                 className={`flex items-center gap-1 cursor-pointer px-3 py-1 rounded-full text-sm font-medium transition-colors shadow-sm ${images.length >= 4 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-500 text-white hover:bg-green-600'}`}

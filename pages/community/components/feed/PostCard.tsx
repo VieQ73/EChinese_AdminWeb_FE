@@ -160,18 +160,19 @@ const PostFeedCard: React.FC<PostFeedCardProps> = ({
                         />
                         
                         {isExpanded && images.length > 0 && (
-                            <div className={`mt-4 grid ${imageGridClass} gap-2`}>
+                            <div className={`mt-4 grid ${imageGridClass} gap-2 max-w-2xl mx-auto`}>
                                 {images.map((image, index) => (
                                     <div 
                                         key={index}
-                                        className="relative overflow-hidden rounded-lg cursor-pointer group max-h-[800px]"
+                                        className={`relative overflow-hidden rounded-lg cursor-pointer group
+                                            ${images.length === 3 && index === 0 ? 'col-span-2 aspect-[2/1]' : 'aspect-square'}
+                                        `}
                                         onClick={(e) => handleImageClick(e, image)}
                                     >
                                         <img
                                             src={image}
                                             alt={`Hình ảnh ${index + 1}`}
-                                            className="w-full h-auto object-contain border transition-transform duration-300 group-hover:scale-105"
-                                            style={{ objectPosition: 'top' }}
+                                            className="w-full h-full object-cover border transition-transform duration-300 group-hover:scale-105"
                                         />
                                     </div>
                                 ))}
