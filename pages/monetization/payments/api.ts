@@ -1,6 +1,7 @@
 import { Payment, PaginatedResponse } from "../../../types";
 import { mockUsers, mockSubscriptions, mockPayments } from "../../../mock";
 import { apiClient } from '../../../services/apiClient';
+import { report } from "node:process";
 
 const USE_MOCK_API = (import.meta as any).env?.VITE_USE_MOCK_API !== 'false';
 
@@ -42,6 +43,8 @@ export const fetchPayments = async (params: FetchPaymentsParams = {}): Promise<P
     const queryParams = new URLSearchParams(params as any).toString();
     const response = await apiClient.get<any>(`/monetization/payments?${queryParams}`);
     // API trả về { success, data: { data, meta } }
+    console.log(response);
+    
     return (response as any).data as PaginatedResponse<Payment>;
 
     if (USE_MOCK_API) {

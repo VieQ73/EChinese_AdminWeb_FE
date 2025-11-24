@@ -8,6 +8,8 @@ import StatusBadge from '../ui/StatusBadge';
 import ClickableTarget from '../shared/ClickableTarget';
 import ReportActionFooter from './ReportActionFooter';
 import ReportActionForm from './ReportActionForm';
+import AttachmentPreview from './AttachmentPreview';
+import ImageGalleryModal from './ImageGalleryModal';
 import { AlertCircle, ClipboardList, User, Clock } from 'lucide-react';
 import { useAppData } from '../../../../contexts/appData/context';
 
@@ -34,6 +36,8 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({ isOpen, onClose, 
   const [view, setView] = useState<'details' | 'resolve' | 'dismiss'>('details');
   const [resolution, setResolution] = useState('');
   const [severity, setSeverity] = useState<'low' | 'medium' | 'high'>('medium');
+  const [showImageGallery, setShowImageGallery] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -41,6 +45,8 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({ isOpen, onClose, 
       setView('details');
       setResolution('');
       setSeverity('medium');
+      setShowImageGallery(false);
+      setCurrentImageIndex(0);
     }
   }, [isOpen]);
   
@@ -160,7 +166,12 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({ isOpen, onClose, 
     return `Chi tiết báo cáo #${updatedReport.id.substring(0, 4)}`;
   };
 
+  const attachments = (updatedReport.attachments && Array.isArray(updatedReport.attachments)) 
+    ? updatedReport.attachments 
+    : [];
+
   return (
+    <>
     <Modal 
       isOpen={isOpen} 
       onClose={onClose} 
@@ -231,7 +242,17 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({ isOpen, onClose, 
               </div>
             )}
           </div>
-          <div>
+          <div className="space-y-4">
+            {/* Ảnh đính kèm */}
+            <AttachmentPreview
+              attachments={attachments}
+              onImageClick={(index) => {
+                setCurrentImageIndex(index);
+                setShowImageGallery(true);
+              }}
+            />
+            
+            {/* Đối tượng bị báo cáo */}
             <div className="bg-white border border-gray-200 rounded-lg p-3">
               <div className="flex items-center mb-2">
                 <ClipboardList className="w-4 h-4 text-primary-600 mr-2" />
@@ -260,6 +281,15 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({ isOpen, onClose, 
         />
       )}
     </Modal>
+
+    {/* Image Gallery Modal */}
+    <ImageGalleryModal
+      images={attachments}
+      isOpen={showImageGallery}
+      onClose={() => setShowImageGallery(false)}
+      initialIndex={currentImageIndex}
+    />
+    </>
   );
 };
 

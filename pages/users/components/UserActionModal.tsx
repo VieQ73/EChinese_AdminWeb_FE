@@ -86,12 +86,14 @@ const UserActionModal: React.FC<UserActionModalProps> = ({
                         {canEditExtended && (
                             <>
                                 <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-2">Ảnh đại diện</label>
                                     <FileInput
                                         id="user-avatar-upload"
-                                        label="Ảnh đại diện"
+                                        label="Tải ảnh lên"
                                         value={editableUser.avatar_url || null}
                                         onFileChange={(url) => setEditableUser(prev => prev ? { ...prev, avatar_url: url || undefined } : null)}
                                         accept="image/*"
+                                        variant="compact"
                                     />
                                 </div>
                                 <div>

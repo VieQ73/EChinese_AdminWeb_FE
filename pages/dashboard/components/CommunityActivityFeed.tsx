@@ -1,7 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Users } from 'lucide-react';
 import { BellIcon, ChatAlt2Icon } from '../../../constants';
+
+const UsersIcon = Users;
 
 interface RecentUser {
     id: string;
@@ -89,24 +91,20 @@ const CommunityActivityFeed: React.FC<CommunityActivityFeedProps> = ({
         });
     }
     
-    // 4. Người dùng mới (hiển thị tổng số)
+    // 4. Người dùng mới
     if (recentUsers.length > 0) {
         items.push({
             type: 'users',
             component: (
                 <ActionItem
                     key="users"
-                    icon={() => (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                    )}
+                    icon={UsersIcon}
                     iconColor="text-green-500"
                     bgColor="bg-green-50/50 hover:bg-green-100/70"
                     borderColor="border-green-400"
                     onClick={() => navigate('/users')}
                 >
-                    Có <span className="font-bold text-green-600">{recentUsers.length} người dùng mới</span> đã đăng ký gần đây.
+                    Bạn có <span className="font-bold text-green-600">{recentUsers.length} người dùng mới</span> đã đăng ký gần đây.
                 </ActionItem>
             )
         });
@@ -149,10 +147,10 @@ const ActionItem: React.FC<{
             className={`w-full text-left p-3 rounded-lg border-l-4 transition-colors ${bgColor} ${borderColor}`}
         >
             <div className="flex items-center">
-                <Icon className={`w-5 h-5 mr-3 ${iconColor}`} />
-                <div>
-                    <p className="text-gray-800">{children}</p>
-                    <p className="text-sm text-primary-600 font-medium hover:underline">Xem chi tiết</p>
+                <Icon className={`w-5 h-5 mr-3 flex-shrink-0 ${iconColor}`} />
+                <div className="flex-1">
+                    <p className="text-sm text-gray-800">{children}</p>
+                    <p className="text-xs text-primary-600 font-medium mt-1">Xem chi tiết</p>
                 </div>
             </div>
         </button>

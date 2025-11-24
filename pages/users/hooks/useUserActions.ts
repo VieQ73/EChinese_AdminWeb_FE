@@ -1,6 +1,7 @@
-import { useCallback } from 'react';
+import { useCallback, useContext } from 'react';
 import { User } from '../../../types';
 import { useAppData } from '../../../contexts/appData/context';
+import { AuthContext } from '../../../contexts/AuthContext';
 import { updateUser, resetUserQuota, UserDetailData, deleteUser, resetUserPassword, banUser, unbanUser } from '../userApi';
 
 // Định nghĩa props cho custom hook
@@ -28,6 +29,7 @@ export const useUserActions = ({
     closeModal,
 }: UseUserActionsProps) => {
     const { updateUser: updateContextUser, addViolation, removeViolationByTarget, addModerationLog, communityRules, addAdminLog } = useAppData();
+    const authContext = useContext(AuthContext);
 
     const handleAction = useCallback(async (action: string, data?: any) => {
         if (!user || !currentUser) return;
@@ -117,6 +119,12 @@ export const useUserActions = ({
                     const updatedUser = await updateUser(user.id, editableUser);
                     setData(d => d ? { ...d, user: updatedUser } : null);
                     updateContextUser(user.id, editableUser);
+                    
+                    // Nếu đang sửa thông tin chính mình, cập nhật AuthContext
+                    if (currentUser && user.id === currentUser.id && authContext?.updateUser) {
+                        authContext.updateUser(editableUser);
+                    }
+                    
                     addAdminLog({ action_type: 'UPDATE_USER_INFO', target_id: user.id, description: `Cập nhật thông tin cho ${user.name}` });
                     message = `Đã cập nhật thông tin cho ${user.name}`;
                     break;
@@ -129,6 +137,12 @@ export const useUserActions = ({
                     const updatedUser = await updateUser(user.id, { role: editableUser.role });
                     setData(d => d ? { ...d, user: updatedUser } : null);
                     updateContextUser(user.id, { role: editableUser.role });
+                    
+                    // Nếu đang thay đổi vai trò chính mình (không thể xảy ra với super admin), cập nhật AuthContext
+                    if (currentUser && user.id === currentUser.id && authContext?.updateUser) {
+                        authContext.updateUser({ role: editableUser.role });
+                    }
+                    
                     addAdminLog({ action_type: 'CHANGE_USER_ROLE', target_id: user.id, description: `Thay đổi vai trò của ${user.name} thành ${editableUser.role}` });
                     message = `Đã thay đổi vai trò của ${user.name} thành ${editableUser.role}`;
                     break;
@@ -159,7 +173,7 @@ export const useUserActions = ({
             setNotification(`Lỗi: ${err instanceof Error ? err.message : 'Hành động thất bại'}`);
         }
         closeModal();
-    }, [user, currentUser, editableUser, setData, updateContextUser, addViolation, removeViolationByTarget, addModerationLog, communityRules, addAdminLog, loadData, setNotification, closeModal]);
+    }, [user, currentUser, editableUser, setData, updateContextUser, addViolation, removeViolationByTarget, addModerationLog, communityRules, addAdminLog, loadData, setNotification, closeModal, authContext]);
 
     return handleAction;
 }

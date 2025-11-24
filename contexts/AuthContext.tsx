@@ -10,6 +10,7 @@ interface AuthContextType {
   initialized: boolean;
   login: (user: User | null, token?: string, refreshToken?: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (updates: Partial<User>) => void;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -137,8 +138,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const updateUser = (updates: Partial<User>) => {
+    if (!user) return;
+    
+    const updatedUser = { ...user, ...updates };
+    setUser(updatedUser);
+    
+    // Cập nhật localStorage
+    try {
+      localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+    } catch {
+      // ignore
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, initialized, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, initialized, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
