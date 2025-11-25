@@ -212,6 +212,97 @@ export const removeVocabsFromNotebook = (notebookId: string, vocabIds: string[])
    }
 };
 
+export const addVocabsToNotebookByLevel = async (
+    notebookId: string, 
+    levels: string[], 
+    excludeExisting: boolean = true
+): Promise<{
+    success: boolean;
+    message: string;
+    addedCount: number;
+    skippedCount: number;
+    totalVocabsInLevels: number;
+    breakdown: Record<string, { added: number; skipped: number }>;
+}> => {
+    return apiClient.post(`/admin/notebooks/${notebookId}/vocabularies/by-level`, {
+        levels,
+        excludeExisting
+    });
+
+    if (USE_MOCK_API) {
+        return new Promise(resolve => {
+            setTimeout(() => {
+                // Lấy tất cả từ vựng thuộc các cấp độ được chọn
+                const vocabsInLevels = mockVocab.filter(v => 
+                    v.level.some(l => levels.includes(l))
+                );
+                
+                // Lấy danh sách từ đã có trong notebook
+                const existingVocabIds = new Set(
+                    mockNotebookVocabItems
+                        .filter(item => item.notebook_id === notebookId)
+                        .map(item => item.vocab_id)
+                );
+                
+                let addedCount = 0;
+                let skippedCount = 0;
+                const breakdown: Record<string, { added: number; skipped: number }> = {};
+                
+                // Khởi tạo breakdown cho từng level
+                levels.forEach(level => {
+                    breakdown[level] = { added: 0, skipped: 0 };
+                });
+                
+                // Thêm từ vựng vào notebook
+                vocabsInLevels.forEach(vocab => {
+                    const isExisting = existingVocabIds.has(vocab.id);
+                    
+                    if (!isExisting) {
+                        mockNotebookVocabItems.push({
+                            notebook_id: notebookId,
+                            vocab_id: vocab.id,
+                            status: 'chưa thuộc',
+                            added_at: new Date().toISOString()
+                        });
+                        addedCount++;
+                        
+                        // Cập nhật breakdown
+                        vocab.level.forEach(level => {
+                            if (levels.includes(level)) {
+                                breakdown[level].added++;
+                            }
+                        });
+                    } else if (excludeExisting) {
+                        skippedCount++;
+                        
+                        // Cập nhật breakdown
+                        vocab.level.forEach(level => {
+                            if (levels.includes(level)) {
+                                breakdown[level].skipped++;
+                            }
+                        });
+                    }
+                });
+                
+                // Cập nhật vocab_count trong mockNotebooks
+                const nbIndex = mockNotebooks.findIndex(nb => nb.id === notebookId);
+                if (nbIndex !== -1) {
+                    mockNotebooks[nbIndex].vocab_count += addedCount;
+                }
+                
+                resolve({
+                    success: true,
+                    message: `Đã thêm thành công ${addedCount} từ vựng vào sổ tay`,
+                    addedCount,
+                    skippedCount,
+                    totalVocabsInLevels: vocabsInLevels.length,
+                    breakdown
+                });
+            }, 500);
+        });
+    }
+};
+
 // Hostname: dpg-d4ad7rnpm1nc73cq1eh0-a
 // Port: 5432
 // Database: dbechinese

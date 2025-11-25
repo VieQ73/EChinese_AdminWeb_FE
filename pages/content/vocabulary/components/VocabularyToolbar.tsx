@@ -11,6 +11,7 @@ interface VocabularyToolbarProps {
     onWordTypeFilterChange: (value: string) => void;
     onAdd: () => void;
     onImport: () => void;
+    onAddByLevel?: () => void;
     // Select all props
     isSelectable?: boolean;
     isAllSelected?: boolean;
@@ -26,6 +27,7 @@ const VocabularyToolbar: React.FC<VocabularyToolbarProps> = ({
     onWordTypeFilterChange,
     onAdd,
     onImport,
+    onAddByLevel,
     isSelectable = true,
     isAllSelected = false,
     onSelectAll,
@@ -106,6 +108,14 @@ const VocabularyToolbar: React.FC<VocabularyToolbarProps> = ({
                     >
                         <UploadIcon className="w-5 h-5 mr-2" /> Import
                     </button>
+                    {onAddByLevel && (
+                        <button
+                            onClick={onAddByLevel}
+                            className="flex items-center justify-center h-10 px-4 whitespace-nowrap bg-green-600 text-white rounded-lg font-medium text-sm hover:bg-green-700 transition"
+                        >
+                            <PlusIcon className="w-5 h-5 mr-2" /> Thêm theo cấp độ
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

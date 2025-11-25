@@ -46,6 +46,7 @@ const VocabularyTab: React.FC = () => {
     const [editingVocab, setEditingVocab] = useState<Vocabulary | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isAddToNotebookModalOpen, setIsAddToNotebookModalOpen] = useState(false);
+    const [addToNotebookMode, setAddToNotebookMode] = useState<'selected' | 'byLevel'>('selected');
     const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false); // State cho modal import
     const [isImporting, setIsImporting] = useState(false); // State loading cho import
@@ -123,6 +124,8 @@ const VocabularyTab: React.FC = () => {
             ]);
             
             console.log('Vocab response:', vocabRes);
+            console.log('Notebooks response:', notebookRes);
+            console.log('Notebooks data:', notebookRes.data);
             
             setVocabList(vocabRes.data);
             setNotebooks(notebookRes.data);
@@ -213,6 +216,32 @@ const VocabularyTab: React.FC = () => {
             alert(`Đã thêm thành công ${addedCount} từ vựng mới vào sổ tay!`);
         } catch (error) {
             alert("Thêm vào sổ tay thất bại.");
+        }
+    };
+
+    const handleAddToNotebookByLevel = async (notebookId: string, levels: string[]) => {
+        try {
+            const result = await api.addVocabsToNotebookByLevel(notebookId, levels, true);
+            setIsAddToNotebookModalOpen(false);
+            
+            // Tải lại notebooks để cập nhật vocab_count
+            const notebookRes = await api.fetchNotebooks({ limit: 1000 });
+            setNotebooks(notebookRes.data);
+            
+            // Hiển thị thông báo chi tiết
+            const breakdownText = Object.entries(result.breakdown)
+                .map(([level, stats]) => `  ${level}: +${stats.added} từ${stats.skipped > 0 ? ` (bỏ qua ${stats.skipped})` : ''}`)
+                .join('\n');
+            
+            alert(
+                `${result.message}\n\n` +
+                `✅ Đã thêm: ${result.addedCount} từ\n` +
+                `⏭️ Đã bỏ qua: ${result.skippedCount} từ (đã tồn tại)\n` +
+                `📊 Tổng từ trong cấp độ: ${result.totalVocabsInLevels}\n\n` +
+                `Chi tiết:\n${breakdownText}`
+            );
+        } catch (error) {
+            alert("Thêm từ vựng theo cấp độ thất bại.");
         }
     };
 
@@ -337,7 +366,14 @@ const VocabularyTab: React.FC = () => {
         <div className="space-y-6 pb-24">
             {viewingVocab && <VocabDetailModal vocab={viewingVocab} onClose={() => setViewingVocab(null)} onEdit={handleEdit} />}
             <AddVocabularyModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSubmit={handleSaveVocab} editingVocab={editingVocab} showSearch={false}/>
-            <AddToNotebookModal isOpen={isAddToNotebookModalOpen} onClose={() => setIsAddToNotebookModalOpen(false)} onAddToNotebook={handleAddToNotebook} notebooks={notebooks} />
+            <AddToNotebookModal 
+                isOpen={isAddToNotebookModalOpen} 
+                onClose={() => setIsAddToNotebookModalOpen(false)} 
+                onAddToNotebook={handleAddToNotebook}
+                onAddByLevel={handleAddToNotebookByLevel}
+                notebooks={notebooks}
+                mode={addToNotebookMode}
+            />
             <ImportVocabModal 
                 isOpen={isImportModalOpen}
                 onClose={() => setIsImportModalOpen(false)}
@@ -370,6 +406,10 @@ const VocabularyTab: React.FC = () => {
                     onWordTypeFilterChange={setWordTypeFilter}
                     onAdd={handleOpenAddModal} 
                     onImport={() => setIsImportModalOpen(true)}
+                    onAddByLevel={() => {
+                        setAddToNotebookMode('byLevel');
+                        setIsAddToNotebookModalOpen(true);
+                    }}
                     isSelectable={true}
                     isAllSelected={filteredVocabList.length > 0 && selectedVocabs.size === filteredVocabList.length}
                     onSelectAll={handleSelectAll}
@@ -475,7 +515,10 @@ const VocabularyTab: React.FC = () => {
                         </>
                     )}
                 </button>
-                <button onClick={() => setIsAddToNotebookModalOpen(true)} className="flex items-center px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                <button onClick={() => {
+                    setAddToNotebookMode('selected');
+                    setIsAddToNotebookModalOpen(true);
+                }} className="flex items-center px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
                     <NotebookIcon className="w-4 h-4 mr-1.5"/> Thêm vào sổ tay
                 </button>
                 <button onClick={() => setIsDeleteConfirmModalOpen(true)} className="flex items-center px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700">

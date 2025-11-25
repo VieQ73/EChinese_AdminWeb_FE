@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 //  Changed import of `useNavigate` from `react-router-dom` to `react-router` to resolve module export error.
 import { useNavigate } from 'react-router';
-import { User, PaginatedResponse } from '../../types';
-import { fetchUsers } from './userApi';
-import { mockSubscriptions, mockUserSubscriptions } from '../../mock';
+import { PaginatedResponse } from '../../types';
+import { fetchUsers, UserWithSubscription } from './userApi';
 import { Loader2 } from 'lucide-react';
 
 const USERS_PER_PAGE = 20;
 
 const UserManagement: React.FC = () => {
-    const [users, setUsers] = useState<User[]>([]);
+    const [users, setUsers] = useState<UserWithSubscription[]>([]);
     const [loading, setLoading] = useState(true);
     const [pageCount, setPageCount] = useState(0);
 
@@ -21,7 +20,7 @@ const UserManagement: React.FC = () => {
     const loadUsers = useCallback(async () => {
         setLoading(true);
         try {
-            const response: PaginatedResponse<User> = await fetchUsers({
+            const response: PaginatedResponse<UserWithSubscription> = await fetchUsers({
                 page: currentPage,
                 limit: USERS_PER_PAGE,
                 searchTerm,
@@ -97,38 +96,34 @@ const UserManagement: React.FC = () => {
                                 </td>
                             </tr>
                         ) : (
-                            users.map(user => {
-                                 const activeUserSub = mockUserSubscriptions.find(us => us.user_id === user.id && us.is_active);
-                                 const subscription = activeUserSub 
-                                     ? mockSubscriptions.find(sub => sub.id === activeUserSub.subscription_id) 
-                                     : mockSubscriptions.find(sub => sub.id === 'sub_free');
-                                 return (
-                                    <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center">
-                                                <div className="flex-shrink-0 h-10 w-10">
-                                                    <img className="h-10 w-10 rounded-full" src={user.avatar_url || ''} alt={user.name} />
-                                                </div>
-                                                <div className="ml-4">
-                                                    <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                                                    <div className="text-sm text-gray-500">@{user.username}</div>
-                                                </div>
+                            users.map(user => (
+                                <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="flex items-center">
+                                            <div className="flex-shrink-0 h-10 w-10">
+                                                <img className="h-10 w-10 rounded-full" src={user.avatar_url || ''} alt={user.name} />
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{user.role}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                                {user.is_active ? 'Hoạt động' : 'Bị cấm'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{subscription?.name || 'Miễn phí'}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(user.created_at).toLocaleDateString()}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button onClick={() => navigate(`/users/${user.id}`)} className="text-primary-600 hover:text-primary-900 font-medium">Xem chi tiết</button>
-                                        </td>
-                                    </tr>
-                                 );
-                            })
+                                            <div className="ml-4">
+                                                <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                                                <div className="text-sm text-gray-500">@{user.username}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{user.role}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                            {user.is_active ? 'Hoạt động' : 'Bị cấm'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {user.subscription?.name || 'Miễn phí'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(user.created_at).toLocaleDateString()}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <button onClick={() => navigate(`/users/${user.id}`)} className="text-primary-600 hover:text-primary-900 font-medium">Xem chi tiết</button>
+                                    </td>
+                                </tr>
+                            ))
                         )}
                     </tbody>
                 </table>

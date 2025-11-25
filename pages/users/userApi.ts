@@ -10,6 +10,18 @@ import {
     UserUsage,
     PaginatedResponse,
 } from '../../types';
+
+// Extended User type with subscription info from API
+export interface UserWithSubscription extends User {
+    subscription?: {
+        id: string;
+        name: string;
+        duration_months: number;
+        price: number;
+        expiry_date: string;
+        is_active: boolean;
+    } | null;
+}
 import { 
     mockUsers, 
     mockUserSessions, 
@@ -50,12 +62,12 @@ export interface FetchUsersParams {
 /**
  * Lấy danh sách người dùng với filter và pagination.
  */
-export const fetchUsers = (params: FetchUsersParams = {}): Promise<PaginatedResponse<User>> => {
+export const fetchUsers = (params: FetchUsersParams = {}): Promise<PaginatedResponse<UserWithSubscription>> => {
     
     type FetchUsersResponse = {
         success: boolean;
         data: {
-            data: User[];
+            data: UserWithSubscription[];
             meta: { total: number; page: number; limit: number; totalPages: number };
         };
     };
