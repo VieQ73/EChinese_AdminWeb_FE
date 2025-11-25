@@ -1,0 +1,182 @@
+// Enable UUID extension
+
+Table Users {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  username varchar(50) [unique]
+  password_hash varchar(255)
+  name varchar(50) [not null]
+  avatar_url text
+  email varchar(255) [unique]
+  provider varchar(20) [note: "Enum: 'google', 'apple', 'local'"]
+  provider_id varchar(255)
+  role varchar(10) [default: 'user', note: "Enum: 'user', 'admin', 'super admin'"]
+  is_active boolean [default: true]
+  isVerify boolean [default: false]
+  community_points int [default: 0]
+  level varchar(3) [not null, note: "Enum: '1', '2', '3', '4', '5', '6', '7-9'"]
+  badge_level int [not null, default: 0]
+  language varchar(10) [not null, note: "Enum: 'Tiếng Việt', 'Tiếng Anh'"]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  last_login timestamptz
+
+  Note: '''
+  - Trung tâm hồ sơ người dùng, hỗ trợ đăng nhập local và OAuth (Google/Apple).
+  - password_hash chỉ dùng cho đăng nhập local, provider/provider_id cho OAuth.
+  - community_points tích lũy từ hoạt động cộng đồng, cập nhật trực tiếp để tối ưu query.
+  - isVerify xác thực email, tăng bảo mật.
+  - Không lưu gói đăng ký trực tiếp tại đây để tránh phình bảng — dùng bảng UserSubscriptions riêng.
+  '''
+
+  Indexes {
+    username [unique]
+    email [unique]
+    (provider, provider_id) [type: btree]
+    created_at [type: btree]
+    role [type: btree]
+    community_points [type: btree]
+  }
+}
+
+// Table UserSessions
+Table UserSessions {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  login_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  logout_at timestamptz
+  device varchar(50) [note: "mobile, web, desktop"]
+  ip_address varchar(50)
+
+  Note: '''
+  - Lưu lại chi tiết từng phiên login/logout.
+  - Dùng để tính toán thời gian online chi tiết hoặc phát hiện đăng nhập bất thường.
+  '''
+
+  Indexes {
+    user_id [type: btree]
+    login_at [type: btree]
+  }
+}
+
+// Table RefreshTokens
+Table RefreshTokens {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  token text [unique, not null]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  expires_at timestamptz [not null]
+  
+  Note: '''
+  - Lưu trữ refresh token cho cơ chế xác thực, đảm bảo token là duy nhất.
+  '''
+  
+  Indexes {
+    user_id [type: btree]
+    token [unique]
+  }
+}
+
+//Table Posts
+Table Posts {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  title varchar(100) [not null]
+  content json [not null, note: "Rich text JSON: bold, italic, underline, list, link,..."]
+  topic varchar(50) [not null, note: "Enum: 'Cơ khí', 'CNTT', 'Dịch', 'Du học', 'Du lịch', 'Góc chia sẻ', 'Tìm bạn học chung', 'Học tiếng Trung', 'Tìm gia sư', 'Việc làm', 'Văn hóa', 'Thể thao', 'Xây dựng', 'Y tế', 'Tâm sự', 'Khác'"]
+  likes int [default: 0]
+  views int [default: 0]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+
+  //Moderation
+  status varchar(20) [default: 'published', note: "Enum: 'draft','published','hidden','removed','archived'"]
+  is_approved boolean [default: true, note: "False = chờ duyệt / vi phạm / bị ẩn"]
+  auto_flagged boolean [default: false, note: "True = bị AI phát hiện nghi ngờ vi phạm"]
+  is_pinned boolean [default: false, note: "Admin/Superadmin có thể ghim bài viết"]
+
+  deleted_at timestamptz [note: "Thời điểm bị gỡ (soft delete)"]
+  deleted_reason text [note: "Lý do gỡ (do user hoặc admin)"]
+  deleted_by uuid [note: "Ai gỡ (user tự gỡ hoặc admin)"]
+
+  Note: '''
+  - Khi user tự gỡ bài: status='removed', deleted_by=user_id, is_approved=false.
+  - Khi admin gỡ: status='removed', deleted_by=admin_id, is_approved=false, tạo Violation.
+  - Khi AI nghi ngờ: auto_flagged=true, status='removed'.
+  - Bài bị removed sẽ bị xóa cứng sau 7 ngày nếu không được khôi phục.
+  '''
+
+  Indexes {
+    user_id [type: btree]
+    topic [type: btree]
+    created_at [type: btree]
+    status [type: btree]
+    auto_flagged [type: btree]
+    is_pinned [type: btree]
+  }
+}
+
+
+
+// Table PostLikes
+Table PostLikes {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  post_id uuid [not null]
+  user_id uuid [not null]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+
+  Note: '''
+  - Quản lý ai đã like bài viết.
+  - Cho phép hiển thị danh sách người like.
+  - Dùng để query các bài viết user đã like.
+  '''
+
+  Indexes {
+    (post_id, user_id) [unique] // 1 user chỉ được like 1 lần
+    post_id [type: btree]
+    user_id [type: btree]
+  }
+}
+
+// Table PostViews
+Table PostViews {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  post_id uuid [not null]
+  user_id uuid [note: "NULL nếu khách (chưa đăng nhập)"]
+  viewed_at timestamptz [default: `CURRENT_TIMESTAMP`]
+
+  Note: '''
+  - Quản lý chi tiết ai đã xem bài viết.
+  - Hỗ trợ tính năng "bài viết đã xem".
+  - Nếu chỉ cần số lượng view thì vẫn cập nhật vào Posts.views.
+  '''
+
+  Indexes {
+    post_id [type: btree]
+    user_id [type: btree]
+  }
+}
+
+// Table Comments
+Table Comments {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  post_id uuid [not null]
+  user_id uuid [not null]
+  content json [not null, note: "Rich text JSON"]
+  parent_comment_id uuid
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  deleted_at timestamptz
+  deleted_reason text
+  deleted_by uuid [null, note: "ai gỡ"]
+
+  Note: '''
+  - Comment có thể bị gỡ. 
+  - Admin/Super Admin có quyền gỡ của user thường và chính mình, user thường chỉ có thể gỡ bình luận của chính mình.
+  - parent_comment_id hỗ trợ comment lồng nhau.
+  - deleted_reason + deleted_by để tra cứu lý do và người thực hiện.
+  '''
+  
+  Indexes {
+    post_id [type: btree]
+    user_id [type: btree]
+    parent_comment_id [type: btree]
+    created_at [type: btree]
+  }
+}
