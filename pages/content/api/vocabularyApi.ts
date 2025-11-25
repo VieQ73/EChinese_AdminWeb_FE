@@ -22,19 +22,6 @@ interface FetchVocabParams {
 // API Functions
 
 export const fetchVocabularies = async (params: FetchVocabParams): Promise<PaginatedResponse<Vocabulary>> => {
-    const queryParams = new URLSearchParams(params as any).toString();
-    
-    type VocabularyApiResponse = {
-        success: boolean;
-        message: string;
-        data: PaginatedResponse<Vocabulary>;
-    }
-    const response = await apiClient.get<VocabularyApiResponse>(`/vocabularies?${queryParams}`);
-    
-    return response.data;
-
-    
-
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -65,43 +52,20 @@ export const fetchVocabularies = async (params: FetchVocabParams): Promise<Pagin
                 const data = filtered.slice((page - 1) * limit, page * limit);
 
                 resolve({ data, meta: { total, page, limit, totalPages } });
-            }, 300);
+            });
         });
     }
 
+    // Real API
+    const queryParams = new URLSearchParams(params as any).toString();
+    type VocabularyApiResponse = { success: boolean; message: string; data: PaginatedResponse<Vocabulary>; }
+    const response = await apiClient.get<VocabularyApiResponse>(`/vocabularies?${queryParams}`);
+    return response.data;
 };
 
 export const createOrUpdateVocabs = async (payloads: Partial<Vocabulary>[]): Promise<Vocabulary[]> => {
     console.log(payloads);
     
-    // Define the expected API response structure
-    interface BulkUpsertError {
-        index: number;
-        hanzi: string;
-        id?: string;
-        detail: string;
-    }
-
-    interface BulkUpsertResponse {
-        success: boolean;
-        message: string;
-        data: Vocabulary[];
-        errors?: BulkUpsertError[];
-    }
-
-    // Gửi trực tiếp mảng `payloads` làm body
-    const response = await apiClient.post<BulkUpsertResponse>('/admin/vocabularies/bulk-upsert', payloads);
-
-    // Ném lỗi tùy chỉnh nếu có lỗi để UI có thể bắt và hiển thị
-    if (response.errors && response.errors.length > 0) {
-        const error = new Error(response.message) as any;
-        error.details = response.errors;
-        throw error;
-    }
-
-    return response.data;
-    
-
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -123,15 +87,23 @@ export const createOrUpdateVocabs = async (payloads: Partial<Vocabulary>[]): Pro
                     }
                 });
                 resolve(results);
-            }, 400);
+            });
         });
     }
 
+    // Real API
+    interface BulkUpsertError { index: number; hanzi: string; id?: string; detail: string; }
+    interface BulkUpsertResponse { success: boolean; message: string; data: Vocabulary[]; errors?: BulkUpsertError[]; }
+    const response = await apiClient.post<BulkUpsertResponse>('/admin/vocabularies/bulk-upsert', payloads);
+    if (response.errors && response.errors.length > 0) {
+        const error = new Error(response.message) as any;
+        error.details = response.errors;
+        throw error;
+    }
+    return response.data;
 };
 
 export const deleteVocabularies = (vocabIds: string[]): Promise<{ success: boolean; message: string }> => {
-    return apiClient.post('/admin/vocabularies/bulk-delete', { ids: vocabIds });
-
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -145,14 +117,15 @@ export const deleteVocabularies = (vocabIds: string[]): Promise<{ success: boole
                 mockNotebookVocabItems.push(...newItems);
                 
                 resolve({ success: true, message: `Đã xóa thành công ${vocabIds.length} từ vựng.` });
-            }, 400);
+            });
         });
     }
+
+    // Real API
+    return apiClient.post('/admin/vocabularies/bulk-delete', { ids: vocabIds });
 };
 
 export const addVocabsToNotebook = (notebookId: string, vocabIds: string[]): Promise<{ success: boolean; message: string; addedCount: number }> => {
-    return apiClient.post(`/admin/notebooks/${notebookId}/vocabularies`, { vocabIds });
-
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -177,16 +150,15 @@ export const addVocabsToNotebook = (notebookId: string, vocabIds: string[]): Pro
                 }
 
                 resolve({ success: true, message: `Đã thêm thành công ${addedCount} từ vựng vào notebook.`, addedCount });
-            }, 300);
+            });
         });
     }
+
+    // Real API
+    return apiClient.post(`/admin/notebooks/${notebookId}/vocabularies`, { vocabIds });
 };
 
 export const removeVocabsFromNotebook = (notebookId: string, vocabIds: string[]): Promise<{ success: boolean; message: string }> => {
-    
-       return apiClient.delete(`/admin/notebooks/${notebookId}/vocabularies`, { vocabIds });
-
-       
     if (USE_MOCK_API) {
        return new Promise(resolve => {
            setTimeout(() => {
@@ -207,9 +179,12 @@ export const removeVocabsFromNotebook = (notebookId: string, vocabIds: string[])
                }
                
                resolve({ success: true, message: `Đã xóa thành công ${removedCount} từ vựng khỏi notebook.` });
-           }, 300);
+           });
        });
    }
+
+   // Real API
+   return apiClient.delete(`/admin/notebooks/${notebookId}/vocabularies`, { vocabIds });
 };
 
 // Hostname: dpg-d4ad7rnpm1nc73cq1eh0-a

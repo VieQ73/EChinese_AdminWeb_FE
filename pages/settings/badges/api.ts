@@ -39,27 +39,21 @@ type ResyncBadgesResponse = {
 
 // ===================== FETCH BADGES =====================
 export const fetchBadges = async (): Promise<BadgeLevel[]> => {
-
-    const response = await apiClient.get<FetchBadgesResponse>('/admin/settings/badges');
-    // Sort ascending by min_points to keep UI consistent
-    return [...response.data].sort((a, b) => a.min_points - b.min_points);
-
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
                 const sorted = [...mockBadges].sort((a, b) => a.min_points - b.min_points);
                 resolve(sorted);
-            }, 300);
+            });
         });
     }
 
+    // Real API
+    const response = await apiClient.get<FetchBadgesResponse>('/admin/settings/badges');
+    return [...response.data].sort((a, b) => a.min_points - b.min_points);
 };
 
 export const createBadge = async (payload: BadgePayload): Promise<BadgeLevel> => {
-
-    const response = await apiClient.post<CreateBadgeResponse>('/admin/settings/badges', payload);
-    return response.data;
-
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -76,17 +70,16 @@ export const createBadge = async (payload: BadgePayload): Promise<BadgeLevel> =>
                 };
                 mockBadges.push(newBadge);
                 resolve(newBadge);
-            }, 400);
+            });
         });
     }
-    
+
+    // Real API
+    const response = await apiClient.post<CreateBadgeResponse>('/admin/settings/badges', payload);
+    return response.data;
 };
 
 export const updateBadge = async (id: string, payload: Partial<BadgePayload>): Promise<BadgeLevel> => {
-    
-    const response = await apiClient.put<UpdateBadgeResponse>(`/admin/settings/badges/${id}` , payload);
-    return response.data;
-
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -104,17 +97,16 @@ export const updateBadge = async (id: string, payload: Partial<BadgePayload>): P
                 }
                 mockBadges[index] = { ...badge, ...payload };
                 resolve(mockBadges[index]);
-            }, 300);
+            });
         });
     }
-    
+
+    // Real API
+    const response = await apiClient.put<UpdateBadgeResponse>(`/admin/settings/badges/${id}` , payload);
+    return response.data;
 };
 
 export const deleteBadge = async (id: string): Promise<{ success: boolean; message: string }> => {
-    
-    const response = await apiClient.delete<DeleteBadgeResponse>(`/admin/settings/badges/${id}`);
-    return { success: response.success, message: response.message };
-    
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -126,10 +118,13 @@ export const deleteBadge = async (id: string): Promise<{ success: boolean; messa
                 }
                 mockBadges.splice(index, 1);
                 resolve({ success: true, message: 'thành công' });
-            }, 400);
+            });
         });
     }
-    
+
+    // Real API
+    const response = await apiClient.delete<DeleteBadgeResponse>(`/admin/settings/badges/${id}`);
+    return { success: response.success, message: response.message };
 };
 
 
@@ -138,10 +133,6 @@ export const deleteBadge = async (id: string): Promise<{ success: boolean; messa
  * @returns Trả về danh sách người dùng đã được cập nhật.
  */
 export const resyncAllUserBadges = async (): Promise<User[]> => {
-    
-    const response = await apiClient.post<ResyncBadgesResponse>('/admin/settings/badges/resync', {});
-    return response.data;
-    
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -157,8 +148,11 @@ export const resyncAllUserBadges = async (): Promise<User[]> => {
                 mockUsers.length = 0;
                 mockUsers.push(...updatedUsers);
                 resolve(updatedUsers);
-            }, 800);
+            });
         });
     }
-    
+
+    // Real API
+    const response = await apiClient.post<ResyncBadgesResponse>('/admin/settings/badges/resync', {});
+    return response.data;
 };

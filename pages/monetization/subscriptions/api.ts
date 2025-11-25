@@ -23,13 +23,6 @@ interface FetchSubscriptionsParams {
  * Lấy danh sách gói đăng ký với các tùy chọn lọc, sắp xếp, phân trang.
  */
 export const fetchSubscriptions = async (params: FetchSubscriptionsParams = {}): Promise<PaginatedResponse<Subscription>> => {
-        // Kết nối API thật
-    const queryParams = new URLSearchParams(params as any).toString();
-    const response = await apiClient.get<any>(`/monetization/subscriptions?${queryParams}`);
-    // API trả về { success, data: { data, meta } }
-    return (response as any).data as PaginatedResponse<Subscription>;
-
-    
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -64,37 +57,32 @@ export const fetchSubscriptions = async (params: FetchSubscriptionsParams = {}):
                     data,
                     meta: { total, page, limit, totalPages }
                 });
-            }, 500);
+            });
         });
     }
 
+    // Real API
+    const queryParams = new URLSearchParams(params as any).toString();
+    const response = await apiClient.get<any>(`/monetization/subscriptions?${queryParams}`);
+    return (response as any).data as PaginatedResponse<Subscription>;
 };
 
 export const checkSubscriptionUsage = async (subscriptionId: string): Promise<{ activeUsers: number }> => {
-    
-    // Kết nối API thật
-    const response = await apiClient.get<any>(`/monetization/subscriptions/${subscriptionId}/usage`);
-    // API trả về { success, data: { activeUsers } }
-    return (response as any).data as { activeUsers: number };
-
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
                 const activeUsers = mockUserSubscriptions.filter(us => us.subscription_id === subscriptionId && us.is_active).length;
                 resolve({ activeUsers });
-            }, 300);
+            });
         });
     }
 
+    // Real API
+    const response = await apiClient.get<any>(`/monetization/subscriptions/${subscriptionId}/usage`);
+    return (response as any).data as { activeUsers: number };
 }
 
 export const createSubscription = async (payload: SubscriptionPayload): Promise<Subscription> => {
-
-    // Kết nối API thật
-    const response = await apiClient.post<any>('/monetization/subscriptions', payload);
-    // API trả về { success, message, data }
-    return (response as any).data as Subscription;
-    
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -110,18 +98,16 @@ export const createSubscription = async (payload: SubscriptionPayload): Promise<
                 };
                 mockSubscriptions.unshift(newSubscription);
                 resolve(newSubscription);
-            }, 500);
+            });
         });
     }
 
+    // Real API
+    const response = await apiClient.post<any>('/monetization/subscriptions', payload);
+    return (response as any).data as Subscription;
 }
 
 export const updateSubscription = async (id: string, payload: Partial<SubscriptionPayload>): Promise<Subscription> => {
-    // Kết nối API thật (PUT)
-    const response = await apiClient.put<any>(`/monetization/subscriptions/${id}`, payload);
-    // API trả về { success, message, data }
-    return (response as any).data as Subscription;
-
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -138,35 +124,34 @@ export const updateSubscription = async (id: string, payload: Partial<Subscripti
                 const updatedSub = { ...mockSubscriptions[subIndex], ...payload, updated_at: new Date().toISOString() };
                 mockSubscriptions[subIndex] = updatedSub;
                 resolve(updatedSub);
-            }, 500);
+            });
         });
     }
 
+    // Real API
+    const response = await apiClient.put<any>(`/monetization/subscriptions/${id}`, payload);
+    return (response as any).data as Subscription;
 }
 
 export const deleteSubscription = async (id: string): Promise<{ success: boolean; message: string }> => {
-        // Kết nối API thật
+    if (USE_MOCK_API) {
+        return new Promise((resolve, reject) => {
+            const usage = mockUserSubscriptions.filter(us => us.subscription_id === id && us.is_active).length;
+            if (usage > 0) {
+                reject(new Error('Không thể xóa gói đang có người dùng sử dụng.'));
+                return;
+            }
+            const subIndex = mockSubscriptions.findIndex(s => s.id === id);
+            if (subIndex === -1) {
+                reject(new Error('Không tìm thấy gói đăng ký.'));
+                return;
+            }
+            mockSubscriptions.splice(subIndex, 1);
+            resolve({ success: true, message: 'Đã xóa thành công' });
+        });
+    }
+
+    // Real API
     const response = await apiClient.delete<any>(`/monetization/subscriptions/${id}`);
-    // API trả về { success, message }
     return { success: (response as any).success, message: (response as any).message };
-
-    // if (USE_MOCK_API) {
-    //     return new Promise((resolve, reject) => {
-    //         setTimeout(async () => {
-    //             const usage = await checkSubscriptionUsage(id);
-    //             if (usage.activeUsers > 0) {
-    //                 reject(new Error('Không thể xóa gói đang có người dùng sử dụng.'));
-    //                 return;
-    //             }
-    //             const subIndex = mockSubscriptions.findIndex(s => s.id === id);
-    //             if (subIndex === -1) {
-    //                 reject(new Error('Không tìm thấy gói đăng ký.'));
-    //                 return;
-    //             }
-    //             mockSubscriptions.splice(subIndex, 1);
-    //             resolve({ success: true });
-    //         }, 500);
-    //     });
-    // }
-
 };

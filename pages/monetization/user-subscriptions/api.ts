@@ -15,13 +15,6 @@ interface FetchEnrichedUserSubscriptionsParams {
 }
 
 export const fetchEnrichedUserSubscriptions = async (params: FetchEnrichedUserSubscriptionsParams): Promise<PaginatedResponse<EnrichedUserSubscription>> => {
-        // Kết nối API thật
-    const queryParams = new URLSearchParams(params as any).toString();
-    const response = await apiClient.get<any>(`/monetization/user-subscriptions?${queryParams}`);
-
-    // API trả về { success, data: PaginatedResponse<EnrichedUserSubscription> }
-    return (response as any).data as PaginatedResponse<EnrichedUserSubscription>;
-
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -61,10 +54,14 @@ export const fetchEnrichedUserSubscriptions = async (params: FetchEnrichedUserSu
                 const data = enrichedData.slice((page - 1) * limit, page * limit);
 
                 resolve({ data, meta: { total, page, limit, totalPages } });
-            }, 500);
+            });
         });
     }
 
+    // Real API
+    const queryParams = new URLSearchParams(params as any).toString();
+    const response = await apiClient.get<any>(`/monetization/user-subscriptions?${queryParams}`);
+    return (response as any).data as PaginatedResponse<EnrichedUserSubscription>;
 };
 
 export type UpdateUserSubscriptionDetailsPayload = 
@@ -74,14 +71,6 @@ export type UpdateUserSubscriptionDetailsPayload =
     | { action: 'change_plan'; new_subscription_id: string; change_type: 'immediate' | 'end_of_term' };
 
 export const updateUserSubscriptionDetails = async (userSubId: string, payload: UpdateUserSubscriptionDetailsPayload): Promise<any> => {
-    
-    // Kết nối API thật
-    const response = await apiClient.put<any>(`/monetization/user-subscriptions/${userSubId}`, payload);
-    // API trả về { success, message, data: result }
-    console.log(payload);
-    
-    return (response as any).data;
-
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -112,19 +101,17 @@ export const updateUserSubscriptionDetails = async (userSubId: string, payload: 
                 sub.updated_at = new Date().toISOString();
                 mockUserSubscriptions[subIndex] = sub;
                 resolve({ success: true });
-            }, 500);
+            });
         });
     }
-    
+
+    // Real API
+    const response = await apiClient.put<any>(`/monetization/user-subscriptions/${userSubId}`, payload);
+    return (response as any).data;
 };
 
 
 export const fetchUserSubscriptionHistory = async (userId: string): Promise<UserSubscriptionHistoryItem[]> => {
-    // Kết nối API thật
-    const response = await apiClient.get<any>(`/monetization/user-subscriptions/history/${userId}`);
-    // API trả về { success: true, data: history }
-    return (response as any).data as UserSubscriptionHistoryItem[];
-
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -136,10 +123,13 @@ export const fetchUserSubscriptionHistory = async (userId: string): Promise<User
                     }))
                     .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
                 resolve(history);
-            }, 300);
+            });
         });
     }
-    
+
+    // Real API
+    const response = await apiClient.get<any>(`/monetization/user-subscriptions/history/${userId}`);
+    return (response as any).data as UserSubscriptionHistoryItem[];
 };
 
 /**
@@ -151,12 +141,6 @@ export const resetUserUsage = async (
     userId: string,
     features: Array<'ai_lesson' | 'ai_translate'>
 ): Promise<{ success: boolean; message?: string }> => {
-
-        // Kết nối API thật
-    const response = await apiClient.post<any>('/admin/usage/reset', { userId, features });
-    // Backend trả về ít nhất { success, ... }
-    return response as { success: boolean; message?: string };
-    
     if (USE_MOCK_API) {
         // Mô phỏng reset: đưa daily_count về 0 và cập nhật last_reset
         const now = new Date().toISOString();
@@ -170,5 +154,7 @@ export const resetUserUsage = async (
         return Promise.resolve({ success: true, message: 'Đã reset usage (mock).' });
     }
 
-
+    // Real API
+    const response = await apiClient.post<any>('/admin/usage/reset', { userId, features });
+    return response as { success: boolean; message?: string };
 };

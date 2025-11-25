@@ -1,4 +1,3 @@
-
 import { apiClient } from '../../services/apiClient';
 import { 
     User, 
@@ -20,7 +19,6 @@ import {
     mockUserDailyActivities,
     mockUserSubscriptions
 } from '../../mock';
-import { log } from 'node:console';
 
 //  Cast import.meta to any to resolve TypeScript error regarding 'env' property,
 // as the vite/client types are not available in this context.
@@ -51,22 +49,8 @@ export interface FetchUsersParams {
  * Lấy danh sách người dùng với filter và pagination.
  */
 export const fetchUsers = (params: FetchUsersParams = {}): Promise<PaginatedResponse<User>> => {
-    
-    type FetchUsersResponse = {
-        success: boolean;
-        data: {
-            data: User[];
-            meta: { total: number; page: number; limit: number; totalPages: number };
-        };
-    };
-    const query = new URLSearchParams(params as any).toString();
-    return apiClient
-        .get<FetchUsersResponse>(`/admin/users?${query}`)
-        .then(res => ({ data: res.data.data, meta: res.data.meta }));
-
+    // Mock API cho test hiển thị
     if (USE_MOCK_API) {
-    return new Promise(resolve => {
-      setTimeout(() => {
         const { page = 1, limit = 20, searchTerm = '', roleFilter = 'all' } = params;
         
         const filteredUsers = mockUsers.filter(user => {
@@ -82,26 +66,53 @@ export const fetchUsers = (params: FetchUsersParams = {}): Promise<PaginatedResp
         const totalPages = Math.ceil(total / limit);
         const data = filteredUsers.slice((page - 1) * limit, page * limit);
 
-        resolve({
-          data,
-          meta: {
-            total,
-            page,
-            limit,
-            totalPages,
-          }
+        return Promise.resolve({
+            data,
+            meta: { total, page, limit, totalPages }
         });
-      }, 300);
-    });
-  }
+    }
 
+    // Real API
+    type FetchUsersResponse = {
+        success: boolean;
+        data: {
+            data: User[];
+            meta: { total: number; page: number; limit: number; totalPages: number };
+        };
+    };
+    const query = new URLSearchParams(params as any).toString();
+    return apiClient
+        .get<FetchUsersResponse>(`/admin/users?${query}`)
+        .then(res => ({ data: res.data.data, meta: res.data.meta }));
 };
 
 /**
  * Lấy toàn bộ dữ liệu chi tiết cho một người dùng.
  */
 export const fetchUserDetailData = (userId: string): Promise<UserDetailData> => {
-    
+    // Mock API cho test hiển thị
+    if (USE_MOCK_API) {
+        const user = mockUsers.find(u => u.id === userId);
+        if (!user) {
+            return Promise.reject(new Error('Không tìm thấy người dùng.'));
+        }
+
+        const activeUserSub = mockUserSubscriptions.find(us => us.user_id === user.id && us.is_active);
+        const subscriptionId = activeUserSub ? activeUserSub.subscription_id : 'sub_free';
+
+        const data: UserDetailData = {
+            user,
+            sessions: mockUserSessions.filter(s => s.user_id === userId).sort((a, b) => new Date(b.login_at).getTime() - new Date(a.login_at).getTime()),
+            achievements: mockUserAchievements.filter(a => a.user_id === userId),
+            streak: mockUserStreaks.find(s => s.user_id === userId),
+            subscription: mockSubscriptions.find(sub => sub.id === subscriptionId),
+            dailyActivities: mockUserDailyActivities.filter(a => a.user_id === userId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+            usage: mockUserUsage.filter(u => u.user_id === userId)
+        };
+        return Promise.resolve(data);
+    }
+
+    // Real API
     type UserDetailResponse = {
         user: User;
         achievements: UserAchievement[];
@@ -120,33 +131,6 @@ export const fetchUserDetailData = (userId: string): Promise<UserDetailData> => 
         subscription: res.subscription || undefined,
         usage: res.usage,
     }));
-
-    if (USE_MOCK_API) {
-        return new Promise((resolve, reject) => {
-            setTimeout(() => {
-                const user = mockUsers.find(u => u.id === userId);
-                if (!user) {
-                    return reject(new Error('Không tìm thấy người dùng.'));
-                }
-
-                const activeUserSub = mockUserSubscriptions.find(us => us.user_id === user.id && us.is_active);
-                const subscriptionId = activeUserSub ? activeUserSub.subscription_id : 'sub_free';
-
-                const data: UserDetailData = {
-                    user,
-                    sessions: mockUserSessions.filter(s => s.user_id === userId).sort((a, b) => new Date(b.login_at).getTime() - new Date(a.login_at).getTime()),
-                    achievements: mockUserAchievements.filter(a => a.user_id === userId),
-                    streak: mockUserStreaks.find(s => s.user_id === userId),
-                    subscription: mockSubscriptions.find(sub => sub.id === subscriptionId),
-                    dailyActivities: mockUserDailyActivities.filter(a => a.user_id === userId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-                    usage: mockUserUsage.filter(u => u.user_id === userId)
-                };
-                resolve(data);
-
-            }, 300);
-        });
-    }
-
 };
 
 /**
@@ -154,17 +138,15 @@ export const fetchUserDetailData = (userId: string): Promise<UserDetailData> => 
  */
 
 export const fetchUserById = (userId: string): Promise<User| undefined> => {
-    return apiClient.get<User>(`/admin/users/${userId}`);
+    // Mock API cho test hiển thị
     if (USE_MOCK_API) {
-        return new Promise((resolve, reject) => {
-            setTimeout(() => {
-                const u = mockUsers.find(m => m.id === userId);
-                if (!u) return reject(new Error('Không tìm thấy người dùng.'));
-                resolve(u);
-            }, 200);
-        });
+        const u = mockUsers.find(m => m.id === userId);
+        if (!u) return Promise.reject(new Error('Không tìm thấy người dùng.'));
+        return Promise.resolve(u);
     }
     
+    // Real API
+    return apiClient.get<User>(`/admin/users/${userId}`);
 };
 
 
@@ -172,24 +154,20 @@ export const fetchUserById = (userId: string): Promise<User| undefined> => {
  * Cập nhật thông tin người dùng.
  */
 export const updateUser = (userId: string, data: Partial<User>): Promise<User> => {
-    console.log(data);
-    
-    return apiClient.put<User>(`/admin/users/${userId}`, data);
+    // Mock API cho test hiển thị
     if (USE_MOCK_API) {
-        return new Promise((resolve, reject) => {
-            setTimeout(() => {
-                const userIndex = mockUsers.findIndex(u => u.id === userId);
-                if (userIndex === -1) {
-                    return reject(new Error('Không tìm thấy người dùng.'));
-                }
-                mockUsers[userIndex] = { ...mockUsers[userIndex], ...data };
-                console.log(mockUsers[userIndex]);
-                
-                resolve(mockUsers[userIndex]);
-            }, 300);
-        });
+        const userIndex = mockUsers.findIndex(u => u.id === userId);
+        if (userIndex === -1) {
+            return Promise.reject(new Error('Không tìm thấy người dùng.'));
+        }
+        mockUsers[userIndex] = { ...mockUsers[userIndex], ...data };
+        console.log(mockUsers[userIndex]);
+        return Promise.resolve(mockUsers[userIndex]);
     }
     
+    // Real API
+    console.log(data);
+    return apiClient.put<User>(`/admin/users/${userId}`, data);
 };
 
 /**
@@ -312,6 +290,21 @@ export interface BanUserResponse {
  * @returns Promise với thông tin người dùng đã được cập nhật
  */
 export const banUser = (userId: string, payload: BanUserPayload): Promise<BanUserResponse> => {
+    // Mock API cho test hiển thị
+    if (USE_MOCK_API) {
+        const userIndex = mockUsers.findIndex(u => u.id === userId);
+        if (userIndex === -1) {
+            return Promise.reject(new Error('Không tìm thấy người dùng.'));
+        }
+        mockUsers[userIndex].is_active = false;
+        return Promise.resolve({
+            success: true,
+            message: 'Đã cấm người dùng thành công.',
+            user: mockUsers[userIndex]
+        });
+    }
+    
+    // Real API
     return apiClient.post<BanUserResponse>(`/admin/users/${userId}/ban`, payload);
 };
 
@@ -322,5 +315,20 @@ export const banUser = (userId: string, payload: BanUserPayload): Promise<BanUse
  * @returns Promise với thông tin người dùng đã được cập nhật
  */
 export const unbanUser = (userId: string, payload: UnbanUserPayload): Promise<BanUserResponse> => {
+    // Mock API cho test hiển thị
+    if (USE_MOCK_API) {
+        const userIndex = mockUsers.findIndex(u => u.id === userId);
+        if (userIndex === -1) {
+            return Promise.reject(new Error('Không tìm thấy người dùng.'));
+        }
+        mockUsers[userIndex].is_active = true;
+        return Promise.resolve({
+            success: true,
+            message: 'Đã bỏ cấm người dùng thành công.',
+            user: mockUsers[userIndex]
+        });
+    }
+    
+    // Real API
     return apiClient.post<BanUserResponse>(`/admin/users/${userId}/unban`, payload);
 };

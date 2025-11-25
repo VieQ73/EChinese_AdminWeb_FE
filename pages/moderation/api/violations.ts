@@ -19,12 +19,6 @@ interface FetchViolationsParams {
 type ViolationsEnvelope = { success: boolean; data: PaginatedResponse<Violation> };
 
 export const fetchViolations = (params: FetchViolationsParams): Promise<ViolationsEnvelope> => {
-    const query = new URLSearchParams(
-        Object.entries(params).filter(([, v]) => v !== undefined && v !== 'all') as [string, string][]
-    ).toString();
-    const endpoint = query ? `/moderation/violations?${query}` : '/moderation/violations';
-    return apiClient.get<ViolationsEnvelope>(endpoint);
-
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -44,11 +38,14 @@ export const fetchViolations = (params: FetchViolationsParams): Promise<Violatio
                 console.log( JSON.stringify({ success: true, data: payload }));
                 
                 resolve({ success: true, data: payload });
-            }, 250);
+            });
         });
     }
 
-    // Real API expected to already return the envelope shown in the sample provided.
-    // Pass params as query string (GET bodies are non-standard).
-    
+    // Real API
+    const query = new URLSearchParams(
+        Object.entries(params).filter(([, v]) => v !== undefined && v !== 'all') as [string, string][]
+    ).toString();
+    const endpoint = query ? `/moderation/violations?${query}` : '/moderation/violations';
+    return apiClient.get<ViolationsEnvelope>(endpoint);
 };

@@ -37,13 +37,6 @@ export const enrichPayment = (payment: Payment): Payment => {
 };
 
 export const fetchPayments = async (params: FetchPaymentsParams = {}): Promise<PaginatedResponse<Payment>> => {
-    
-        // Kết nối API thật
-    const queryParams = new URLSearchParams(params as any).toString();
-    const response = await apiClient.get<any>(`/monetization/payments?${queryParams}`);
-    // API trả về { success, data: { data, meta } }
-    return (response as any).data as PaginatedResponse<Payment>;
-
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -94,21 +87,17 @@ export const fetchPayments = async (params: FetchPaymentsParams = {}): Promise<P
                     data,
                     meta: { total, page, limit, totalPages }
                 });
-            }, 500);
+            });
         });
     }
 
+    // Real API
+    const queryParams = new URLSearchParams(params as any).toString();
+    const response = await apiClient.get<any>(`/monetization/payments?${queryParams}`);
+    return (response as any).data as PaginatedResponse<Payment>;
 };
 
 export const updatePaymentStatus = async (paymentId: string, status: 'manual_confirmed' | 'failed', adminId: string): Promise<Payment> => {
-    
-    // Kết nối API thật
-    const response = await apiClient.put<any>(`/monetization/payments/${paymentId}/status`, { status, adminId });
-    // API trả về { success, data: Payment }
-
-    
-    return (response as any).data as Payment;
-
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -123,18 +112,16 @@ export const updatePaymentStatus = async (paymentId: string, status: 'manual_con
                 payment.status = status;
                 payment.processed_by_admin = adminId;
                 resolve(enrichPayment(payment));
-            }, 300);
+            });
         });
     }
 
+    // Real API
+    const response = await apiClient.put<any>(`/monetization/payments/${paymentId}/status`, { status, adminId });
+    return (response as any).data as Payment;
 };
 
 export const bulkUpdatePaymentStatus = async (paymentIds: string[], status: 'manual_confirmed', adminId: string): Promise<{ successCount: number }> => {
-        // Kết nối API thật
-    const response = await apiClient.put<any>(`/monetization/payments/bulk-status`, { paymentIds, status, adminId });
-    // API trả về { success, successCount }
-    return { successCount: (response as any).successCount };
-
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -148,9 +135,12 @@ export const bulkUpdatePaymentStatus = async (paymentIds: string[], status: 'man
                     }
                 });
                 resolve({ successCount });
-            }, 800);
+            });
         });
     }
 
+    // Real API
+    const response = await apiClient.put<any>(`/monetization/payments/bulk-status`, { paymentIds, status, adminId });
+    return { successCount: (response as any).successCount };
 };
 

@@ -18,12 +18,6 @@ interface FetchAppealsParams {
 type AppealsEnvelope = { success: boolean; data: PaginatedResponse<Appeal> };
 
 export const fetchAppeals = (params: FetchAppealsParams): Promise<AppealsEnvelope> => {
-    const query = new URLSearchParams(
-        Object.entries(params).filter(([, v]) => v !== undefined && v !== 'all') as [string, string][]
-    ).toString();
-    const endpoint = query ? `/moderation/appeals?${query}` : '/moderation/appeals';
-    return apiClient.get<AppealsEnvelope>(endpoint);
-
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -44,10 +38,16 @@ export const fetchAppeals = (params: FetchAppealsParams): Promise<AppealsEnvelop
                 const data = filtered.slice((page - 1) * limit, page * limit);
                 const payload: PaginatedResponse<Appeal> = { data, meta: { total, page, limit, totalPages } };
                 resolve({ success: true, data: payload });
-            }, 300);
+            });
         });
     }
-    
+
+    // Real API
+    const query = new URLSearchParams(
+        Object.entries(params).filter(([, v]) => v !== undefined && v !== 'all') as [string, string][]
+    ).toString();
+    const endpoint = query ? `/moderation/appeals?${query}` : '/moderation/appeals';
+    return apiClient.get<AppealsEnvelope>(endpoint);
 };
 
 interface ProcessAppealPayload {
@@ -59,8 +59,6 @@ interface ProcessAppealPayload {
 type ProcessAppealEnvelope = { success: boolean; data: Appeal };
 
 export const processAppeal = (appealId: string, payload: ProcessAppealPayload): Promise<ProcessAppealEnvelope> => {
-        return apiClient.put<ProcessAppealEnvelope>(`/moderation/appeals/${appealId}/process`, payload);
-
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -96,7 +94,10 @@ export const processAppeal = (appealId: string, payload: ProcessAppealPayload): 
                 }
 
                 resolve({ success: true, data: enrichAppeal(appeal) });
-            }, 500);
+            });
         });
     }
+
+    // Real API
+    return apiClient.put<ProcessAppealEnvelope>(`/moderation/appeals/${appealId}/process`, payload);
 };

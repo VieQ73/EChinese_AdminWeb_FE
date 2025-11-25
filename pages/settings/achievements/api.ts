@@ -25,11 +25,6 @@ type AchievementsResponse = {
 };
 
 export const fetchAchievements = async (params: FetchAchievementsParams = {}): Promise<PaginatedResponse<Achievement>> => {
-    
-        const query = new URLSearchParams(params as any).toString();
-    const response = await apiClient.get<AchievementsResponse>(`/admin/settings/achievements?${query}`);
-    return { data: response.data, meta: response.meta };
-    
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -48,10 +43,14 @@ export const fetchAchievements = async (params: FetchAchievementsParams = {}): P
                 const totalPages = Math.ceil(total / limit);
                 const pageData = filtered.slice((page - 1) * limit, page * limit);
                 resolve({ data: pageData, meta: { total, page, limit, totalPages } });
-            }, 500);
+            });
         });
     }
 
+    // Real API
+    const query = new URLSearchParams(params as any).toString();
+    const response = await apiClient.get<AchievementsResponse>(`/admin/settings/achievements?${query}`);
+    return { data: response.data, meta: response.meta };
 };
 
 type AchievementUsersResponse = {
@@ -66,11 +65,6 @@ export const fetchAchievementUsers = async (
     achievementId: string,
     params: { page?: number; limit?: number } = {}
 ): Promise<PaginatedResponse<UserAchievement>> => {
-
-    const query = new URLSearchParams(params as any).toString();
-    const response = await apiClient.get<AchievementUsersResponse>(`/admin/settings/achievements/${achievementId}/users?${query}`);
-    return { data: response.data.data, meta: response.data.meta };
-
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -80,38 +74,37 @@ export const fetchAchievementUsers = async (
                 const totalPages = Math.ceil(total / limit);
                 const pageData = usersWithAchievement.slice((page - 1) * limit, page * limit);
                 resolve({ data: pageData, meta: { total, page, limit, totalPages } });
-            }, 400);
+            });
         });
     }
 
+    // Real API
+    const query = new URLSearchParams(params as any).toString();
+    const response = await apiClient.get<AchievementUsersResponse>(`/admin/settings/achievements/${achievementId}/users?${query}`);
+    return { data: response.data.data, meta: response.data.meta };
 };
 
 type CreateAchievementResponse = { success: boolean; data: Achievement };
 
 export const createAchievement = async (payload: AchievementPayload): Promise<Achievement> => {
-    
-    const response = await apiClient.post<CreateAchievementResponse>(`/admin/settings/achievements`, payload);
-    return response.data;
-
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
                 const newAchievement: Achievement = { ...payload, id: `ach_${Date.now()}`, created_at: new Date().toISOString() };
                 mockAchievements.unshift(newAchievement);
                 resolve(newAchievement);
-            }, 300);
+            });
         });
     }
-    
+
+    // Real API
+    const response = await apiClient.post<CreateAchievementResponse>(`/admin/settings/achievements`, payload);
+    return response.data;
 };
 
 type UpdateAchievementResponse = { success: boolean; data: Achievement };
 
 export const updateAchievement = async (id: string, payload: Partial<AchievementPayload>): Promise<Achievement> => {
-    
-    const response = await apiClient.put<UpdateAchievementResponse>(`/admin/settings/achievements/${id}`, payload);
-    return response.data;
-
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -119,38 +112,36 @@ export const updateAchievement = async (id: string, payload: Partial<Achievement
                 if (index === -1) return reject(new Error('Achievement not found'));
                 mockAchievements[index] = { ...mockAchievements[index], ...payload, updated_at: new Date().toISOString() };
                 resolve(mockAchievements[index]);
-            }, 300);
+            });
         });
     }
-    
+
+    // Real API
+    const response = await apiClient.put<UpdateAchievementResponse>(`/admin/settings/achievements/${id}`, payload);
+    return response.data;
 };
 
 type DeleteAchievementResponse = { success: boolean; data?: any };
 
 export const deleteAchievement = async (id: string): Promise<{ success: boolean }> => {
-    
-    const response = await apiClient.delete<DeleteAchievementResponse>(`/admin/settings/achievements/${id}`);
-    return { success: response.success };
-
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
                 const index = mockAchievements.findIndex(a => a.id === id);
                 if (index > -1) mockAchievements.splice(index, 1);
                 resolve({ success: true });
-            }, 300);
+            });
         });
     }
-    
+
+    // Real API
+    const response = await apiClient.delete<DeleteAchievementResponse>(`/admin/settings/achievements/${id}`);
+    return { success: response.success };
 };
 
 type GrantAchievementResponse = { success: boolean; data: UserAchievement };
 
 export const grantAchievementToUser = async (userId: string, achievementId: string): Promise<UserAchievement> => {
-    
-    const response = await apiClient.post<GrantAchievementResponse>(`/admin/settings/achievements/grant`, { userId, achievementId });
-    return response.data;
-
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -170,19 +161,18 @@ export const grantAchievementToUser = async (userId: string, achievementId: stri
                 };
                 mockUserAchievements.unshift(newUserAchievement);
                 resolve(newUserAchievement);
-            }, 300);
+            });
         });
     }
-    
+
+    // Real API
+    const response = await apiClient.post<GrantAchievementResponse>(`/admin/settings/achievements/grant`, { userId, achievementId });
+    return response.data;
 };
 
 type SearchUsersResponse = { success: boolean; data: User[] };
 
 export const searchUsersForGranting = async (query: string, achievementId: string): Promise<User[]> => {
-    
-    const response = await apiClient.get<SearchUsersResponse>(`/admin/users/search-for-granting?q=${encodeURIComponent(query)}&achievementId=${achievementId}`);
-    return response.data;
-    
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -200,8 +190,11 @@ export const searchUsersForGranting = async (query: string, achievementId: strin
                     )
                 ).slice(0, 5);
                 resolve(results);
-            }, 300);
+            });
         });
     }
-    
+
+    // Real API
+    const response = await apiClient.get<SearchUsersResponse>(`/admin/users/search-for-granting?q=${encodeURIComponent(query)}&achievementId=${achievementId}`);
+    return response.data;
 };

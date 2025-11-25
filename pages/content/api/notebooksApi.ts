@@ -22,19 +22,6 @@ interface FetchNotebooksParams {
 // API Functions
 
 export const fetchNotebooks = async (params: FetchNotebooksParams): Promise<PaginatedResponse<Notebook>> => {
-    
-    const queryParams = new URLSearchParams(params as any).toString();
-
-    type NotebookApiResponse = {
-        success: boolean;
-        data: PaginatedResponse<Notebook>;
-    }
-
-    const response = await apiClient.get<NotebookApiResponse>(`/admin/notebooks/system?${queryParams}`);
-        console.log(response.data);
-
-    return response.data;
-
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -64,21 +51,18 @@ export const fetchNotebooks = async (params: FetchNotebooksParams): Promise<Pagi
                 console.log({ data, meta: { total, page, limit, totalPages } });
                 
                 resolve({ data, meta: { total, page, limit, totalPages } });
-            }, 300);
+            });
         });
     }
-    
 
+    // Real API
+    const queryParams = new URLSearchParams(params as any).toString();
+    type NotebookApiResponse = { success: boolean; data: PaginatedResponse<Notebook>; }
+    const response = await apiClient.get<NotebookApiResponse>(`/admin/notebooks/system?${queryParams}`);
+    return response.data;
 };
 
 export const fetchNotebookById = async (id: string): Promise<NotebookDetail> => {
-    type NotebookDetailResponse = {
-        success: boolean;
-        data: NotebookDetail;
-    }
-    const response = await apiClient.get<NotebookDetailResponse>(`/notebooks/${id}`);
-    return response.data;
-
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
              setTimeout(() => {
@@ -107,25 +91,17 @@ export const fetchNotebookById = async (id: string): Promise<NotebookDetail> => 
                 } else {
                     reject(new Error('Notebook not found'));
                 }
-            }, 200);
+            });
         });
     }
-    
 
+    // Real API
+    type NotebookDetailResponse = { success: boolean; data: NotebookDetail; }
+    const response = await apiClient.get<NotebookDetailResponse>(`/notebooks/${id}`);
+    return response.data;
 }
 
 export const createNotebook = async (payload: NotebookPayload): Promise<Notebook> => {
-
-
-    type CreateNotebookResponse = {
-        success: boolean;
-        message: string;
-        data: Notebook;
-    }
-
-    const response = await apiClient.post<CreateNotebookResponse>('/notebooks', payload);
-    return response.data;
-
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -139,23 +115,17 @@ export const createNotebook = async (payload: NotebookPayload): Promise<Notebook
                 console.log(newNotebook);
                 
                 resolve(newNotebook);
-            }, 300);
+            });
         });
     }
 
+    // Real API
+    type CreateNotebookResponse = { success: boolean; message: string; data: Notebook; }
+    const response = await apiClient.post<CreateNotebookResponse>('/notebooks', payload);
+    return response.data;
 };
 
 export const updateNotebook = async (id: string, payload: Partial<NotebookPayload>): Promise<Notebook> => {
-    
-    type UpdateNotebookResponse = {
-        success: boolean;
-        message: string;
-        data: Notebook;
-    }
-
-    const response = await apiClient.put<UpdateNotebookResponse>(`/admin/notebooks/${id}`, payload);
-    return response.data;
-    
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -163,26 +133,17 @@ export const updateNotebook = async (id: string, payload: Partial<NotebookPayloa
                 if (index === -1) return reject(new Error('Notebook not found'));
                 mockNotebooks[index] = { ...mockNotebooks[index], ...payload } as Notebook;
                 resolve(mockNotebooks[index]);
-            }, 300);
+            });
         });
     }
-    
 
+    // Real API
+    type UpdateNotebookResponse = { success: boolean; message: string; data: Notebook; }
+    const response = await apiClient.put<UpdateNotebookResponse>(`/admin/notebooks/${id}`, payload);
+    return response.data;
 };
 
 export const deleteNotebooks = async (ids: string[]): Promise<{ success: boolean; message: string; data: { deletedCount: number } }> => {
-    type DeleteNotebooksResponse = {
-        success: boolean;
-        message: string;
-        data: {
-            deletedCount: number;
-        }
-    }
-
-    // The user request implies the response is the full object, not just response.data
-    const response = await apiClient.post<DeleteNotebooksResponse>('/admin/notebooks/bulk-delete', { ids });
-    return response;
-    
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -202,23 +163,17 @@ export const deleteNotebooks = async (ids: string[]): Promise<{ success: boolean
                     message: `Đã xóa thành công ${deletedCount} notebook.`,
                     data: { deletedCount }
                 });
-            }, 300);
+            });
         });
     }
 
-
+    // Real API
+    type DeleteNotebooksResponse = { success: boolean; message: string; data: { deletedCount: number } }
+    const response = await apiClient.post<DeleteNotebooksResponse>('/admin/notebooks/bulk-delete', { ids });
+    return response;
 };
 
 export const bulkUpdateNotebookStatus = async (ids: string[], status: 'published' | 'draft'): Promise<{ success: boolean; message: string }> => {
-    
-    type BulkUpdateResponse = {
-        success: boolean;
-        message: string;
-    };
-
-    const response = await apiClient.post<BulkUpdateResponse>('/admin/notebooks/bulk-status', { ids, status });
-    return response;
-    
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -231,9 +186,12 @@ export const bulkUpdateNotebookStatus = async (ids: string[], status: 'published
                     }
                 });
                 resolve({ success: true, message: `Đã cập nhật trạng thái thành công cho ${updatedCount} notebook.` });
-            }, 300);
+            });
         });
     }
-    
-    
+
+    // Real API
+    type BulkUpdateResponse = { success: boolean; message: string; };
+    const response = await apiClient.post<BulkUpdateResponse>('/admin/notebooks/bulk-status', { ids, status });
+    return response;
 }

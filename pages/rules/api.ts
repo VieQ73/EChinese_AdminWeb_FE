@@ -24,21 +24,6 @@ interface FetchRulesParams {
  * Lấy danh sách quy tắc với filter và phân trang.
  */
 export const fetchRules = (params: FetchRulesParams): Promise<PaginatedResponse<CommunityRule>> => {
-    
-
-        type FetchRulesResponse = {
-            success: boolean;
-            message?: string;
-            data: {
-                data: CommunityRule[];
-                meta: { page: number; limit: number; total: number; totalPages: number };
-            };
-        };
-
-        const query = new URLSearchParams(params as any).toString();
-        return apiClient
-            .get<FetchRulesResponse>(`/admin/settings/community-rules?${query}`)
-            .then(res => ({ data: res.data.data, meta: res.data.meta }));
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -63,20 +48,20 @@ export const fetchRules = (params: FetchRulesParams): Promise<PaginatedResponse<
                 console.log({ data, meta: { total, page, limit, totalPages } });
                 
                 resolve({ data, meta: { total, page, limit, totalPages } });
-            }, 400);
+            });
         });
     }
 
-
+    // Real API
+    type FetchRulesResponse = { success: boolean; message?: string; data: { data: CommunityRule[]; meta: { page: number; limit: number; total: number; totalPages: number }; }; };
+    const query = new URLSearchParams(params as any).toString();
+    return apiClient.get<FetchRulesResponse>(`/admin/settings/community-rules?${query}`).then(res => ({ data: res.data.data, meta: res.data.meta }));
 };
 
 /**
  * Tạo quy tắc mới.
  */
 export const createRule = (payload: RulePayload): Promise<CommunityRule> => {
-    type CreateRuleResponse = { success: boolean; message?: string; data: CommunityRule };
-    return apiClient.post<CreateRuleResponse>('/admin/settings/community-rules', payload).then(res => res.data);
-
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -91,19 +76,19 @@ export const createRule = (payload: RulePayload): Promise<CommunityRule> => {
                 };
                 mockCommunityRules.unshift(newRule);
                 resolve(newRule);
-            }, 300);
+            });
         });
     }
 
+    // Real API
+    type CreateRuleResponse = { success: boolean; message?: string; data: CommunityRule };
+    return apiClient.post<CreateRuleResponse>('/admin/settings/community-rules', payload).then(res => res.data);
 };
 
 /**
  * Cập nhật quy tắc.
  */
 export const updateRule = (id: string, payload: Partial<RulePayload>): Promise<CommunityRule> => {
-    type UpdateRuleResponse = { success: boolean; message?: string; data: CommunityRule };
-    return apiClient.put<UpdateRuleResponse>(`/admin/settings/community-rules/${id}`, payload).then(res => res.data);
-
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -116,19 +101,19 @@ export const updateRule = (id: string, payload: Partial<RulePayload>): Promise<C
 
                 mockCommunityRules[index] = { ...mockCommunityRules[index], ...payload, updated_at: new Date().toISOString() };
                 resolve(mockCommunityRules[index]);
-            }, 300);
+            });
         });
     }
 
+    // Real API
+    type UpdateRuleResponse = { success: boolean; message?: string; data: CommunityRule };
+    return apiClient.put<UpdateRuleResponse>(`/admin/settings/community-rules/${id}`, payload).then(res => res.data);
 };
 
 /**
  * Xóa quy tắc.
  */
 export const deleteRule = (id: string): Promise<{ success: boolean }> => {
-    type DeleteRuleResponse = { success: boolean; message?: string };
-    return apiClient.delete<DeleteRuleResponse>(`/admin/settings/community-rules/${id}`).then(res => ({ success: res.success }));
-
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -144,8 +129,11 @@ export const deleteRule = (id: string): Promise<{ success: boolean }> => {
                 } else {
                     reject(new Error("Rule not found."));
                 }
-            }, 400);
+            });
         });
     }
 
+    // Real API
+    type DeleteRuleResponse = { success: boolean; message?: string };
+    return apiClient.delete<DeleteRuleResponse>(`/admin/settings/community-rules/${id}`).then(res => ({ success: res.success }));
 };
