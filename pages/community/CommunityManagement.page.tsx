@@ -7,6 +7,7 @@ import { useAppData } from '../../contexts/appData/context';
 import { useCommunityState } from './hooks/useCommunityState';
 import { useCommunityHandlers } from './hooks/useCommunityHandlers';
 import { useCommunityEffects } from './hooks/useCommunityEffects';
+import { useCommunityStats } from './hooks/useCommunityStats';
 
 // API
 import * as api from './api';
@@ -103,12 +104,14 @@ const CommunityManagementPage: React.FC = () => {
     const likedPosts = useMemo(() => new Set(context.postLikes.filter(l => l.user_id === currentUser?.id).map(l => l.post_id)), [context.postLikes, currentUser]);
     const viewedPosts = useMemo(() => new Set(context.postViews.filter(v => v.user_id === currentUser?.id).map(v => v.post_id)), [context.postViews, currentUser]);
     
+    // Sử dụng hook API để lấy stats thay vì tính từ context
+    const { data: communityStats } = useCommunityStats();
     const stats = useMemo(() => ({
-        postCount: context.posts.filter(p => p.status === 'published').length,
-        commentCount: context.comments.filter(c => !c.deleted_at).length,
-        moderationCount: context.posts.filter(p => p.status === 'removed').length + context.comments.filter(c => !!c.deleted_at).length,
-        logs: context.moderationLogs,
-    }), [context.posts, context.comments, context.moderationLogs]);
+        postCount: communityStats?.postCount ?? 0,
+        commentCount: communityStats?.commentCount ?? 0,
+        moderationCount: communityStats?.moderationCount ?? 0,
+        logs: communityStats?.logs ?? [],
+    }), [communityStats]);
 
     return (
         <div className="space-y-6">

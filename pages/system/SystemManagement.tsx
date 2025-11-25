@@ -1,67 +1,57 @@
 // pages/system/SystemManagement.tsx
-import React, { useState, useMemo } from 'react';
-import { useAppData } from '../../contexts/appData/context';
+import React, { useState } from 'react';
+import { useAdminLogs, useLogMetadata, LogFilters, DateRange } from './hooks/useLogs';
 import LogToolbar from './components/LogToolbar';
 import LogList from './components/LogList';
 
-// Add DateRange type
-interface DateRange {
-    start: string | null;
-    end: string | null;
-}
-
 const SystemManagement: React.FC = () => {
-    // Lấy dữ liệu từ context
-    const { adminLogs, users } = useAppData();
-    
     // State cục bộ để quản lý các bộ lọc
-    const [filters, setFilters] = useState({
+    const [filters, setFilters] = useState<LogFilters>({
         search: '',
         adminId: 'all',
         actionType: 'all'
     });
     const [dates, setDates] = useState<DateRange>({ start: null, end: null });
 
-    // Lấy danh sách admin để hiển thị trong bộ lọc
-    const adminUsers = useMemo(() => 
-        users.filter(u => u.role === 'admin' || u.role === 'super admin'), 
-    [users]);
+    // Lấy metadata cho bộ lọc (danh sách admin và action types)
+    const { data: metadata, isLoading: metadataLoading } = useLogMetadata();
 
-    // Lấy danh sách các loại hành động đã xảy ra để hiển thị trong bộ lọc
-    const actionTypes = useMemo(() => 
-        [...new Set(adminLogs.map(log => log.action_type))].sort(),
-    [adminLogs]);
+    // Lấy logs với bộ lọc từ API
+    const { data: logsData, isLoading: logsLoading, error } = useAdminLogs(filters, dates);
 
-    // Lọc danh sách log dựa trên state của các bộ lọc
-    const filteredLogs = useMemo(() => {
-        return adminLogs.filter(log => {
-            const searchLower = filters.search.toLowerCase();
-            const matchesSearch = log.description.toLowerCase().includes(searchLower) 
-                || (log.target_id && log.target_id.toLowerCase().includes(searchLower))
-                || (log.adminName && log.adminName.toLowerCase().includes(searchLower));
-            const matchesAdmin = filters.adminId === 'all' || log.user_id === filters.adminId;
-            const matchesAction = filters.actionType === 'all' || log.action_type === filters.actionType;
+    // Hiển thị loading state
+    if ((logsLoading || metadataLoading) && !logsData) {
+        return (
+            <div className="space-y-6">
+                <h1 className="text-3xl font-bold text-gray-900">Nhật ký Hệ thống</h1>
+                <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                </div>
+            </div>
+        );
+    }
 
-            // Date filtering logic
-            const matchesDate = (() => {
-                if (!dates.start && !dates.end) return true;
-                const logDate = new Date(log.created_at);
-                if (dates.start) {
-                    const startDate = new Date(dates.start);
-                    startDate.setHours(0, 0, 0, 0);
-                    if (logDate < startDate) return false;
-                }
-                if (dates.end) {
-                    const endDate = new Date(dates.end);
-                    endDate.setHours(23, 59, 59, 999);
-                    if (logDate > endDate) return false;
-                }
-                return true;
-            })();
-            
-            return matchesSearch && matchesAdmin && matchesAction && matchesDate;
-        });
-    }, [adminLogs, filters, dates]);
+    // Hiển thị error state
+    if (error) {
+        return (
+            <div className="space-y-6">
+                <h1 className="text-3xl font-bold text-gray-900">Nhật ký Hệ thống</h1>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+                    Lỗi khi tải dữ liệu: {error.message}
+                </div>
+            </div>
+        );
+    }
+
+    // Tạo danh sách admin cho toolbar (từ metadata)
+    const adminUsers = metadata?.adminUsers.map(admin => ({
+        id: admin.id,
+        name: admin.name,
+        role: 'admin' as const
+    })) || [];
+
+    const actionTypes = metadata?.actionTypes || [];
+    const logs = logsData?.logs || [];
 
     return (
         <div className="space-y-6">
@@ -79,7 +69,7 @@ const SystemManagement: React.FC = () => {
             
             {/* Danh sách các thẻ log */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                 <LogList logs={filteredLogs} />
+                 <LogList logs={logs} />
             </div>
         </div>
     );
