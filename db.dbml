@@ -1,80 +1,3 @@
-// Enable UUID extension
-
-Table Users {
-  id uuid [primary key, default: `uuid_generate_v4()`]
-  username varchar(50) [unique]
-  password_hash varchar(255)
-  name varchar(50) [not null]
-  avatar_url text
-  email varchar(255) [unique]
-  provider varchar(20) [note: "Enum: 'google', 'apple', 'local'"]
-  provider_id varchar(255)
-  role varchar(10) [default: 'user', note: "Enum: 'user', 'admin', 'super admin'"]
-  is_active boolean [default: true]
-  isVerify boolean [default: false]
-  community_points int [default: 0]
-  level varchar(3) [not null, note: "Enum: '1', '2', '3', '4', '5', '6', '7-9'"]
-  badge_level int [not null, default: 0]
-  language varchar(10) [not null, note: "Enum: 'Tiếng Việt', 'Tiếng Anh'"]
-  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
-  last_login timestamptz
-
-  Note: '''
-  - Trung tâm hồ sơ người dùng, hỗ trợ đăng nhập local và OAuth (Google/Apple).
-  - password_hash chỉ dùng cho đăng nhập local, provider/provider_id cho OAuth.
-  - community_points tích lũy từ hoạt động cộng đồng, cập nhật trực tiếp để tối ưu query.
-  - isVerify xác thực email, tăng bảo mật.
-  - Không lưu gói đăng ký trực tiếp tại đây để tránh phình bảng — dùng bảng UserSubscriptions riêng.
-  '''
-
-  Indexes {
-    username [unique]
-    email [unique]
-    (provider, provider_id) [type: btree]
-    created_at [type: btree]
-    role [type: btree]
-    community_points [type: btree]
-  }
-}
-
-// Table UserSessions
-Table UserSessions {
-  id uuid [primary key, default: `uuid_generate_v4()`]
-  user_id uuid [not null]
-  login_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-  logout_at timestamptz
-  device varchar(50) [note: "mobile, web, desktop"]
-  ip_address varchar(50)
-
-  Note: '''
-  - Lưu lại chi tiết từng phiên login/logout.
-  - Dùng để tính toán thời gian online chi tiết hoặc phát hiện đăng nhập bất thường.
-  '''
-
-  Indexes {
-    user_id [type: btree]
-    login_at [type: btree]
-  }
-}
-
-// Table RefreshTokens
-Table RefreshTokens {
-  id uuid [primary key, default: `uuid_generate_v4()`]
-  user_id uuid [not null]
-  token text [unique, not null]
-  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
-  expires_at timestamptz [not null]
-  
-  Note: '''
-  - Lưu trữ refresh token cho cơ chế xác thực, đảm bảo token là duy nhất.
-  '''
-  
-  Indexes {
-    user_id [type: btree]
-    token [unique]
-  }
-}
-
 //Table Posts
 Table Posts {
   id uuid [primary key, default: `uuid_generate_v4()`]
@@ -177,6 +100,56 @@ Table Comments {
     post_id [type: btree]
     user_id [type: btree]
     parent_comment_id [type: btree]
+    created_at [type: btree]
+  }
+}
+
+
+// Table ModerationLogs
+Table ModerationLogs {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  target_type varchar(20) [not null, note: "Enum: 'post', 'comment'"]
+  target_id uuid [not null]
+  action varchar(30) [not null, note: "Enum: 'gỡ', 'khôi phục'"]
+  reason text
+  performed_by uuid [not null]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+
+  Note: '''
+  - Lưu lại toàn bộ lịch sử thao tác quản trị.
+  - Phục vụ kiểm toán/audit trail, minh bạch quản trị.
+  - Khác với deleted_by/deleted_reason trong Posts/Comments (chỉ lưu trạng thái cuối).
+  '''
+  
+  Indexes {
+    target_type [type: btree]
+    target_id [type: btree]
+    performed_by [type: btree]
+  }
+}
+
+Table Violations {
+  id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null, note: "Người vi phạm"]
+  target_type varchar(20) [not null, note: "Enum: 'post', 'comment', 'user'"]
+  target_id uuid [not null, note: "ID bài viết hoặc bình luận, người dùng vi phạm"]
+  severity varchar(10) [not null, note: "Enum: 'low', 'medium', 'high' — Mức độ vi phạm cụ thể"]
+  detected_by varchar(20) [not null, note: "Enum: 'admin', 'auto_ai'"]
+  handled boolean [default: false, note: "Đã xử lý hay chưa"]
+  created_at timestamptz [default: `CURRENT_TIMESTAMP`]
+  resolved_at timestamptz [note: "Khi vi phạm được xử lý"]
+  resolution text [note: "Ghi chú: cảnh cáo, xóa bài, khóa tài khoản,..."]
+
+  Note: '''
+  - Lưu lịch sử vi phạm của người dùng.
+  - Một vi phạm có thể gắn với nhiều quy tắc (qua bảng ViolationRules).
+  - Admin hoặc AI đều có thể tạo bản ghi này.
+  '''
+
+  Indexes {
+    user_id [type: btree]
+    target_id [type: btree]
+    handled [type: btree]
     created_at [type: btree]
   }
 }

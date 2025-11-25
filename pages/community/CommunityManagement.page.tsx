@@ -181,12 +181,6 @@ const CommunityManagementPage: React.FC = () => {
                     currentUser={currentUser}
                     initialTab={state.initialActivityTab}
                     initialSubTab={state.initialActivitySubTab}
-                    getPostsByUserId={(userId) => posts.filter(p => p.user_id === userId && p.status !== 'draft')}
-                    getLikedPostsByUserId={context.getLikedPostsByUserId}
-                    getCommentedPostsByUserId={context.getCommentedPostsByUserId}
-                    getViewedPostsByUserId={context.getViewedPostsByUserId}
-                    getRemovedPostsByUserId={(userId) => context.posts.filter(p => p.user_id === userId && p.status === 'removed')}
-                    getRemovedCommentsByUserId={context.getRemovedCommentsByUserId}
                     onPostSelect={handlers.handlePostSelectFromActivity}
                     likedPosts={likedPosts}
                     viewedPosts={viewedPosts}
