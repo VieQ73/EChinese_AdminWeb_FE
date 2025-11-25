@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../../../../components/Modal';
 import { BadgeLevel } from '../../../../types';
 import { BadgePayload } from '../api';
+import FileInput from '../../../tests/create/components/shared/FileInput';
 
 interface EditBadgeModalProps {
     isOpen: boolean;
@@ -71,8 +72,13 @@ const EditBadgeModal: React.FC<EditBadgeModalProps> = ({ isOpen, onClose, onSave
                     <input value={name} onChange={e => setName(e.target.value)} className="w-full mt-1 p-2 border rounded" />
                 </div>
                 <div>
-                    <label className="font-medium">URL Icon *</label>
-                    <input value={icon} onChange={e => setIcon(e.target.value)} className="w-full mt-1 p-2 border rounded" />
+                    <FileInput
+                        id="badge-icon-upload"
+                        label="Icon *"
+                        value={icon || null}
+                        onFileChange={(url) => setIcon(url || '')}
+                        accept="image/*"
+                    />
                 </div>
                 <div>
                     <label className="font-medium">Điểm cộng đồng yêu cầu *</label>

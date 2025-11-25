@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { User } from '../../../types';
 import { Users, BarChart2 } from 'lucide-react';
 
 interface TopUser {
-    user?: User;
+    user?: {
+        id: string;
+        name: string;
+        avatar_url: string | null;
+    };
     score: number;
     scorePercent: number;
 }

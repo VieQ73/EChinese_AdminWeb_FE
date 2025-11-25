@@ -31,77 +31,104 @@ const enrichComment = (comment: typeof mockComments[0]): CommentWithUser => {
     return { ...comment, user: user || mockUsers[0], badge, replies: [] };
 };
 
-// Delay giả lập network
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// Response type từ BE
+interface ApiResponse<T> {
+    success: boolean;
+    data: T;
+    meta?: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    };
+}
 
 /** Lấy bài viết của user */
 export const fetchUserPosts = async (userId: string): Promise<Post[]> => {
+    // Mock API cho test hiển thị
     if (USE_MOCK_API) {
-        await delay(200);
         return mockPosts
             .filter(p => p.user_id === userId && p.status !== 'draft' && p.status !== 'removed')
             .map(enrichPost)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
-    return apiClient.get<Post[]>(`/community/users/${userId}/posts`);
+    
+    // Real API - BE trả về envelope { success, data }
+    const res = await apiClient.get<ApiResponse<Post[]>>(`/community/users/${userId}/posts`);
+    return res.data || [];
 };
 
 /** Lấy bài user đã thích */
 export const fetchUserLikedPosts = async (userId: string): Promise<Post[]> => {
+    // Mock API cho test hiển thị
     if (USE_MOCK_API) {
-        await delay(200);
         const likedIds = new Set(mockPostLikes.filter(l => l.user_id === userId).map(l => l.post_id));
         return mockPosts
             .filter(p => likedIds.has(p.id) && p.status !== 'removed')
             .map(enrichPost);
     }
-    return apiClient.get<Post[]>(`/community/users/${userId}/liked-posts`);
+    
+    // Real API
+    const res = await apiClient.get<ApiResponse<Post[]>>(`/community/users/${userId}/liked-posts`);
+    return res.data || [];
 };
 
 /** Lấy bài user đã bình luận */
 export const fetchUserCommentedPosts = async (userId: string): Promise<Post[]> => {
+    // Mock API cho test hiển thị
     if (USE_MOCK_API) {
-        await delay(200);
         const commentedIds = new Set(mockComments.filter(c => c.user_id === userId && !c.deleted_at).map(c => c.post_id));
         return mockPosts
             .filter(p => commentedIds.has(p.id) && p.status !== 'removed')
             .map(enrichPost);
     }
-    return apiClient.get<Post[]>(`/community/users/${userId}/commented-posts`);
+    
+    // Real API
+    const res = await apiClient.get<ApiResponse<Post[]>>(`/community/users/${userId}/commented-posts`);
+    return res.data || [];
 };
 
 /** Lấy bài user đã xem */
 export const fetchUserViewedPosts = async (userId: string): Promise<Post[]> => {
+    // Mock API cho test hiển thị
     if (USE_MOCK_API) {
-        await delay(200);
         const viewedIds = new Set(mockPostViews.filter(v => v.user_id === userId).map(v => v.post_id));
         return mockPosts
             .filter(p => viewedIds.has(p.id) && p.status !== 'removed')
             .map(enrichPost);
     }
-    return apiClient.get<Post[]>(`/community/users/${userId}/viewed-posts`);
+    
+    // Real API
+    const res = await apiClient.get<ApiResponse<Post[]>>(`/community/users/${userId}/viewed-posts`);
+    return res.data || [];
 };
 
 /** Lấy bài đã bị gỡ của user */
 export const fetchUserRemovedPosts = async (userId: string): Promise<Post[]> => {
+    // Mock API cho test hiển thị
     if (USE_MOCK_API) {
-        await delay(200);
         return mockPosts
             .filter(p => p.user_id === userId && p.status === 'removed')
             .map(enrichPost)
             .sort((a, b) => new Date(b.deleted_at || 0).getTime() - new Date(a.deleted_at || 0).getTime());
     }
-    return apiClient.get<Post[]>(`/community/users/${userId}/removed-posts`);
+    
+    // Real API
+    const res = await apiClient.get<ApiResponse<Post[]>>(`/community/users/${userId}/removed-posts`);
+    return res.data || [];
 };
 
 /** Lấy bình luận đã bị gỡ của user */
 export const fetchUserRemovedComments = async (userId: string): Promise<CommentWithUser[]> => {
+    // Mock API cho test hiển thị
     if (USE_MOCK_API) {
-        await delay(200);
         return mockComments
             .filter(c => c.user_id === userId && !!c.deleted_at)
             .map(enrichComment)
             .sort((a, b) => new Date(b.deleted_at!).getTime() - new Date(a.deleted_at!).getTime());
     }
-    return apiClient.get<CommentWithUser[]>(`/community/users/${userId}/removed-comments`);
+    
+    // Real API
+    const res = await apiClient.get<ApiResponse<CommentWithUser[]>>(`/community/users/${userId}/removed-comments`);
+    return res.data || [];
 };

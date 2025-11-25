@@ -13,12 +13,28 @@ export interface PromptImage {
 }
 
 /**
+ * Kiểu cho một ảnh đơn.
+ */
+export interface SingleImage {
+    type: 'single_image';
+    url: string | File;
+}
+
+/**
+ * Kiểu cho một danh sách ảnh.
+ */
+export interface ImageList {
+    type: 'image_list';
+    images: PromptImage[];
+}
+
+/**
  * Các kiểu dữ liệu mở rộng cho form, đảm bảo tất cả các thuộc tính mảng đều tồn tại.
  */
 export interface FormOption extends Option {}
 export interface FormExplanation extends Explanation {}
 export interface FormPrompt extends Prompt {
-    image_json?: string | File | PromptImage[];
+    image_json?: SingleImage | ImageList;
 }
 export interface FormQuestion extends Question {
     options: FormOption[];

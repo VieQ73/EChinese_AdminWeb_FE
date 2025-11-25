@@ -62,9 +62,13 @@ const CreateEditTipModal: React.FC<CreateEditTipModalProps> = ({ isOpen, onClose
         ...(topic === 'Câu đố' && { answer: answer.trim() }),
       };
       await onSave(tipData);
+      // Đóng modal khi lưu thành công
+      onClose();
     } catch (error) {
       console.error('Lỗi khi lưu tip:', error);
       alert('Có lỗi xảy ra khi lưu tip');
+    } finally {
+      // Luôn luôn tắt trạng thái loading
       setSaving(false);
     }
   };

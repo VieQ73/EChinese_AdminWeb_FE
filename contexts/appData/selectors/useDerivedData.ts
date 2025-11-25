@@ -43,20 +43,24 @@ export const useDerivedData = ({
 
     const violations = useMemo((): Violation[] => {
         return violationsData.map(v => {
-            const user = users.find(u => u.id === v.user_id);
-            const targetContent = v.target_type === 'post' ? postsData.find(p => p.id === v.target_id)
+            const enriched = v as any;
+            const user = users.find(u => u.id === v.user_id) || enriched.user || null;
+            const computedTarget = v.target_type === 'post' ? postsData.find(p => p.id === v.target_id)
                 : v.target_type === 'comment' ? commentsData.find(c => c.id === v.target_id)
                 : users.find(u => u.id === v.target_id);
-            
+            const targetContent = computedTarget || enriched.targetContent || null;
+
             const relatedRuleIds = violationRules.filter(vr => vr.violation_id === v.id).map(vr => vr.rule_id);
-            const relatedRules = rules.filter(rule => relatedRuleIds.includes(rule.id));
+            const relatedRules = relatedRuleIds.length > 0
+                ? rules.filter(rule => relatedRuleIds.includes(rule.id))
+                : (enriched.rules || []);
 
             return {
-                ...v,
+                ...(v as any),
                 user,
-                targetContent: targetContent || null,
+                targetContent,
                 rules: relatedRules,
-            };
+            } as Violation;
         });
     }, [violationsData, users, postsData, commentsData, violationRules, rules]);
     

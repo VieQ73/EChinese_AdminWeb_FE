@@ -7,6 +7,8 @@ import FloatingBulkActionsBar from '../../../components/FloatingBulkActionsBar';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { CheckCircleIcon, TrashIcon } from '../../../constants';
 import { DateRange } from '../../moderation/components/shared/DateRangePicker';
+import { convertToCSV, downloadCSV, formatCurrency, formatDateTime } from '../../../utils/csvExport';
+import { PAYMENT_STATUSES, PAYMENT_METHODS, PAYMENT_CHANNELS } from '../constants';
 
 import PaymentToolbar from './components/PaymentToolbar';
 import PaymentCardList from './components/PaymentCardList';
@@ -117,6 +119,58 @@ const PaymentList: React.FC = () => {
         });
     }, [selectedIds, payments]);
 
+    // Handler xuất CSV
+    const handleExportCSV = useCallback(() => {
+        if (payments.length === 0) {
+            alert('Không có dữ liệu để xuất');
+            return;
+        }
+
+        // Chuẩn bị dữ liệu để xuất
+        const exportData = payments.map(payment => ({
+            id: payment.id,
+            user_email: payment.userEmail || 'N/A',
+            user_name: payment.userName || 'N/A',
+            subscription_name: payment.subscriptionName || 'N/A',
+            amount: formatCurrency(payment.amount),
+            currency: payment.currency,
+            status: PAYMENT_STATUSES[payment.status as keyof typeof PAYMENT_STATUSES] || payment.status,
+            payment_method: PAYMENT_METHODS[payment.payment_method as keyof typeof PAYMENT_METHODS] || payment.payment_method,
+            payment_channel: PAYMENT_CHANNELS[payment.payment_channel as keyof typeof PAYMENT_CHANNELS] || payment.payment_channel,
+            gateway_transaction_id: payment.gateway_transaction_id || '',
+            transaction_date: formatDateTime(payment.transaction_date),
+            processed_by_admin_name: payment.processedByAdminName || '',
+            notes: payment.notes || '',
+        }));
+
+        // Định nghĩa headers
+        const headers = {
+            id: 'Mã giao dịch',
+            user_email: 'Email người dùng',
+            user_name: 'Tên người dùng',
+            subscription_name: 'Gói đăng ký',
+            amount: 'Số tiền',
+            currency: 'Đơn vị tiền tệ',
+            status: 'Trạng thái',
+            payment_method: 'Phương thức',
+            payment_channel: 'Kênh thanh toán',
+            gateway_transaction_id: 'Mã giao dịch gateway',
+            transaction_date: 'Ngày giao dịch',
+            processed_by_admin_name: 'Người xử lý',
+            notes: 'Ghi chú',
+        };
+
+        // Chuyển đổi sang CSV
+        const csvContent = convertToCSV(exportData, headers);
+
+        // Tạo tên file với timestamp
+        const timestamp = new Date().toISOString().split('T')[0];
+        const filename = `giao-dich-${timestamp}`;
+
+        // Download file
+        downloadCSV(csvContent, filename);
+    }, [payments]);
+
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
@@ -125,6 +179,7 @@ const PaymentList: React.FC = () => {
                 onFilterChange={handleFilterChange}
                 dates={dates}
                 onDatesChange={setDates}
+                onExportCSV={handleExportCSV}
             />
             {error ? (
                 <div className="p-4 text-red-600">{error}</div>

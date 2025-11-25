@@ -164,9 +164,6 @@ function calculateStats(
  */
 export async function fetchDashboardStats(): Promise<DashboardStats> {
     if (USE_MOCK_API) {
-        // Giả lập delay network
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
         return calculateStats(
             mockUsers,
             mockPayments,
@@ -190,8 +187,6 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
  */
 export async function fetchOverviewStats(): Promise<Pick<DashboardStats, 'monthlyRevenue' | 'activeUsers' | 'pendingReports' | 'newPostsToday'>> {
     if (USE_MOCK_API) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
         const now = new Date();
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
@@ -218,8 +213,6 @@ export async function fetchOverviewStats(): Promise<Pick<DashboardStats, 'monthl
  */
 export async function fetchChartData(): Promise<Pick<DashboardStats, 'dailyRevenue' | 'dailyReports' | 'dailyViolations' | 'dailyNewUsers'>> {
     if (USE_MOCK_API) {
-        await new Promise(resolve => setTimeout(resolve, 250));
-        
         return {
             dailyRevenue: generateDailyRevenue(mockPayments, 7),
             dailyReports: generateDailyReports(mockReports, 7),
@@ -236,7 +229,6 @@ export async function fetchChartData(): Promise<Pick<DashboardStats, 'dailyReven
  */
 export async function fetchRecentAdminLogs(limit: number = 10): Promise<AdminLog[]> {
     if (USE_MOCK_API) {
-        await new Promise(resolve => setTimeout(resolve, 200));
         return mockAdminLogs.slice(0, limit);
     }
     
@@ -248,8 +240,6 @@ export async function fetchRecentAdminLogs(limit: number = 10): Promise<AdminLog
  */
 export async function fetchRecentUsers(days: number = 3, limit: number = 5): Promise<User[]> {
     if (USE_MOCK_API) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
         return mockUsers
             .filter(u => new Date(u.created_at) >= new Date(Date.now() - days * 24 * 60 * 60 * 1000))
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -264,8 +254,6 @@ export async function fetchRecentUsers(days: number = 3, limit: number = 5): Pro
  */
 export async function fetchTrendingContent(): Promise<Pick<DashboardStats, 'topUsers' | 'topTopics'>> {
     if (USE_MOCK_API) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
         const fullStats = calculateStats(
             mockUsers, mockPayments, mockAdminLogs, mockPosts,
             mockReports, mockViolations, mockComments, mockPostLikes,
@@ -286,8 +274,6 @@ export async function fetchTrendingContent(): Promise<Pick<DashboardStats, 'topU
  */
 export async function fetchCommunityActivityStats(): Promise<Pick<DashboardStats, 'pendingAppeals' | 'unreadAdminNotifications' | 'recentUsers'> & { pendingReports: number }> {
     if (USE_MOCK_API) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
         return {
             pendingReports: mockReports.filter(r => r.status === 'pending').length,
             pendingAppeals: mockAppeals.filter(a => a.status === 'pending').length,

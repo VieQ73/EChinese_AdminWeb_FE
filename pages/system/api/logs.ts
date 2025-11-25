@@ -48,8 +48,6 @@ export interface LogMetadata {
  */
 export async function fetchAdminLogs(params: FetchLogsParams): Promise<LogsResponse> {
     if (USE_MOCK_API) {
-        await new Promise(resolve => setTimeout(resolve, 250));
-        
         const { filters, dates, page = 1, limit = 50 } = params;
         
         // Lọc logs theo điều kiện
@@ -117,8 +115,6 @@ export async function fetchAdminLogs(params: FetchLogsParams): Promise<LogsRespo
  */
 export async function fetchLogMetadata(): Promise<LogMetadata> {
     if (USE_MOCK_API) {
-        await new Promise(resolve => setTimeout(resolve, 150));
-        
         // Lấy danh sách admin users
         const adminUsers = mockUsers
             .filter(u => u.role === 'admin' || u.role === 'super admin')
@@ -138,7 +134,6 @@ export async function fetchLogMetadata(): Promise<LogMetadata> {
  */
 export async function fetchLogDetail(logId: string): Promise<AdminLog | null> {
     if (USE_MOCK_API) {
-        await new Promise(resolve => setTimeout(resolve, 100));
         return mockAdminLogs.find(log => log.id === logId) || null;
     }
     

@@ -90,10 +90,10 @@ const PostFeedCard: React.FC<PostFeedCardProps> = ({
     const canRemove = !isActuallyRemoved && currentUser && (
         // Tác giả có thể tự gỡ bài của mình
         currentUser.id === post.user.id ||
-        // Super admin có thể gỡ bài của admin và user
-        (currentUser.role === 'super admin' && post.user.role !== 'super admin') ||
-        // Admin chỉ có thể gỡ bài của user
-        (currentUser.role === 'admin' && post.user.role === 'user')
+        // Super admin có thể gỡ bài của user hoặc admin khác, không gỡ được bài của superadmin
+        (currentUser.role === 'super admin' && currentUser.id !== post.user.id && post.user.role !== 'super admin') ||
+        // Admin có thể gỡ bài của user hoặc admin khác, không gỡ được bài của superadmin
+        (currentUser.role === 'admin' && currentUser.id !== post.user.id && post.user.role !== 'super admin')
     );
 
     // Bất kỳ ai có quyền đều có thể phục hồi bài trong thùng rác
@@ -111,7 +111,7 @@ const PostFeedCard: React.FC<PostFeedCardProps> = ({
                 {/* Header */}
                 <div className="p-4 flex items-start justify-between">
                     <div className="flex items-center space-x-3">
-                        <ClickableUser userId={post.user.id} onUserClick={onUserClick}>
+                        <ClickableUser userId={post.user.id} onUserClick={onUserClick} fallbackUser={post.user}>
                             <img 
                                 src={post.user.avatar_url || `https://picsum.photos/seed/${post.user_id}/100`} 
                                 alt={post.user.name} 
@@ -120,7 +120,8 @@ const PostFeedCard: React.FC<PostFeedCardProps> = ({
                         </ClickableUser>
                         <div className="flex-1">
                             <div className="flex items-center space-x-2">
-                               <ClickableUser userId={post.user.id} onUserClick={onUserClick}>
+                                                    
+                             <ClickableUser userId={post.user.id} onUserClick={onUserClick} fallbackUser={post.user}>
                                     <span className="font-semibold text-gray-900 hover:underline">{post.user.name}</span>
                                </ClickableUser>
                                {post.badge && <Badge badge={post.badge} />}

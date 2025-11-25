@@ -1,3 +1,4 @@
+
 import { apiClient } from '../../services/apiClient';
 import { 
     User, 
@@ -19,6 +20,7 @@ import {
     mockUserDailyActivities,
     mockUserSubscriptions
 } from '../../mock';
+import { log } from 'node:console';
 
 //  Cast import.meta to any to resolve TypeScript error regarding 'env' property,
 // as the vite/client types are not available in this context.
@@ -49,7 +51,20 @@ export interface FetchUsersParams {
  * Lấy danh sách người dùng với filter và pagination.
  */
 export const fetchUsers = (params: FetchUsersParams = {}): Promise<PaginatedResponse<User>> => {
-  if (USE_MOCK_API) {
+    
+    type FetchUsersResponse = {
+        success: boolean;
+        data: {
+            data: User[];
+            meta: { total: number; page: number; limit: number; totalPages: number };
+        };
+    };
+    const query = new URLSearchParams(params as any).toString();
+    return apiClient
+        .get<FetchUsersResponse>(`/admin/users?${query}`)
+        .then(res => ({ data: res.data.data, meta: res.data.meta }));
+
+    if (USE_MOCK_API) {
     return new Promise(resolve => {
       setTimeout(() => {
         const { page = 1, limit = 20, searchTerm = '', roleFilter = 'all' } = params;
@@ -79,13 +94,33 @@ export const fetchUsers = (params: FetchUsersParams = {}): Promise<PaginatedResp
       }, 300);
     });
   }
-  return apiClient.get('/users', { body: params as any });
+
 };
 
 /**
  * Lấy toàn bộ dữ liệu chi tiết cho một người dùng.
  */
 export const fetchUserDetailData = (userId: string): Promise<UserDetailData> => {
+    
+    type UserDetailResponse = {
+        user: User;
+        achievements: UserAchievement[];
+        dailyActivities: UserDailyActivity[];
+        sessions: UserSession[];
+        streak: UserStreak | null;
+        subscription: Subscription | null;
+        usage: UserUsage[];
+    };
+    return apiClient.get<UserDetailResponse>(`/admin/users/${userId}/details`).then(res => ({
+        user: res.user,
+        achievements: res.achievements,
+        dailyActivities: res.dailyActivities,
+        sessions: res.sessions,
+        streak: res.streak || undefined,
+        subscription: res.subscription || undefined,
+        usage: res.usage,
+    }));
+
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -107,23 +142,29 @@ export const fetchUserDetailData = (userId: string): Promise<UserDetailData> => 
                     usage: mockUserUsage.filter(u => u.user_id === userId)
                 };
                 resolve(data);
+
             }, 300);
         });
     }
-    return apiClient.get(`/users/${userId}/details`);
+
 };
 
 /**
  * Lấy thông tin cơ bản của một người dùng (dùng cho các component nhỏ).
  */
-export const fetchUserById = (userId: string): User | undefined => {
+
+export const fetchUserById = (userId: string): Promise<User| undefined> => {
+    return apiClient.get<User>(`/admin/users/${userId}`);
     if (USE_MOCK_API) {
-        return mockUsers.find(u => u.id === userId);
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                const u = mockUsers.find(m => m.id === userId);
+                if (!u) return reject(new Error('Không tìm thấy người dùng.'));
+                resolve(u);
+            }, 200);
+        });
     }
-    // API thật sẽ là hàm async. Để tránh tái cấu trúc lớn ở ClickableUser,
-    // hàm này trả về đồng bộ cho chế độ mock.
-    console.error("fetchUserById cho API thật chưa được triển khai để trả về đồng bộ.");
-    return undefined; 
+    
 };
 
 
@@ -131,6 +172,9 @@ export const fetchUserById = (userId: string): User | undefined => {
  * Cập nhật thông tin người dùng.
  */
 export const updateUser = (userId: string, data: Partial<User>): Promise<User> => {
+    console.log(data);
+    
+    return apiClient.put<User>(`/admin/users/${userId}`, data);
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -139,11 +183,13 @@ export const updateUser = (userId: string, data: Partial<User>): Promise<User> =
                     return reject(new Error('Không tìm thấy người dùng.'));
                 }
                 mockUsers[userIndex] = { ...mockUsers[userIndex], ...data };
+                console.log(mockUsers[userIndex]);
+                
                 resolve(mockUsers[userIndex]);
             }, 300);
         });
     }
-    return apiClient.put(`/users/${userId}`, data);
+    
 };
 
 /**
@@ -171,7 +217,7 @@ export const resetUserQuota = (userId: string, feature: 'ai_lesson' | 'ai_transl
             }, 300);
         });
     }
-    return apiClient.post(`/users/${userId}/reset-quota`, { feature });
+    return apiClient.post(`/admin/users/${userId}/reset-quota`, { feature });
 };
 
 /**
@@ -195,7 +241,7 @@ export const resetUserPassword = (userId: string): Promise<{ message: string }> 
         });
     }
     // API thật: Gửi yêu cầu POST để kích hoạt quy trình đặt lại mật khẩu
-    return apiClient.post(`/users/${userId}/reset-password`, {});
+    return apiClient.post(`/admin/users/${userId}/reset-password`, {});
 };
 
 /**
@@ -203,6 +249,7 @@ export const resetUserPassword = (userId: string): Promise<{ message: string }> 
  * Đây là một hành động nguy hiểm và không thể hoàn tác.
  */
 export const deleteUser = (userId: string): Promise<{ success: boolean }> => {
+    
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -236,5 +283,44 @@ export const deleteUser = (userId: string): Promise<{ success: boolean }> => {
         });
     }
     // API thật: Gửi yêu cầu DELETE để xóa người dùng
-    return apiClient.delete(`/users/${userId}`);
+    return apiClient.delete(`/admin/users/${userId}`);
+};
+
+// === BAN/UNBAN USER ===
+
+export interface BanUserPayload {
+    reason: string; // Lý do cấm (hiển thị trên log)
+    ruleIds: string[]; // Danh sách ID quy tắc vi phạm
+    resolution: string; // Ghi chú hướng giải quyết
+    severity: 'low' | 'medium' | 'high'; // Mức độ vi phạm
+}
+
+export interface UnbanUserPayload {
+    reason: string; // Lý do bỏ cấm
+}
+
+export interface BanUserResponse {
+    success: boolean;
+    message: string;
+    user: User;
+}
+
+/**
+ * Cấm người dùng - Đặt is_active = false
+ * @param userId - ID của người dùng cần cấm
+ * @param payload - Thông tin đầy đủ về lý do cấm
+ * @returns Promise với thông tin người dùng đã được cập nhật
+ */
+export const banUser = (userId: string, payload: BanUserPayload): Promise<BanUserResponse> => {
+    return apiClient.post<BanUserResponse>(`/admin/users/${userId}/ban`, payload);
+};
+
+/**
+ * Bỏ cấm người dùng - Đặt is_active = true
+ * @param userId - ID của người dùng cần bỏ cấm
+ * @param payload - Thông tin lý do bỏ cấm
+ * @returns Promise với thông tin người dùng đã được cập nhật
+ */
+export const unbanUser = (userId: string, payload: UnbanUserPayload): Promise<BanUserResponse> => {
+    return apiClient.post<BanUserResponse>(`/admin/users/${userId}/unban`, payload);
 };

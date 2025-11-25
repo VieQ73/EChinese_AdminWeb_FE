@@ -69,14 +69,14 @@ const ModerationCenter: React.FC = () => {
         setLoading(true);
         try {
             // Tạm thời fetch tất cả mà không phân trang để lấy count.
-            const [reportsData, appealsData, notificationsData] = await Promise.all([
+            const [reportsRes, appealsRes, notificationsRes] = await Promise.all([
                 api.fetchReports({ limit: 999 }),
                 api.fetchAppeals({ limit: 999 }),
                 api.fetchNotifications(),
             ]);
-            setReports(reportsData);
-            setAppeals(appealsData);
-            setNotifications(notificationsData);
+            setReports(reportsRes.data);
+            setAppeals(appealsRes.data);
+            setNotifications(notificationsRes.data);
         } catch (error) {
             console.error("Failed to load moderation data", error);
         } finally {
@@ -92,7 +92,7 @@ const ModerationCenter: React.FC = () => {
     // Handlers cho actions
     const handleUpdateReport = async (reportId: string, action: 'start_processing' | 'resolve' | 'dismiss', data: any) => {
         try {
-            const updatedReport = await api.updateReportStatus(reportId, {
+            const updatedReportRes = await api.updateReportStatus(reportId, {
                 status: action === 'start_processing' ? 'in_progress' : action === 'resolve' ? 'resolved' : 'dismissed',
                 resolution: data.resolution,
                 severity: data.severity,
@@ -110,11 +110,11 @@ const ModerationCenter: React.FC = () => {
     
     const handleProcessAppeal = async (appealId: string, action: 'accepted' | 'rejected', notes: string) => {
         try {
-            const processedAppeal = await api.processAppeal(appealId, { action, notes, adminId: currentUser.id });
+            const processedAppealRes = await api.processAppeal(appealId, { action, notes, adminId: currentUser.id });
             
             // Đồng bộ hóa trạng thái vào AppDataContext sau khi API thành công
             if (action === 'accepted') {
-                const violation = processedAppeal.violation_snapshot;
+                const violation = processedAppealRes.data.violation_snapshot;
                 if (violation) {
                     // Cập nhật trạng thái content trong context
                     if (violation.target_type === 'post') {

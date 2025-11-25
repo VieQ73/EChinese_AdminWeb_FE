@@ -14,7 +14,8 @@ interface UseGettersProps {
 export const useGetters = ({ posts, allPosts, comments, postLikes, postViews }: UseGettersProps) => {
 
     const getPostsByUserId = useCallback((userId: string) => {
-        return posts.filter(p => p.user_id === userId && p.status !== 'draft');
+        // Exclude drafts and removed posts from regular authored posts list
+        return posts.filter(p => p.user_id === userId && p.status !== 'draft' && p.status !== 'removed');
     }, [posts]);
 
     const getLikedPostsByUserId = useCallback((userId: string) => {

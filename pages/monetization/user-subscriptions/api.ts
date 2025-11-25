@@ -14,7 +14,14 @@ interface FetchEnrichedUserSubscriptionsParams {
     search?: string; // by user name, email, id
 }
 
-export const fetchEnrichedUserSubscriptions = (params: FetchEnrichedUserSubscriptionsParams): Promise<PaginatedResponse<EnrichedUserSubscription>> => {
+export const fetchEnrichedUserSubscriptions = async (params: FetchEnrichedUserSubscriptionsParams): Promise<PaginatedResponse<EnrichedUserSubscription>> => {
+        // Kết nối API thật
+    const queryParams = new URLSearchParams(params as any).toString();
+    const response = await apiClient.get<any>(`/monetization/user-subscriptions?${queryParams}`);
+
+    // API trả về { success, data: PaginatedResponse<EnrichedUserSubscription> }
+    return (response as any).data as PaginatedResponse<EnrichedUserSubscription>;
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -57,9 +64,7 @@ export const fetchEnrichedUserSubscriptions = (params: FetchEnrichedUserSubscrip
             }, 500);
         });
     }
-    // Kết nối API thật
-    const queryParams = new URLSearchParams(params as any).toString();
-    return apiClient.get(`/monetization/user-subscriptions?${queryParams}`);
+
 };
 
 export type UpdateUserSubscriptionDetailsPayload = 
@@ -68,7 +73,15 @@ export type UpdateUserSubscriptionDetailsPayload =
     | { action: 'cancel_now' }
     | { action: 'change_plan'; new_subscription_id: string; change_type: 'immediate' | 'end_of_term' };
 
-export const updateUserSubscriptionDetails = (userSubId: string, payload: UpdateUserSubscriptionDetailsPayload): Promise<any> => {
+export const updateUserSubscriptionDetails = async (userSubId: string, payload: UpdateUserSubscriptionDetailsPayload): Promise<any> => {
+    
+    // Kết nối API thật
+    const response = await apiClient.put<any>(`/monetization/user-subscriptions/${userSubId}`, payload);
+    // API trả về { success, message, data: result }
+    console.log(payload);
+    
+    return (response as any).data;
+
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -102,12 +115,16 @@ export const updateUserSubscriptionDetails = (userSubId: string, payload: Update
             }, 500);
         });
     }
-    // Kết nối API thật
-    return apiClient.put(`/monetization/user-subscriptions/${userSubId}`, payload);
+    
 };
 
 
-export const fetchUserSubscriptionHistory = (userId: string): Promise<UserSubscriptionHistoryItem[]> => {
+export const fetchUserSubscriptionHistory = async (userId: string): Promise<UserSubscriptionHistoryItem[]> => {
+    // Kết nối API thật
+    const response = await apiClient.get<any>(`/monetization/user-subscriptions/history/${userId}`);
+    // API trả về { success: true, data: history }
+    return (response as any).data as UserSubscriptionHistoryItem[];
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -122,6 +139,36 @@ export const fetchUserSubscriptionHistory = (userId: string): Promise<UserSubscr
             }, 300);
         });
     }
-    // Kết nối API thật
-    return apiClient.get(`/monetization/user-subscriptions/history/${userId}`);
+    
+};
+
+/**
+ * Reset usage cho người dùng theo các tính năng chỉ định.
+ * Gọi API thật: POST /admin/usage/reset với body { userId, features }
+ * Trả về đối tượng { success, message } theo chuẩn backend.
+ */
+export const resetUserUsage = async (
+    userId: string,
+    features: Array<'ai_lesson' | 'ai_translate'>
+): Promise<{ success: boolean; message?: string }> => {
+
+        // Kết nối API thật
+    const response = await apiClient.post<any>('/admin/usage/reset', { userId, features });
+    // Backend trả về ít nhất { success, ... }
+    return response as { success: boolean; message?: string };
+    
+    if (USE_MOCK_API) {
+        // Mô phỏng reset: đưa daily_count về 0 và cập nhật last_reset
+        const now = new Date().toISOString();
+        features.forEach((feature) => {
+            const usage = mockUserUsage.find(u => u.user_id === userId && u.feature === feature);
+            if (usage) {
+                usage.daily_count = 0;
+                usage.last_reset = now as any;
+            }
+        });
+        return Promise.resolve({ success: true, message: 'Đã reset usage (mock).' });
+    }
+
+
 };

@@ -51,6 +51,7 @@ export interface Exam {
   created_at?: Timestamp;
   updated_at?: Timestamp;
   is_deleted?: boolean;
+  version_at?: Timestamp; // Timestamp của phiên bản bài thi
 }
 
 /**

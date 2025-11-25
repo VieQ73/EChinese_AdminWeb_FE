@@ -28,7 +28,13 @@ const getNetRevenue = (payments: Payment[], refunds: Refund[]): number => {
 /**
  * API mock để lấy dữ liệu tổng quan, tính toán từ mock data thực tế.
  */
-export const fetchMonetizationDashboardStats = (): Promise<DashboardStats> => {
+export const fetchMonetizationDashboardStats = async (): Promise<DashboardStats> => {
+    
+        // Kết nối API thật
+    const response = await apiClient.get<any>('/monetization/dashboard/stats');
+    // Backend: { success: true, message, data: DashboardStats }
+    return (response as any).data as DashboardStats;
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -112,14 +118,24 @@ export const fetchMonetizationDashboardStats = (): Promise<DashboardStats> => {
             }, 800); // Mô phỏng độ trễ mạng
         });
     }
-    // Kết nối API thật
-    return apiClient.get('/monetization/dashboard/stats');
+
 };
 
 /**
  * API để tìm kiếm nhanh giao dịch.
  */
 export const quickSearchTransaction = (query: string): Promise<QuickSearchResult> => {
+        // Kết nối API thật
+    const endpoint = `/monetization/payments/search?query=${encodeURIComponent(query)}`;
+    return apiClient.get<any>(endpoint)
+        .then((response) => (response as any).data as QuickSearchResult)
+        .catch(error => {
+            if (error instanceof Error && error.message.toLowerCase().includes('not found')) {
+                return 'not_found';
+            }
+            throw error;
+        });
+        
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
@@ -141,14 +157,5 @@ export const quickSearchTransaction = (query: string): Promise<QuickSearchResult
         });
     }
 
-    // Kết nối API thật
-    const endpoint = `/monetization/payments/search?query=${encodeURIComponent(query)}`;
-    return apiClient.get<Payment>(endpoint)
-        .then(result => result)
-        .catch(error => {
-            if (error instanceof Error && error.message.toLowerCase().includes('not found')) {
-                return 'not_found';
-            }
-            throw error;
-        });
+
 };

@@ -1,12 +1,20 @@
 import React from 'react';
 import { useNavigate } from 'react-router';
-import { AdminLog } from '../../../types';
 import { getLogActionInfo } from '../../system/utils';
 import { ArrowRight } from 'lucide-react';
 
+// Type cho log từ API
+interface RecentLog {
+  id: string;
+  action_type: string;
+  description: string;
+  created_at: string;
+  admin_name: string;
+}
+
 // Định nghĩa props, nhận vào một mảng các log
 interface RecentAdminLogsProps {
-  logs: AdminLog[];
+  logs: RecentLog[];
 }
 
 /**
@@ -50,7 +58,7 @@ const RecentAdminLogs: React.FC<RecentAdminLogsProps> = ({ logs }) => {
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-gray-800 truncate">{log.description}</p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {log.adminName} • {timeAgo(log.created_at)}
+                  {log.admin_name} • {timeAgo(log.created_at)}
                 </p>
               </div>
             </li>

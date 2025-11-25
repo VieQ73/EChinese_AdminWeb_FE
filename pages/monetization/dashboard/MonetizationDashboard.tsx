@@ -19,13 +19,42 @@ const MonetizationDashboard: React.FC = () => {
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     const [searchResult, setSearchResult] = useState<Payment | null>(null);
 
-    const loadData = useCallback(async () => {
+    const loadData = useCallback(async (forceReload = false) => {
+        // Kiểm tra cache nếu không phải force reload
+        if (!forceReload) {
+            const cachedData = sessionStorage.getItem('monetization_dashboard_data');
+            const cachedTimestamp = sessionStorage.getItem('monetization_dashboard_timestamp');
+            
+            if (cachedData && cachedTimestamp) {
+                const age = Date.now() - parseInt(cachedTimestamp);
+                if (age < 5 * 60 * 1000) { // 5 phút
+                    try {
+                        const parsed = JSON.parse(cachedData);
+                        setStats(parsed);
+                        setLastUpdated(new Date(parseInt(cachedTimestamp)));
+                        setLoading(false);
+                        return;
+                    } catch {
+                        // Cache lỗi, tiếp tục fetch
+                    }
+                }
+            }
+        }
+
         setLoading(true);
         setError(null);
         try {
             const data = await fetchMonetizationDashboardStats();
             setStats(data);
             setLastUpdated(new Date());
+            
+            // Lưu vào cache
+            try {
+                sessionStorage.setItem('monetization_dashboard_data', JSON.stringify(data));
+                sessionStorage.setItem('monetization_dashboard_timestamp', Date.now().toString());
+            } catch {
+                // Ignore cache errors
+            }
         } catch (err) {
             setError('Không thể tải dữ liệu tổng quan. Vui lòng thử lại.');
         } finally {
@@ -34,7 +63,7 @@ const MonetizationDashboard: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        loadData();
+        loadData(false); // Không force reload khi mount
     }, [loadData]);
 
     return (
@@ -49,7 +78,7 @@ const MonetizationDashboard: React.FC = () => {
                     )}
                 </div>
                 <button
-                    onClick={loadData}
+                    onClick={() => { loadData(true); }}
                     disabled={loading}
                     className="flex items-center px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
                 >
@@ -61,7 +90,7 @@ const MonetizationDashboard: React.FC = () => {
             {error && (
                 <div className="bg-red-50 p-4 rounded-lg border border-red-200 text-red-700">
                     <p>{error}</p>
-                    <button onClick={loadData} className="font-semibold underline mt-1">Thử lại</button>
+                    <button onClick={() => { loadData(true); }} className="font-semibold underline mt-1">Thử lại</button>
                 </div>
             )}
 

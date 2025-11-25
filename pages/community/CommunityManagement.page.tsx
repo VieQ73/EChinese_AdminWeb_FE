@@ -7,7 +7,6 @@ import { useAppData } from '../../contexts/appData/context';
 import { useCommunityState } from './hooks/useCommunityState';
 import { useCommunityHandlers } from './hooks/useCommunityHandlers';
 import { useCommunityEffects } from './hooks/useCommunityEffects';
-import { useCommunityStats } from './hooks/useCommunityStats';
 
 // API
 import * as api from './api';
@@ -35,6 +34,9 @@ const CommunityManagementPage: React.FC = () => {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     
+    // --- Stats từ API ---
+    const [communityStats, setCommunityStats] = useState<{ postCount: number; commentCount: number; moderationCount: number } | null>(null);
+    
     // --- Data Fetching ---
     const loadPosts = useCallback(async (isLoadMore = false) => {
         setIsLoading(true);
@@ -42,7 +44,7 @@ const CommunityManagementPage: React.FC = () => {
             const currentPage = isLoadMore ? page + 1 : 1;
             const response: PaginatedResponse<Post> = await api.fetchPosts({
                 page: currentPage,
-                limit: 15, // Số lượng bài viết mỗi lần tải
+                limit: 15,
                 topic: state.filters.topic === 'all' ? undefined : state.filters.topic,
             });
 
@@ -67,6 +69,21 @@ const CommunityManagementPage: React.FC = () => {
         loadPosts(false);
     }, [state.filters.topic]);
 
+    // --- Fetch Community Stats from API ---
+    const loadStats = useCallback(async () => {
+        try {
+            const res = await api.fetchCommunityStats();
+            // API returns envelope: { success, data }
+            setCommunityStats(res.data);
+        } catch (e) {
+            console.error('Failed to load community stats', e);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadStats();
+    }, [loadStats]);
+
     // --- Đồng bộ hóa state cục bộ với context ---
     const { postLikes, postViews, comments: contextComments } = useAppData();
     useEffect(() => {
@@ -76,7 +93,6 @@ const CommunityManagementPage: React.FC = () => {
                 const newViews = postViews.filter(v => v.post_id === post.id).length;
                 const newCommentCount = contextComments.filter(c => c.post_id === post.id && !c.deleted_at).length;
                 
-                // Chỉ tạo object mới nếu có sự thay đổi để tối ưu re-render
                 if (post.likes !== newLikes || post.views !== newViews || post.comment_count !== newCommentCount) {
                      return { ...post, likes: newLikes, views: newViews, comment_count: newCommentCount };
                 }
@@ -104,14 +120,13 @@ const CommunityManagementPage: React.FC = () => {
     const likedPosts = useMemo(() => new Set(context.postLikes.filter(l => l.user_id === currentUser?.id).map(l => l.post_id)), [context.postLikes, currentUser]);
     const viewedPosts = useMemo(() => new Set(context.postViews.filter(v => v.user_id === currentUser?.id).map(v => v.post_id)), [context.postViews, currentUser]);
     
-    // Sử dụng hook API để lấy stats thay vì tính từ context
-    const { data: communityStats } = useCommunityStats();
+    // Stats cho sidebar - fallback về context nếu API chưa trả về
     const stats = useMemo(() => ({
-        postCount: communityStats?.postCount ?? 0,
-        commentCount: communityStats?.commentCount ?? 0,
-        moderationCount: communityStats?.moderationCount ?? 0,
-        logs: communityStats?.logs ?? [],
-    }), [communityStats]);
+        postCount: communityStats?.postCount ?? context.posts.filter(p => p.status === 'published').length,
+        commentCount: communityStats?.commentCount ?? context.comments.filter(c => !c.deleted_at).length,
+        moderationCount: communityStats?.moderationCount ?? (context.posts.filter(p => p.status === 'removed').length + context.comments.filter(c => !!c.deleted_at).length),
+        logs: context.moderationLogs,
+    }), [communityStats, context.posts, context.comments, context.moderationLogs]);
 
     return (
         <div className="space-y-6">

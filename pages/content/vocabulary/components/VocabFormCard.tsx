@@ -2,6 +2,7 @@ import React from 'react';
 import { Vocabulary } from '../../../../types';
 import { TrashIcon } from '../../../../constants';
 import { WORD_TYPES } from '../../../../mock/content';
+import FileInput from '../../../tests/create/components/shared/FileInput';
 
 interface VocabFormCardProps {
     index: number;
@@ -74,6 +75,15 @@ const VocabFormCard: React.FC<VocabFormCardProps> = ({ index, vocabData, onUpdat
                             </button>
                         ))}
                     </div>
+                </div>
+                <div className="col-span-2">
+                    <FileInput
+                        id={`vocab-image-${index}`}
+                        label="Hình ảnh minh họa"
+                        value={vocabData.image_url || null}
+                        onFileChange={(url) => handleInputChange('image_url', url || '')}
+                        accept="image/*"
+                    />
                 </div>
             </div>
         </div>

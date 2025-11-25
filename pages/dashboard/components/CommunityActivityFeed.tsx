@@ -1,11 +1,17 @@
 import React from 'react';
 import { useNavigate } from 'react-router';
-import { User } from '../../../types';
 import { AlertTriangle } from 'lucide-react';
 import { BellIcon, ChatAlt2Icon } from '../../../constants';
 
+interface RecentUser {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+    created_at: string;
+}
+
 interface CommunityActivityFeedProps {
-    recentUsers: User[];
+    recentUsers: RecentUser[];
     pendingReportsCount: number;
     pendingAppealsCount: number;
     unreadNotificationsCount: number;

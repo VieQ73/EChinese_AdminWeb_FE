@@ -7,20 +7,29 @@ interface ClickableUserProps {
   onUserClick: (user: User) => void;
   children: React.ReactNode;
   className?: string;
+  // Minimal fallback shape from Post.user; may miss fields like email
+  fallbackUser?: Partial<User> & { id: string; name: string; avatar_url?: string; badge_level?: number; role?: User['role'] };
 }
 
 const ClickableUser: React.FC<ClickableUserProps> = ({
   userId,
   onUserClick,
   children,
-  className = ''
+  className = '',
+  fallbackUser
 }) => {
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = async (e: React.MouseEvent) => {
     e.stopPropagation(); 
-    
-    const user = fetchUserById(userId);
-    if (user) {
+    try {
+      const user = await fetchUserById(userId);
       onUserClick(user);
+    } catch (err) {
+      if (fallbackUser) {
+        onUserClick(fallbackUser as User);
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn('Không lấy được thông tin người dùng', err);
+      }
     }
   };
 
@@ -30,9 +39,9 @@ const ClickableUser: React.FC<ClickableUserProps> = ({
       className={`cursor-pointer ${className}`}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => {
+      onKeyDown={async (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
-          handleClick(e as any);
+          await handleClick(e as any);
         }
       }}
     >

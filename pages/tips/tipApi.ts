@@ -35,10 +35,10 @@ export interface TipPayload {
 /**
  * Lấy danh sách tips với filter và pagination
  */
-export const fetchTips = (params: GetTipsParams = {}): Promise<PaginatedResponse<Tip>> => {
+export const fetchTips = async (params: GetTipsParams = {}): Promise<PaginatedResponse<Tip>> => {
+  // Mock API cho test hiển thị
   if (USE_MOCK_API) {
-    // Sử dụng mock data để test
-    return Promise.resolve(mockPaginatedTips(
+    return mockPaginatedTips(
       params.page || 1,
       params.limit || 12,
       {
@@ -47,29 +47,36 @@ export const fetchTips = (params: GetTipsParams = {}): Promise<PaginatedResponse
         search: params.search,
         is_pinned: params.is_pinned
       }
-    ));
+    );
   }
-  // Kết nối API thật
+
+  // Real API
   const queryParams = new URLSearchParams(params as any).toString();
-  return apiClient.get(`/tips?${queryParams}`);
+  const response = await apiClient.get(`/admin/tips?${queryParams}`);
+  return (response as any).data;
 };
 
 /**
  * Lấy chi tiết một tip theo ID
  */
-export const fetchTipById = (id: string): Promise<Tip> => {
+export const fetchTipById = async (id: string): Promise<Tip> => {
+  // Mock API cho test hiển thị
   if (USE_MOCK_API) {
     const tip = mockTips.find(t => t.id === id);
-    return tip ? Promise.resolve(tip) : Promise.reject(new Error('Tip not found'));
+    if (!tip) throw new Error('Tip not found');
+    return tip;
   }
-  // Kết nối API thật
-  return apiClient.get(`/tips/${id}`);
+
+  // Real API
+  const response = await apiClient.get(`/admin/tips/${id}`);
+  return (response as any).data;
 };
 
 /**
  * Tạo tip mới
  */
-export const createTip = (payload: TipPayload): Promise<Tip> => {
+export const createTip = async (payload: TipPayload): Promise<Tip> => {
+  // Mock API cho test hiển thị
   if (USE_MOCK_API) {
     const newTip: Tip = {
       id: Date.now().toString(),
@@ -78,43 +85,50 @@ export const createTip = (payload: TipPayload): Promise<Tip> => {
       created_by: 'admin-mock'
     };
     mockTips.unshift(newTip);
-    return new Promise(resolve => setTimeout(() => resolve(newTip), 500));
+    return newTip;
   }
-  // Kết nối API thật
-  return apiClient.post('/tips', payload);
+
+  // Real API
+  const response = await apiClient.post('/admin/tips', payload);
+  return (response as any).data;
 };
 
 /**
  * Cập nhật tip
  */
-export const updateTip = (id: string, payload: Partial<TipPayload>): Promise<Tip> => {
+export const updateTip = async (id: string, payload: Partial<TipPayload>): Promise<Tip> => {
+  // Mock API cho test hiển thị
   if (USE_MOCK_API) {
     const tipIndex = mockTips.findIndex(t => t.id === id);
-    if (tipIndex === -1) return Promise.reject(new Error('Tip not found'));
+    if (tipIndex === -1) throw new Error('Tip not found');
     
     const existingTip = mockTips[tipIndex];
     const updatedTip: Tip = { ...existingTip, ...payload };
     
     mockTips[tipIndex] = updatedTip;
-    return new Promise(resolve => setTimeout(() => resolve(updatedTip), 500));
+    return updatedTip;
   }
-  // Kết nối API thật
-  return apiClient.put(`/tips/${id}`, payload);
+
+  // Real API
+  const response = await apiClient.put(`/admin/tips/${id}`, payload);
+  return (response as any).data;
 };
 
 /**
  * Xóa tip
  */
-export const deleteTip = (id: string): Promise<{ success: boolean }> => {
+export const deleteTip = async (id: string): Promise<void> => {
+  // Mock API cho test hiển thị
   if (USE_MOCK_API) {
     const tipIndex = mockTips.findIndex(t => t.id === id);
     if (tipIndex !== -1) {
       mockTips.splice(tipIndex, 1);
     }
-    return new Promise(resolve => setTimeout(() => resolve({ success: true }), 500));
+    return;
   }
-  // Kết nối API thật
-  return apiClient.delete(`/tips/${id}`);
+
+  // Real API
+  await apiClient.delete(`/admin/tips/${id}`);
 };
 
 /**
@@ -127,35 +141,34 @@ export const togglePinTip = (id: string, is_pinned: boolean): Promise<Tip> => {
 /**
  * Tải lên tips hàng loạt
  */
-export const bulkUploadTips = (tips: TipPayload[]): Promise<{
+export const bulkUploadTips = async (tips: TipPayload[]): Promise<{
   success_count: number;
   error_count: number;
   errors: string[];
   created_tips: Tip[];
 }> => {
+  // Mock API cho test hiển thị
   if (USE_MOCK_API) {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const created_tips: Tip[] = tips.map((tipPayload, index) => ({
-          id: (Date.now() + index).toString(),
-          ...tipPayload,
-          is_pinned: tipPayload.is_pinned ?? false,
-          created_by: 'admin-mock'
-        }));
-        
-        mockTips.unshift(...created_tips);
-        
-        resolve({
-          success_count: tips.length,
-          error_count: 0,
-          errors: [],
-          created_tips
-        });
-      }, 1500);
-    });
+    const created_tips: Tip[] = tips.map((tipPayload, index) => ({
+      id: (Date.now() + index).toString(),
+      ...tipPayload,
+      is_pinned: tipPayload.is_pinned ?? false,
+      created_by: 'admin-mock'
+    }));
+    
+    mockTips.unshift(...created_tips);
+    
+    return {
+      success_count: tips.length,
+      error_count: 0,
+      errors: [],
+      created_tips
+    };
   }
-  // Kết nối API thật
-  return apiClient.post('/tips/bulk-upload', { tips });
+
+  // Real API
+  const response = await apiClient.post('/admin/tips/bulk-upload', { tips });
+  return (response as any).data;
 };
 
 // ========================
@@ -195,3 +208,4 @@ export const LEVEL_COLORS: { [key: string]: 'Sơ cấp' | 'Trung cấp' | 'Cao c
   'Trung cấp': 'bg-yellow-100 text-yellow-800', 
   'Cao cấp': 'bg-red-100 text-red-800',
 };
+

@@ -1,6 +1,7 @@
 // contexts/appData/actions/communityActions.ts
 import { useCallback } from 'react';
 import { RawPost, Comment, PostLike, PostView } from '../../../types';
+import { cacheService } from '../../../services/cacheService';
 
 interface UseCommunityActionsProps {
   setPostsData: React.Dispatch<React.SetStateAction<RawPost[]>>;
@@ -13,18 +14,22 @@ export const useCommunityActions = ({ setPostsData, setComments, setPostLikes, s
 
     const addPost = useCallback((post: RawPost) => {
         setPostsData(prev => [post, ...prev]);
+        cacheService.invalidatePosts();
     }, [setPostsData]);
 
     const updatePost = useCallback((postId: string, updates: Partial<RawPost>) => {
         setPostsData(prev => prev.map(p => (p.id === postId ? { ...p, ...updates } : p)));
+        cacheService.invalidatePosts();
     }, [setPostsData]);
 
     const addComment = useCallback((comment: Comment) => {
         setComments(prev => [...prev, comment]);
+        cacheService.invalidatePosts();
     }, [setComments]);
 
     const updateComment = useCallback((commentId: string, updates: Partial<Comment>) => {
         setComments(prev => prev.map(c => (c.id === commentId ? { ...c, ...updates } : c)));
+        cacheService.invalidatePosts();
     }, [setComments]);
 
     const toggleLike = useCallback((postId: string, userId: string) => {

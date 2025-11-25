@@ -48,7 +48,7 @@ const UserSubscriptionCard: React.FC<UserSubscriptionCardProps> = ({
                 {/* Thông tin gói gọn gàng */}
                 <div className="mb-3">
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-blue-600">{us.subscription?.name || 'Gói miễn phí'}</span>
+                        <span className="text-sm font-medium text-blue-600">{us.subscription?.name || 'Chưa có gói'}</span>
                         <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
                             us.userSubscription?.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                         }`}>
@@ -76,15 +76,15 @@ const UserSubscriptionCard: React.FC<UserSubscriptionCardProps> = ({
                         <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-600">Bài học AI:</span>
                             <span className="font-medium">
-                                {us.quotas.ai_lesson.daily_count || 0}
+                                {(us.quotas?.ai_lesson?.daily_count ?? 0)}
                                 {us.subscription?.daily_quota_ai_lesson && <span className="text-gray-500">/{us.subscription.daily_quota_ai_lesson}</span>}
                             </span>
                         </div>
-                        {us.subscription?.daily_quota_ai_lesson && (
+                        {us.subscription?.daily_quota_ai_lesson && us.quotas?.ai_lesson && (
                             <div className="w-full bg-gray-200 rounded-full h-1.5">
                                 <div 
                                     className="bg-blue-500 h-1.5 rounded-full transition-all" 
-                                    style={{ width: `${Math.min(100, ((us.quotas.ai_lesson.daily_count || 0) / us.subscription.daily_quota_ai_lesson) * 100)}%` }}
+                                    style={{ width: `${Math.min(100, ((us.quotas.ai_lesson?.daily_count || 0) / us.subscription.daily_quota_ai_lesson) * 100)}%` }}
                                 ></div>
                             </div>
                         )}
@@ -92,15 +92,15 @@ const UserSubscriptionCard: React.FC<UserSubscriptionCardProps> = ({
                         <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-600">Dịch thuật:</span>
                             <span className="font-medium">
-                                {us.quotas.ai_translate.daily_count || 0}
+                                {(us.quotas?.ai_translate?.daily_count ?? 0)}
                                 {us.subscription?.daily_quota_translate && <span className="text-gray-500">/{us.subscription.daily_quota_translate}</span>}
                             </span>
                         </div>
-                        {us.subscription?.daily_quota_translate && (
+                        {us.subscription?.daily_quota_translate && us.quotas?.ai_translate && (
                             <div className="w-full bg-gray-200 rounded-full h-1.5">
                                 <div 
                                     className="bg-green-500 h-1.5 rounded-full transition-all" 
-                                    style={{ width: `${Math.min(100, ((us.quotas.ai_translate.daily_count || 0) / us.subscription.daily_quota_translate) * 100)}%` }}
+                                    style={{ width: `${Math.min(100, ((us.quotas.ai_translate?.daily_count || 0) / us.subscription.daily_quota_translate) * 100)}%` }}
                                 ></div>
                             </div>
                         )}
@@ -111,8 +111,8 @@ const UserSubscriptionCard: React.FC<UserSubscriptionCardProps> = ({
                 <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                     <div className="flex items-center space-x-2">
                         <ToggleSwitch 
-                            checked={us.userSubscription?.auto_renew || false}
-                            onChange={() => {/* Handle toggle - có thể gọi onManage */}}
+                            checked={!!us.userSubscription?.auto_renew}
+                            onChange={() => {/* disabled */}}
                             disabled={true}
                         />
                         <span className={`text-sm ${us.userSubscription?.auto_renew ? 'text-green-600' : 'text-gray-500'}`}>

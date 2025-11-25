@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router';
 import { AuthContext } from '../../contexts/AuthContext';
 import { login } from './api';
+import { apiClient } from '../../services/apiClient';
 import { Loader2 } from 'lucide-react';
 
 const Login: React.FC = () => {
@@ -24,7 +25,9 @@ const Login: React.FC = () => {
         try {
             // Gọi hàm API đã được tách biệt
             const response = await login({ username, password });
-            authContext.login(response.user);
+            // Lưu token để dùng cho các API khác
+            apiClient.setTokens(response.token, response.refreshToken);
+            authContext.login(response.user ?? null, response.token, response.refreshToken);
             navigate('/');
         } catch (err) {
             // Xử lý lỗi từ API
@@ -35,6 +38,7 @@ const Login: React.FC = () => {
         }
     };
 
+    
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
             <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-lg border border-gray-200">
@@ -53,7 +57,7 @@ const Login: React.FC = () => {
                                 type="text"
                                 required
                                 className="appearance-none relative block w-full px-3 py-2.5 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg bg-gray-50 focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
-                                placeholder="Tên đăng nhập (vd: admin, superadmin)"
+                                placeholder="Tên đăng nhập"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 disabled={isLoading}
@@ -67,7 +71,7 @@ const Login: React.FC = () => {
                                 type="password"
                                 required
                                 className="appearance-none relative block w-full px-3 py-2.5 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg bg-gray-50 focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
-                                placeholder="Mật khẩu (password)"
+                                placeholder="Mật khẩu"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 disabled={isLoading}

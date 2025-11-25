@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Post, RawPost, PostContent } from '../../../../types';
 import { POST_TOPICS } from '../../../../constants';
-import { X, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { X, Image as ImageIcon, Trash2, Loader2 } from 'lucide-react';
 import RichTextEditor from '../../../../components/RichTextEditor';
+import { uploadToCloudinary } from '../../../../services/cloudinary';
 
 interface CreateEditPostModalProps {
     isOpen: boolean;
@@ -19,6 +20,7 @@ const CreateEditPostModal: React.FC<CreateEditPostModalProps> = ({ isOpen, onClo
     const [isPinned, setIsPinned] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editorKey, setEditorKey] = useState(Date.now());
+    const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -73,20 +75,28 @@ const CreateEditPostModal: React.FC<CreateEditPostModalProps> = ({ isOpen, onClo
         }
     };
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files) return;
 
         const maxFiles = 4;
-        const toAdd: string[] = [];
+        const remainingSlots = maxFiles - images.length;
+        const filesToUpload = Array.from(files).slice(0, remainingSlots);
 
-        for (let i = 0; i < files.length; i++) {
-            if (images.length + toAdd.length >= maxFiles) break;
-            toAdd.push(URL.createObjectURL(files[i]));
+        if (filesToUpload.length === 0) return;
+
+        setUploading(true);
+        try {
+            const uploadPromises = filesToUpload.map(file => uploadToCloudinary(file));
+            const uploadedUrls = await Promise.all(uploadPromises);
+            setImages(prev => [...prev, ...uploadedUrls].slice(0, maxFiles));
+        } catch (error) {
+            console.error('Upload failed:', error);
+            alert('Không thể tải ảnh lên. Vui lòng thử lại.');
+        } finally {
+            setUploading(false);
+            e.target.value = ''; // Reset input
         }
-
-        setImages(prev => [...prev, ...toAdd].slice(0, maxFiles));
-        e.target.value = ''; // Reset input
     };
 
     const getImageLayoutClass = () => {
@@ -138,12 +148,20 @@ const CreateEditPostModal: React.FC<CreateEditPostModalProps> = ({ isOpen, onClo
                             </div>
                             <label
                                 htmlFor="image-upload"
-                                className={`flex items-center gap-1 cursor-pointer px-3 py-1 rounded-full text-sm font-medium transition-colors shadow-sm ${images.length >= 4 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-500 text-white hover:bg-green-600'}`}
+                                className={`flex items-center gap-1 cursor-pointer px-3 py-1 rounded-full text-sm font-medium transition-colors shadow-sm ${images.length >= 4 || uploading ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-500 text-white hover:bg-green-600'}`}
                             >
-                                <ImageIcon size={16} /> Tải ảnh
+                                {uploading ? (
+                                    <>
+                                        <Loader2 size={16} className="animate-spin" /> Đang tải...
+                                    </>
+                                ) : (
+                                    <>
+                                        <ImageIcon size={16} /> Tải ảnh
+                                    </>
+                                )}
                                 <input
                                     type="file" id="image-upload" accept="image/*" multiple
-                                    onChange={handleImageUpload} className="hidden" disabled={images.length >= 4}
+                                    onChange={handleImageUpload} className="hidden" disabled={images.length >= 4 || uploading}
                                 />
                             </label>
                         </div>

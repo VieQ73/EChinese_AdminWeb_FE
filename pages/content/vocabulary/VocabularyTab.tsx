@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Vocabulary, Notebook } from '../../../types';
+import { Vocabulary, Notebook, WordTypeEnum } from '../../../types';
 import * as api from '../api';
 
 import { TrashIcon, NotebookIcon } from '../../../constants';
@@ -8,16 +8,30 @@ import VocabCardGrid from './components/VocabCardGrid';
 import VocabDetailModal from './modals/VocabDetailModal';
 import AddVocabularyModal from './modals/AddVocabularyModal';
 import AddToNotebookModal from './modals/AddToNotebookModal';
+import ErrorReportModal from './modals/ErrorReportModal'; // Import mới
+import { ImportVocabModal } from './modals/ImportVocabModal'; // Import mới
 import Modal from '../../../components/Modal';
 import FloatingBulkActionsBar from '../../../components/FloatingBulkActionsBar';
 import VocabularyToolbar from './components/VocabularyToolbar';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Image as ImageIcon } from 'lucide-react';
+import { fetchImageForVocab } from '../api/imageservice';
+
+import { useAppData } from '../../../contexts/AppDataContext';
+
+// Định nghĩa kiểu cho lỗi chi tiết
+interface BulkUpsertError {
+    index: number;
+    hanzi: string;
+    id?: string;
+    detail: string;
+}
 
 const VocabularyTab: React.FC = () => {
     const [vocabList, setVocabList] = useState<Vocabulary[]>([]);
     const [notebooks, setNotebooks] = useState<Notebook[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [levelFilter, setLevelFilter] = useState<string>('all');
     const [wordTypeFilter, setWordTypeFilter] = useState<string>('all');
     
@@ -27,15 +41,36 @@ const VocabularyTab: React.FC = () => {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isAddToNotebookModalOpen, setIsAddToNotebookModalOpen] = useState(false);
     const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false); // State cho modal import
+    const [isImporting, setIsImporting] = useState(false); // State loading cho import
+    const [isLoadingImages, setIsLoadingImages] = useState(false); // State loading cho load ảnh
+    const [imageLoadProgress, setImageLoadProgress] = useState({ current: 0, total: 0 }); // Progress tracking
+
+    const { vocabularies } = useAppData();
+    // State cho modal báo cáo lỗi
+    const [errorReport, setErrorReport] = useState<{ isOpen: boolean; errors: BulkUpsertError[]; message: string }>({
+        isOpen: false,
+        errors: [],
+        message: '',
+    });
+    
+    // Debounce search term để tối ưu performance
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+        }, 300);
+        
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
     
     // Filter vocabulary list based on all filters
     const filteredVocabList = useMemo(() => {
         return vocabList.filter(vocab => {
-            // Search filter
-            const matchesSearch = searchTerm === '' || 
-                vocab.hanzi.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                vocab.pinyin.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                vocab.meaning.toLowerCase().includes(searchTerm.toLowerCase());
+            // Search filter - sử dụng debouncedSearchTerm
+            const matchesSearch = debouncedSearchTerm === '' || 
+                vocab.hanzi.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                vocab.pinyin.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                vocab.meaning.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
             
             // Level filter
             const matchesLevel = levelFilter === 'all' || 
@@ -47,7 +82,7 @@ const VocabularyTab: React.FC = () => {
             
             return matchesSearch && matchesLevel && matchesWordType;
         });
-    }, [vocabList, searchTerm, levelFilter, wordTypeFilter]);
+    }, [vocabList, debouncedSearchTerm, levelFilter, wordTypeFilter]);
     
     const { selectedVocabs, handleSelect, handleSelectAll, clearSelection } = useVocabSelection(filteredVocabList);
 
@@ -55,9 +90,11 @@ const VocabularyTab: React.FC = () => {
         setLoading(true);
         try {
             const [vocabRes, notebookRes] = await Promise.all([
-                api.fetchVocabularies({ limit: 1000 }), // Load all vocabulary and filter client-side
-                api.fetchNotebooks({ limit: 1000 }) // Tải tất cả sổ tay cho modal
+                api.fetchVocabularies({ limit: 5000 }), // Load all vocabulary and filter client-side
+                api.fetchNotebooks({ limit: 5000 }) // Tải tất cả sổ tay cho modal
             ]);
+            console.log(vocabRes.data);
+            
             setVocabList(vocabRes.data);
             setNotebooks(notebookRes.data);
         } catch (error) {
@@ -88,8 +125,35 @@ const VocabularyTab: React.FC = () => {
             setIsAddModalOpen(false);
             setEditingVocab(null);
             loadData(); // Tải lại
+        } catch (error: any) {
+            if (error.details) {
+                // Nếu có lỗi chi tiết từ API, hiển thị modal lỗi
+                setErrorReport({
+                    isOpen: true,
+                    errors: error.details,
+                    message: error.message,
+                });
+            } else {
+                // Lỗi chung
+                alert("Lưu từ vựng thất bại: " + error.message);
+            }
+            // Ném lại lỗi để hàm gọi có thể xử lý
+            throw error;
+        }
+    };
+
+    const handleImportVocab = async (data: Partial<Vocabulary>[]) => {
+        setIsImporting(true);
+        try {
+            await handleSaveVocab(data);
+            // Nếu không có lỗi, đóng modal import
+            setIsImportModalOpen(false);
         } catch (error) {
-            alert("Lưu từ vựng thất bại.");
+            // Nếu có lỗi (đã được xử lý và hiển thị modal error trong handleSaveVocab),
+            // không đóng modal import để người dùng có thể thử lại với file khác nếu muốn.
+            console.error("Import failed but error report is shown.", error);
+        } finally {
+            setIsImporting(false);
         }
     };
 
@@ -117,11 +181,134 @@ const VocabularyTab: React.FC = () => {
         }
     };
 
+    // Hàm chuyển đổi word_types từ string sang WordTypeEnum
+    const mapWordTypesToEnum = (wordTypes: string[]): WordTypeEnum[] => {
+        const mapping: Record<string, WordTypeEnum> = {
+            'Danh từ': WordTypeEnum.NOUN,
+            'Đại từ': WordTypeEnum.PRONOUN,
+            'Động từ': WordTypeEnum.VERB,
+            'Tính từ': WordTypeEnum.ADJECTIVE,
+            'Trạng từ': WordTypeEnum.ADVERB,
+            'Giới từ': WordTypeEnum.PREPOSITION,
+            'Liên từ': WordTypeEnum.CONJUNCTION,
+            'Trợ từ': WordTypeEnum.AUXILIARY,
+            'Thán từ': WordTypeEnum.INTERJECTION,
+            'Số từ': WordTypeEnum.NUMERAL,
+            'Lượng từ': WordTypeEnum.CLASSIFIER,
+            'Thành phần câu': WordTypeEnum.SENTENCE_COMPONENT,
+            'Cụm từ': WordTypeEnum.PHRASE,
+        };
+        return wordTypes.map(type => mapping[type]).filter(Boolean);
+    };
+
+    // Hàm load ảnh cho các từ đã chọn - cập nhật UI real-time và lưu database
+    const handleLoadImages = async () => {
+        if (selectedVocabs.size === 0) {
+            alert('Vui lòng chọn ít nhất một từ vựng để load ảnh.');
+            return;
+        }
+
+        const selectedVocabList = vocabList.filter(v => selectedVocabs.has(v.id));
+        const vocabsNeedingImages = selectedVocabList.filter(v => !v.image_url);
+
+        if (vocabsNeedingImages.length === 0) {
+            alert('Tất cả các từ đã chọn đều có ảnh rồi.');
+            return;
+        }
+
+        const confirmLoad = window.confirm(
+            `Bạn có muốn load ảnh cho ${vocabsNeedingImages.length} từ vựng chưa có ảnh?\n\n` +
+            `Ảnh sẽ được hiển thị ngay và lưu vào database.`
+        );
+
+        if (!confirmLoad) return;
+
+        setIsLoadingImages(true);
+        setImageLoadProgress({ current: 0, total: vocabsNeedingImages.length });
+
+        let successCount = 0;
+        let failCount = 0;
+        const vocabsToUpdate: Partial<Vocabulary>[] = [];
+
+        for (let i = 0; i < vocabsNeedingImages.length; i++) {
+            const vocab = vocabsNeedingImages[i];
+            setImageLoadProgress({ current: i + 1, total: vocabsNeedingImages.length });
+
+            try {
+                const wordTypeEnums = mapWordTypesToEnum(vocab.word_types);
+                const imageUrl = await fetchImageForVocab(vocab.hanzi, vocab.meaning, wordTypeEnums);
+
+                if (imageUrl) {
+                    // Cập nhật UI ngay lập tức
+                    setVocabList(prevList => 
+                        prevList.map(v => 
+                            v.id === vocab.id 
+                                ? { ...v, image_url: imageUrl }
+                                : v
+                        )
+                    );
+
+                    // Thêm vào danh sách cần update database với đầy đủ thông tin
+                    vocabsToUpdate.push({
+                        id: vocab.id,
+                        hanzi: vocab.hanzi,
+                        pinyin: vocab.pinyin,
+                        meaning: vocab.meaning,
+                        notes: vocab.notes,
+                        level: vocab.level,
+                        image_url: imageUrl,
+                        word_types: vocab.word_types
+                    });
+                    successCount++;
+                } else {
+                    failCount++;
+                }
+            } catch (error) {
+                console.error(`Lỗi khi load ảnh cho từ ${vocab.hanzi}:`, error);
+                failCount++;
+            }
+        }
+
+        // Lưu tất cả ảnh vào database
+        if (vocabsToUpdate.length > 0) {
+            try {
+                await api.createOrUpdateVocabs(vocabsToUpdate);
+                clearSelection();
+                alert(
+                    `Hoàn thành!\n\n` +
+                    `✅ Thành công: ${successCount} từ\n` +
+                    `❌ Thất bại: ${failCount} từ\n\n` +
+                    `Ảnh đã được lưu vào database.`
+                );
+            } catch (error) {
+                alert('Có lỗi khi lưu ảnh vào database.');
+                console.error('Error saving images:', error);
+            }
+        } else {
+            alert(`Không có ảnh nào được load thành công.`);
+        }
+
+        setIsLoadingImages(false);
+        setImageLoadProgress({ current: 0, total: 0 });
+    };
+
     return (
         <div className="space-y-6 pb-24">
             {viewingVocab && <VocabDetailModal vocab={viewingVocab} onClose={() => setViewingVocab(null)} onEdit={handleEdit} />}
             <AddVocabularyModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSubmit={handleSaveVocab} editingVocab={editingVocab} showSearch={false}/>
             <AddToNotebookModal isOpen={isAddToNotebookModalOpen} onClose={() => setIsAddToNotebookModalOpen(false)} onAddToNotebook={handleAddToNotebook} notebooks={notebooks} />
+            <ImportVocabModal 
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onImport={handleImportVocab}
+                isLoading={isImporting}
+            />
+            <ErrorReportModal 
+                isOpen={errorReport.isOpen}
+                onClose={() => setErrorReport({ isOpen: false, errors: [], message: '' })}
+                errors={errorReport.errors}
+                message={errorReport.message}
+            />
             <Modal isOpen={isDeleteConfirmModalOpen} onClose={() => setIsDeleteConfirmModalOpen(false)} title="Xác nhận xóa" footer={
                 <>
                     <button onClick={() => setIsDeleteConfirmModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-lg border border-gray-300 hover:bg-gray-50">Hủy</button>
@@ -141,7 +328,7 @@ const VocabularyTab: React.FC = () => {
                     wordTypeFilter={wordTypeFilter}
                     onWordTypeFilterChange={setWordTypeFilter}
                     onAdd={handleOpenAddModal} 
-                    onImport={() => alert('Chức năng Import sẽ được phát triển sau!')}
+                    onImport={() => setIsImportModalOpen(true)}
                     isSelectable={true}
                     isAllSelected={filteredVocabList.length > 0 && selectedVocabs.size === filteredVocabList.length}
                     onSelectAll={handleSelectAll}
@@ -155,6 +342,22 @@ const VocabularyTab: React.FC = () => {
             </div>
 
             <FloatingBulkActionsBar isVisible={selectedVocabs.size > 0} selectedCount={selectedVocabs.size} onClearSelection={clearSelection}>
+                <button 
+                    onClick={handleLoadImages} 
+                    disabled={isLoadingImages}
+                    className="flex items-center px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                    {isLoadingImages ? (
+                        <>
+                            <Loader2 className="w-4 h-4 mr-1.5 animate-spin"/> 
+                            Đang load {imageLoadProgress.current}/{imageLoadProgress.total}
+                        </>
+                    ) : (
+                        <>
+                            <ImageIcon className="w-4 h-4 mr-1.5"/> Load ảnh
+                        </>
+                    )}
+                </button>
                 <button onClick={() => setIsAddToNotebookModalOpen(true)} className="flex items-center px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
                     <NotebookIcon className="w-4 h-4 mr-1.5"/> Thêm vào sổ tay
                 </button>

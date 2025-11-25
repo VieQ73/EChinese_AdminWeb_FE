@@ -19,8 +19,6 @@ export interface CommunityStats {
  */
 export async function fetchCommunityStats(): Promise<CommunityStats> {
     if (USE_MOCK_API) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
         const postCount = mockPosts.filter(p => p.status === 'published').length;
         const commentCount = mockComments.filter(c => !c.deleted_at).length;
         const moderationCount = mockPosts.filter(p => p.status === 'removed').length + 
@@ -34,7 +32,16 @@ export async function fetchCommunityStats(): Promise<CommunityStats> {
         };
     }
     
-    return apiClient.get<CommunityStats>('/community/stats');
+    // BE trả về envelope { success, data }
+    const res = await apiClient.get<{ success: boolean; data: Omit<CommunityStats, 'logs'> }>('/community/stats');
+    const logsRes = await apiClient.get<{ success: boolean; data: ModerationLog[] }>('/community/moderation-logs');
+    
+    return {
+        postCount: res.data.postCount,
+        commentCount: res.data.commentCount,
+        moderationCount: res.data.moderationCount,
+        logs: logsRes.data
+    };
 }
 
 /**
@@ -42,10 +49,11 @@ export async function fetchCommunityStats(): Promise<CommunityStats> {
  */
 export async function fetchModerationLogs(limit?: number): Promise<ModerationLog[]> {
     if (USE_MOCK_API) {
-        await new Promise(resolve => setTimeout(resolve, 150));
         return limit ? mockModerationLogs.slice(0, limit) : mockModerationLogs;
     }
     
     const queryParams = limit ? `?limit=${limit}` : '';
-    return apiClient.get<ModerationLog[]>(`/community/moderation-logs${queryParams}`);
+    // BE trả về envelope { success, data }
+    const res = await apiClient.get<{ success: boolean; data: ModerationLog[] }>(`/community/moderation-logs${queryParams}`);
+    return res.data;
 }

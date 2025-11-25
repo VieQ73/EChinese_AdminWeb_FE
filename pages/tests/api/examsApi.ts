@@ -17,17 +17,55 @@ interface FetchExamsParams {
     examLevelId?: string;
 }
 
-const enrichExamSummary = (exam: ExamFull): ExamSummary => {
+// This function is now only used for the mock implementation of duplicateExam
+const enrichExamSummaryForMock = (exam: ExamFull): ExamSummary => {
     return {
         ...exam,
         exam_type_name: MOCK_EXAM_TYPES.find(t => t.id === exam.exam_type_id)?.name || 'N/A',
         exam_level_name: MOCK_EXAM_LEVELS.find(l => l.id === exam.exam_level_id)?.name || 'N/A',
         section_count: exam.sections?.length || 0,
+        total_questions: 0, // Mock data doesn't have this field
     };
 };
 
-export const fetchExams = (params: FetchExamsParams = {}): Promise<PaginatedResponse<ExamSummary>> => {
+export const fetchExams = async (params: FetchExamsParams = {}): Promise<PaginatedResponse<ExamSummary>> => {
+    
+    // // Real API implementation
+    const query = new URLSearchParams(params as any).toString();
+    
+    type ExamsResponse = {
+        success: boolean;
+        message: string;
+        data: any[]; // Raw data from API
+        meta: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+        };
+    }
+
+    const response = await apiClient.get<ExamsResponse>(`/admin/exams?${query}`);
+    
+    // Transform data to match ExamSummary type, especially string to number conversions
+    const transformedData = response.data.map(exam => ({
+        ...exam,
+        section_count: parseInt(String(exam.section_count), 10) || 0,
+        total_questions: parseInt(String(exam.total_questions), 10) || 0,
+    }));
+    console.log({
+        data: transformedData,
+        meta: response.meta,
+    });
+    
+
+    return {
+        data: transformedData,
+        meta: response.meta,
+    };
+
     if (USE_MOCK_API) {
+        // Mock implementation
         return new Promise(resolve => {
             setTimeout(() => {
                 const { page = 1, limit = 10, search, examTypeId, examLevelId } = params;
@@ -47,17 +85,36 @@ export const fetchExams = (params: FetchExamsParams = {}): Promise<PaginatedResp
                 
                 const total = filtered.length;
                 const totalPages = Math.ceil(total / limit);
-                const data = filtered.slice((page - 1) * limit, page * limit).map(enrichExamSummary);
+                
+                const enrichMockExamSummary = (exam: ExamFull): ExamSummary => ({
+                    ...exam,
+                    exam_type_name: MOCK_EXAM_TYPES.find(t => t.id === exam.exam_type_id)?.name || 'N/A',
+                    exam_level_name: MOCK_EXAM_LEVELS.find(l => l.id === exam.exam_level_id)?.name || 'N/A',
+                    section_count: exam.sections?.length || 0,
+                    total_questions: 0, // Mock doesn't have this, default to 0
+                });
+
+                const data = filtered.slice((page - 1) * limit, page * limit).map(enrichMockExamSummary);
 
                 resolve({ data, meta: { total, page, limit, totalPages } });
             }, 500);
         });
     }
-    const query = new URLSearchParams(params as any).toString();
-    return apiClient.get(`/exams?${query}`);
+
+    
 };
 
-export const fetchExamById = (id: string): Promise<ExamFull> => {
+export const fetchExamById = async (id: string): Promise<ExamFull> => {
+    console.log(`Fetching exam with ID: ${id}`);
+    
+    type ExamByIdResponse = {
+        success: boolean;
+        message: string;
+        data: ExamFull;
+    }
+
+    const response = await apiClient.get<ExamByIdResponse>(`/admin/exams/${id}`);
+    return response.data;
      if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -67,15 +124,75 @@ export const fetchExamById = (id: string): Promise<ExamFull> => {
             }, 300);
         });
     }
-    return apiClient.get(`/exams/${id}`);
-}
 
-export const createExam = (payload: ExamPayload): Promise<ExamFull> => {
+
+};
+
+export const createExam = async (payload: ExamPayload): Promise<ExamFull> => {
+    
+    type CreateExamResponse = {
+        success: boolean;
+        message: string;
+        data: ExamFull;
+    }
+
+    // Deep copy the payload to avoid mutating the original form state
+    const transformedPayload = JSON.parse(JSON.stringify(payload));
+
+    // Rename image_json to image in each prompt
+    transformedPayload.sections?.forEach((section: any) => {
+        section.subsections?.forEach((subsection: any) => {
+            subsection.prompts?.forEach((prompt: any) => {
+                if (prompt.hasOwnProperty('image_json')) {
+                    prompt.image = prompt.image_json;
+                    delete prompt.image_json;
+                }
+            });
+        });
+    });
+
+    // Helper function to save payload to a JSON file for debugging
+    // const savePayloadAsJson = (data: any) => {
+    //     try {
+    //         // A replacer function to handle non-serializable objects like File
+    //         const replacer = (key: string, value: any) => {
+    //             if (value instanceof File) {
+    //                 return {
+    //                     _type: 'File',
+    //                     name: value.name,
+    //                     size: value.size,
+    //                     type: value.type,
+    //                 };
+    //             }
+    //             return value;
+    //         };
+
+    //         const jsonString = JSON.stringify(data, replacer, 2);
+    //         const blob = new Blob([jsonString], { type: 'application/json' });
+    //         const url = URL.createObjectURL(blob);
+    //         const a = document.createElement('a');
+    //         a.href = url;
+    //         a.download = 'exam_payload.json';
+    //         document.body.appendChild(a);
+    //         a.click();
+    //         document.body.removeChild(a);
+    //         URL.revokeObjectURL(url);
+    //         console.log('Payload saved as exam_payload.json');
+    //     } catch (error) {
+    //         console.error('Failed to save payload as JSON:', error);
+    //     }
+    // };
+    // savePayloadAsJson(transformedPayload);
+
+    const response = await apiClient.post<CreateExamResponse>('/admin/exams', transformedPayload);
+    
+    return response.data;
+
     if (USE_MOCK_API) {
         return new Promise(resolve => {
             setTimeout(() => {
                 const newExam: ExamFull = {
-                    ...payload,
+                    ...transformedPayload,
                     id: `exam_${Date.now()}` as UUID,
                     created_by: 'superadmin-user-id' as UUID,
                     created_at: new Date().toISOString(),
@@ -88,25 +205,143 @@ export const createExam = (payload: ExamPayload): Promise<ExamFull> => {
             }, 400);
         });
     }
-    return apiClient.post('/exams', payload);
+    
+
 };
 
-export const updateExam = (id: string, payload: Partial<ExamPayload>): Promise<ExamFull> => {
-     if (USE_MOCK_API) {
+export const updateExam = async (id: string, payload: Partial<ExamPayload>): Promise<ExamFull | ExamFull[]> => {
+
+    type UpdateExamResponse = {
+        success: boolean;
+        message: string;
+        data: ExamFull | ExamFull[]; // Có thể trả về 1 exam hoặc mảng exams
+    }
+
+    // Deep copy the payload to avoid mutating the original form state
+    const transformedPayload = JSON.parse(JSON.stringify(payload));
+
+    // Rename image_json to image in each prompt
+    transformedPayload.sections?.forEach((section: any) => {
+        section.subsections?.forEach((subsection: any) => {
+            subsection.prompts?.forEach((prompt: any) => {
+                if (prompt.hasOwnProperty('image_json')) {
+                    prompt.image = prompt.image_json;
+                    delete prompt.image_json;
+                }
+            });
+        });
+    });
+
+    const response = await apiClient.put<UpdateExamResponse>(`/admin/exams/${id}`, transformedPayload);
+    console.log('Update exam response:', response);
+    
+    // Trả về data (có thể là 1 exam hoặc mảng exams)
+    return response.data;
+
+    if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
                 const index = MOCK_EXAMS.findIndex(e => e.id === id);
                 if (index === -1) return reject(new Error("Exam not found"));
                 
-                MOCK_EXAMS[index] = { ...MOCK_EXAMS[index], ...payload, updated_at: new Date().toISOString() };
+                MOCK_EXAMS[index] = { ...MOCK_EXAMS[index], ...transformedPayload, updated_at: new Date().toISOString() } as ExamFull;
                 resolve(MOCK_EXAMS[index]);
             }, 400);
         });
     }
-    return apiClient.put(`/exams/${id}`, payload);
+    
+
 }
 
-export const deleteExam = (id: string): Promise<{ success: boolean }> => {
+// A generic response type for actions that return the full exam object
+type ExamActionResponse = {
+    success: boolean;
+    message: string;
+    data: ExamFull;
+}
+
+export const trashExam = async (id: string): Promise<ExamFull> => {
+    const response = await apiClient.post<ExamActionResponse>(`/admin/exams/${id}/delete`, {});
+    return response.data;
+    if (USE_MOCK_API) {
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                const index = MOCK_EXAMS.findIndex(e => e.id === id);
+                if (index === -1) return reject(new Error("Exam not found"));
+                MOCK_EXAMS[index].is_deleted = true;
+                MOCK_EXAMS[index].updated_at = new Date().toISOString();
+                resolve(MOCK_EXAMS[index]);
+            }, 400);
+        });
+    }
+
+}
+
+export const restoreExam = async (id: string): Promise<ExamFull> => {
+    const response = await apiClient.post<ExamActionResponse>(`/admin/exams/${id}/restore`, {});
+    return response.data;
+
+    if (USE_MOCK_API) {
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                const index = MOCK_EXAMS.findIndex(e => e.id === id);
+                if (index === -1) return reject(new Error("Exam not found"));
+                MOCK_EXAMS[index].is_deleted = false;
+                MOCK_EXAMS[index].updated_at = new Date().toISOString();
+                resolve(MOCK_EXAMS[index]);
+            }, 400);
+        });
+    }
+
+}
+
+export const publishExam = async (id: string): Promise<ExamFull> => {
+
+    const response = await apiClient.post<ExamActionResponse>(`/admin/exams/${id}/publish`, {});
+    return response.data;
+
+    if (USE_MOCK_API) {
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                const index = MOCK_EXAMS.findIndex(e => e.id === id);
+                if (index === -1) return reject(new Error("Exam not found"));
+                MOCK_EXAMS[index].is_published = true;
+                MOCK_EXAMS[index].updated_at = new Date().toISOString();
+                resolve(MOCK_EXAMS[index]);
+            }, 400);
+        });
+    }
+    
+}
+
+export const unpublishExam = async (id: string): Promise<ExamFull> => {
+
+    const response = await apiClient.post<ExamActionResponse>(`/admin/exams/${id}/unpublish`, {});
+    return response.data;
+
+    if (USE_MOCK_API) {
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                const index = MOCK_EXAMS.findIndex(e => e.id === id);
+                if (index === -1) return reject(new Error("Exam not found"));
+                MOCK_EXAMS[index].is_published = false;
+                MOCK_EXAMS[index].updated_at = new Date().toISOString();
+                resolve(MOCK_EXAMS[index]);
+            }, 400);
+        });
+    }
+    
+}
+
+export const deleteExam = async (id: string): Promise<{ success: boolean }> => {
+    type DeleteResponse = {
+        success: boolean;
+        message: string;
+    }
+
+    const response = await apiClient.delete<DeleteResponse>(`/admin/exams/${id}/force`);
+    return { success: response.success };
+
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -117,9 +352,33 @@ export const deleteExam = (id: string): Promise<{ success: boolean }> => {
             }, 400);
         });
     }
-    return apiClient.delete(`/exams/${id}`);
 }
 
+
+/**
+ * Kiểm tra số lần làm bài của một đề thi
+ * @param examId - ID của bài thi cần kiểm tra
+ * @returns Thông tin về số lần làm bài
+ */
+export interface ExamAttemptsData {
+    exam_id: string;
+    has_attempts: boolean;
+    total_attempts: number;
+    unique_users: number;
+    first_attempt_at: string | null;
+    last_attempt_at: string | null;
+}
+
+export interface CheckExamAttemptsResponse {
+    success: boolean;
+    message: string;
+    data: ExamAttemptsData;
+}
+
+export const checkExamAttempts = async (examId: string): Promise<ExamAttemptsData> => {
+    const response = await apiClient.get<CheckExamAttemptsResponse>(`/admin/exams/${examId}/check-attempts`);
+    return response.data;
+};
 
 /**
  * Tạo bản sao sâu (deep copy) của một bài thi, bao gồm việc tạo ID mới cho tất cả các phần tử.
@@ -127,7 +386,17 @@ export const deleteExam = (id: string): Promise<{ success: boolean }> => {
  * @param newName - Tên mới cho bài thi sao chép.
  * @returns - Một ExamSummary của bài thi mới đã được tạo.
  */
-export const duplicateExam = (examIdToCopy: string, newName: string): Promise<ExamSummary> => {
+export const duplicateExam = async (examIdToCopy: string, newName: string): Promise<ExamSummary> => {
+    
+    type DuplicateResponse = {
+        success: boolean;
+        message: string;
+        data: ExamSummary;
+    }
+
+    const response = await apiClient.post<DuplicateResponse>(`/admin/exams/${examIdToCopy}/duplicate`, {});
+    return response.data;
+    
     if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -165,10 +434,10 @@ export const duplicateExam = (examIdToCopy: string, newName: string): Promise<Ex
                 MOCK_EXAMS.unshift(newExam);
 
                 // 5. Trả về phiên bản summary của bài thi mới
-                resolve(enrichExamSummary(newExam));
+                resolve(enrichExamSummaryForMock(newExam));
             }, 500);
         });
     }
-    // API thật sẽ phức tạp hơn, cần backend xử lý sao chép
-    return apiClient.post(`/exams/${examIdToCopy}/duplicate`, { newName });
+    
+
 };

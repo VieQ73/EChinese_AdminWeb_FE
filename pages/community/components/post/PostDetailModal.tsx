@@ -56,39 +56,77 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
   onUserClick,
 }) => {
   const authContext = useContext(AuthContext);
-  const { comments: allComments, addComment: addCommentToContext } = useAppData();
+  const { comments: allComments } = useAppData();
   const currentUser = authContext?.user;
   const [newComment, setNewComment] = useState('');
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [loadedComments, setLoadedComments] = useState<CommentWithUser[] | null>(null);
+  const [isCommentsLoading, setIsCommentsLoading] = useState(false);
 
   // Lấy và xây dựng cây bình luận từ context thay vì fetch
-  const comments = useMemo(() => {
-    if (!post) return [];
+  const fallbackEnriched = useMemo(() => {
+    if (!post) return [] as CommentWithUser[];
     return getEnrichedCommentsByPostId(post.id, allComments);
   }, [post, allComments]);
+
+  const comments = loadedComments ?? fallbackEnriched;
+
+  // Load comments when modal opens or post changes
+  useEffect(() => {
+    const loadComments = async () => {
+      if (!post) return;
+      setIsCommentsLoading(true);
+      try {
+        const result = await api.fetchCommentsByPostId(post.id);
+        // Support both raw array and envelope { success, data }
+        const data = Array.isArray(result) ? result : (result as any).data;
+        setLoadedComments(data);
+      } catch (e) {
+        console.error('Failed to load comments', e);
+        setLoadedComments(null); // Fall back to context enrichment
+      } finally {
+        setIsCommentsLoading(false);
+      }
+    };
+    if (isOpen) {
+      loadComments();
+    }
+  }, [isOpen, post]);
 
   if (!isOpen || !post) return null;
 
   const isPostRemoved = post.status === 'removed';
 
+  const refreshComments = async () => {
+    if (!post) return;
+    try {
+      const result = await api.fetchCommentsByPostId(post.id);
+      const data = Array.isArray(result) ? result : (result as any).data;
+      setLoadedComments(data);
+    } catch (e) {
+      console.error('Failed to refresh comments', e);
+    }
+  };
+
   const handleSubmitComment = async () => {
     if (!newComment.trim() || !currentUser || isPostRemoved) return;
     try {
-        const newCommentData = await api.addComment({ postId: post.id, content: newComment, userId: currentUser.id });
-        addCommentToContext(newCommentData);
-        setNewComment('');
-    } catch(e) {
-        alert("Gửi bình luận thất bại.");
+      const response = await api.addComment({ postId: post.id, content: newComment, userId: currentUser.id });
+      // After adding, refresh list from server / mock
+      await refreshComments();
+      setNewComment('');
+    } catch (e) {
+      alert('Gửi bình luận thất bại.');
     }
   };
 
   const handleAddReply = async (parentCommentId: string, content: string) => {
     if (!currentUser || isPostRemoved) return;
     try {
-        const newReply = await api.addComment({ postId: post.id, content, userId: currentUser.id, parentCommentId });
-        addCommentToContext(newReply);
-    } catch(e) {
-         alert("Gửi trả lời thất bại.");
+      await api.addComment({ postId: post.id, content, userId: currentUser.id, parentCommentId });
+      await refreshComments();
+    } catch (e) {
+      alert('Gửi trả lời thất bại.');
     }
   };
   
@@ -172,7 +210,10 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
             <div className="w-1/2 flex flex-col">
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 <h3 className="text-lg font-semibold">Bình luận ({totalComments})</h3>
-                {comments.length > 0 ? comments.map(comment => (
+                {isCommentsLoading && (
+                  <div className="text-center py-4 text-gray-500">Đang tải bình luận...</div>
+                )}
+                {!isCommentsLoading && (comments.length > 0 ? comments.map(comment => (
                   <CommentItem
                     key={comment.id}
                     comment={comment}
@@ -185,7 +226,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
                   />
                 )) : (
                   <div className="text-center py-8 text-gray-500">Chưa có bình luận nào.</div>
-                )}
+                ))}
               </div>
               <div className="flex items-center gap-1 p-3 border-t border-b">
                  <button 
