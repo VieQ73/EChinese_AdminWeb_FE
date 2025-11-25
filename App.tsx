@@ -4,6 +4,7 @@ import { Routes, Route, Navigate, Outlet } from 'react-router';
 import { HashRouter } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './contexts/AuthContext';
 import { AppDataProvider } from './contexts/appData/provider';
+import { NotificationProvider } from './contexts/NotificationContext';
 import Layout from './components/Layout';
 import Login from './pages/auth/Login';
 import ForgotPassword from './pages/auth/ForgotPassword';
@@ -38,7 +39,9 @@ const App: React.FC = () => {
     return (
         <AuthProvider>
             <AppDataProvider>
-                <MainApp />
+                <NotificationProvider>
+                    <MainApp />
+                </NotificationProvider>
             </AppDataProvider>
         </AuthProvider>
     );

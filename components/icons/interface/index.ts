@@ -13,3 +13,7 @@ export * from './XCircleIcon';
 export * from './XIcon';
 export * from './GripVerticalIcon';
 export * from './HistoryIcon';
+export * from './BellIcon';
+export * from './CheckDoubleIcon';
+export * from './GemIcon';
+export * from './ExclamationTriangleIcon';
