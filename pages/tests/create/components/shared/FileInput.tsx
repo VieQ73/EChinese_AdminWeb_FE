@@ -106,11 +106,15 @@ const FileInput: React.FC<FileInputProps> = ({
             />
             
             {previewUrl && !isUploading ? (
-                <div className={`${containerClasses} border-solid border-slate-300 p-0 overflow-hidden`}>
+                <div 
+                    className={`${containerClasses} border-solid border-slate-300 p-0 overflow-hidden cursor-pointer hover:opacity-90`}
+                    onClick={triggerFileInput}
+                    title="Click để thay đổi ảnh"
+                >
                      {fileType === 'image' && <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />}
                      {fileType === 'audio' && (
                         <div className="p-2 flex flex-col items-center justify-center text-center w-full">
-                            <audio src={previewUrl} controls className="w-full">
+                            <audio src={previewUrl} controls className="w-full" onClick={(e) => e.stopPropagation()}>
                                 Your browser does not support the audio element.
                             </audio>
                             <span className="mt-2 text-xs break-all" title={fileName || 'Audio file'}>{fileName || 'Audio file'}</span>
@@ -120,11 +124,14 @@ const FileInput: React.FC<FileInputProps> = ({
                      <button
                         type="button"
                         onClick={handleRemoveFile}
-                        className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
                         title="Xóa file"
                     >
                         <X size={14} />
                     </button>
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none flex items-center justify-center">
+                        <Upload size={24} className="text-white opacity-0 group-hover:opacity-80 transition-opacity" />
+                    </div>
                 </div>
             ) : (
                  <button

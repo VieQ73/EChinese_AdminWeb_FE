@@ -244,30 +244,36 @@ const VocabularyTab: React.FC = () => {
         }
 
         const selectedVocabList = vocabList.filter(v => selectedVocabs.has(v.id));
-        const vocabsNeedingImages = selectedVocabList.filter(v => !v.image_url);
+        const vocabsWithImages = selectedVocabList.filter(v => v.image_url);
+        const vocabsWithoutImages = selectedVocabList.filter(v => !v.image_url);
 
-        if (vocabsNeedingImages.length === 0) {
-            alert('Tất cả các từ đã chọn đều có ảnh rồi.');
-            return;
+        let confirmMessage = '';
+        if (vocabsWithImages.length > 0 && vocabsWithoutImages.length > 0) {
+            confirmMessage = `Bạn có muốn load ảnh cho ${selectedVocabList.length} từ vựng?\n\n` +
+                `- ${vocabsWithoutImages.length} từ chưa có ảnh\n` +
+                `- ${vocabsWithImages.length} từ đã có ảnh (sẽ được thay thế)\n\n` +
+                `Ảnh sẽ được hiển thị ngay và lưu vào database.`;
+        } else if (vocabsWithImages.length > 0) {
+            confirmMessage = `Bạn có muốn load lại ảnh cho ${vocabsWithImages.length} từ vựng?\n\n` +
+                `Ảnh hiện tại sẽ được thay thế bằng ảnh mới.`;
+        } else {
+            confirmMessage = `Bạn có muốn load ảnh cho ${vocabsWithoutImages.length} từ vựng chưa có ảnh?\n\n` +
+                `Ảnh sẽ được hiển thị ngay và lưu vào database.`;
         }
 
-        const confirmLoad = window.confirm(
-            `Bạn có muốn load ảnh cho ${vocabsNeedingImages.length} từ vựng chưa có ảnh?\n\n` +
-            `Ảnh sẽ được hiển thị ngay và lưu vào database.`
-        );
-
+        const confirmLoad = window.confirm(confirmMessage);
         if (!confirmLoad) return;
 
         setIsLoadingImages(true);
-        setImageLoadProgress({ current: 0, total: vocabsNeedingImages.length });
+        setImageLoadProgress({ current: 0, total: selectedVocabList.length });
 
         let successCount = 0;
         let failCount = 0;
         const vocabsToUpdate: Partial<Vocabulary>[] = [];
 
-        for (let i = 0; i < vocabsNeedingImages.length; i++) {
-            const vocab = vocabsNeedingImages[i];
-            setImageLoadProgress({ current: i + 1, total: vocabsNeedingImages.length });
+        for (let i = 0; i < selectedVocabList.length; i++) {
+            const vocab = selectedVocabList[i];
+            setImageLoadProgress({ current: i + 1, total: selectedVocabList.length });
 
             try {
                 const wordTypeEnums = mapWordTypesToEnum(vocab.word_types);
