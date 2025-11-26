@@ -38,7 +38,7 @@ const NotebookDetail: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
-    const [itemsPerPage] = useState(50); // Số items mỗi trang
+    const [itemsPerPage, setItemsPerPage] = useState(50); // Số items mỗi trang (có thể thay đổi)
 
     // Debounce search term
     useEffect(() => {
@@ -50,10 +50,10 @@ const NotebookDetail: React.FC = () => {
         return () => clearTimeout(timer);
     }, [searchTerm]);
     
-    // Reset page khi filter thay đổi
+    // Reset page khi filter hoặc itemsPerPage thay đổi
     useEffect(() => {
         setCurrentPage(1);
-    }, [levelFilter, wordTypeFilter]);
+    }, [levelFilter, wordTypeFilter, itemsPerPage]);
 
     const loadData = useCallback(async () => {
         if (!notebookId) return;
@@ -217,18 +217,38 @@ const NotebookDetail: React.FC = () => {
                     isAllSelected={filteredVocab.length > 0 && selectedVocabs.size === filteredVocab.length}
                     onSelectAll={handleSelectAll}
                  />
+                 
                  <VocabCardGrid vocabItems={filteredVocab} selectedVocabs={selectedVocabs} onSelect={handleSelect} onSelectAll={handleSelectAll} onViewDetails={handleViewDetails}/>
                  
                  {/* Pagination */}
                  {totalPages > 1 && (
-                    <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
-                        <div className="text-sm text-gray-700">
-                            Hiển thị <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> đến{' '}
-                            <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalItems)}</span> trong tổng số{' '}
-                            <span className="font-medium">{totalItems}</span> từ vựng
+                    <div className="mt-6 border-t border-gray-200 pt-4">
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="text-sm text-gray-700">
+                                Hiển thị <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> đến{' '}
+                                <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalItems)}</span> trong tổng số{' '}
+                                <span className="font-medium">{totalItems}</span> từ vựng
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                                <label className="text-sm text-gray-700">Số từ/trang:</label>
+                                <select
+                                    value={itemsPerPage}
+                                    onChange={(e) => {
+                                        setItemsPerPage(Number(e.target.value));
+                                        setCurrentPage(1); // Reset về trang 1
+                                    }}
+                                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-primary-200 focus:border-primary-400"
+                                >
+                                    <option value={20}>20</option>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                    <option value={200}>200</option>
+                                </select>
+                            </div>
                         </div>
                         
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center justify-center space-x-2">
                             <button
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}
