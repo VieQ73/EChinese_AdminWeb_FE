@@ -24,6 +24,7 @@ const NotebookDetail: React.FC = () => {
     const [loading, setLoading] = useState(true);
     
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [levelFilter, setLevelFilter] = useState<string>('all');
     const [wordTypeFilter, setWordTypeFilter] = useState<string>('all');
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -33,48 +34,82 @@ const NotebookDetail: React.FC = () => {
     const [viewingVocab, setViewingVocab] = useState<Vocabulary | null>(null);
     const [editingVocab, setEditingVocab] = useState<Vocabulary | null>(null);
 
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const [itemsPerPage] = useState(50); // Số items mỗi trang
+
+    // Debounce search term
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+            setCurrentPage(1); // Reset về trang 1 khi search
+        }, 300);
+        
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+    
+    // Reset page khi filter thay đổi
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [levelFilter, wordTypeFilter]);
+
     const loadData = useCallback(async () => {
         if (!notebookId) return;
         setLoading(true);
         try {
+            // Build query params
+            const params: any = {
+                notebookId,
+                page: currentPage,
+                limit: itemsPerPage
+            };
+            
+            if (debouncedSearchTerm) {
+                params.search = debouncedSearchTerm;
+            }
+            
+            if (levelFilter !== 'all') {
+                params.level = levelFilter;
+            }
+
             const [notebookData, vocabData] = await Promise.all([
                 api.fetchNotebookById(notebookId),
-                api.fetchVocabularies({ notebookId, limit: 5000 }) // Tải tất cả vocab trong sổ tay
+                api.fetchVocabularies(params)
             ]);
+            
             setNotebook(notebookData);
             setVocabItems(vocabData.data);
+            
+            // Update pagination info
+            if (vocabData.meta) {
+                setTotalPages(vocabData.meta.totalPages || 1);
+                setTotalItems(vocabData.meta.total || 0);
+            }
         } catch (error) {
             console.error("Failed to load notebook details:", error);
             setNotebook(null); // Để hiển thị thông báo lỗi
         } finally {
             setLoading(false);
         }
-    }, [notebookId]);
+    }, [notebookId, currentPage, itemsPerPage, debouncedSearchTerm, levelFilter]);
 
     useEffect(() => {
         loadData();
     }, [loadData]);
 
 
+    // Filter chỉ áp dụng cho word_type vì search và level đã được xử lý ở server
     const filteredVocab = useMemo(() => {
         return vocabItems.filter(vocab => {
-            // Search filter
-            const matchesSearch = searchTerm === '' || 
-                vocab.hanzi.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                vocab.pinyin.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                vocab.meaning.toLowerCase().includes(searchTerm.toLowerCase());
-            
-            // Level filter
-            const matchesLevel = levelFilter === 'all' || 
-                vocab.level.some(level => level === levelFilter);
-            
-            // Word type filter
+            // Word type filter (client-side vì API không hỗ trợ)
             const matchesWordType = wordTypeFilter === 'all' || 
                 vocab.word_types.some(type => type === wordTypeFilter);
             
-            return matchesSearch && matchesLevel && matchesWordType;
+            return matchesWordType;
         });
-    }, [vocabItems, searchTerm, levelFilter, wordTypeFilter]);
+    }, [vocabItems, wordTypeFilter]);
     
     const { selectedVocabs, handleSelect, handleSelectAll, clearSelection } = useVocabSelection(filteredVocab);
 
@@ -183,6 +218,80 @@ const NotebookDetail: React.FC = () => {
                     onSelectAll={handleSelectAll}
                  />
                  <VocabCardGrid vocabItems={filteredVocab} selectedVocabs={selectedVocabs} onSelect={handleSelect} onSelectAll={handleSelectAll} onViewDetails={handleViewDetails}/>
+                 
+                 {/* Pagination */}
+                 {totalPages > 1 && (
+                    <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
+                        <div className="text-sm text-gray-700">
+                            Hiển thị <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> đến{' '}
+                            <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalItems)}</span> trong tổng số{' '}
+                            <span className="font-medium">{totalItems}</span> từ vựng
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Trước
+                            </button>
+                            
+                            <div className="flex items-center space-x-1">
+                                {/* First page */}
+                                {currentPage > 3 && (
+                                    <>
+                                        <button
+                                            onClick={() => setCurrentPage(1)}
+                                            className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                                        >
+                                            1
+                                        </button>
+                                        {currentPage > 4 && <span className="px-2 text-gray-500">...</span>}
+                                    </>
+                                )}
+                                
+                                {/* Pages around current */}
+                                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                    .filter(page => page >= currentPage - 2 && page <= currentPage + 2)
+                                    .map(page => (
+                                        <button
+                                            key={page}
+                                            onClick={() => setCurrentPage(page)}
+                                            className={`px-3 py-2 text-sm font-medium rounded-lg ${
+                                                page === currentPage
+                                                    ? 'bg-primary-600 text-white'
+                                                    : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            {page}
+                                        </button>
+                                    ))}
+                                
+                                {/* Last page */}
+                                {currentPage < totalPages - 2 && (
+                                    <>
+                                        {currentPage < totalPages - 3 && <span className="px-2 text-gray-500">...</span>}
+                                        <button
+                                            onClick={() => setCurrentPage(totalPages)}
+                                            className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                                        >
+                                            {totalPages}
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                            
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Sau
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
             
              <FloatingBulkActionsBar isVisible={selectedVocabs.size > 0} selectedCount={selectedVocabs.size} onClearSelection={clearSelection}>
