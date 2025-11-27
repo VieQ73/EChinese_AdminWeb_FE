@@ -69,6 +69,12 @@ const ExamCard: React.FC<ExamCardProps> = ({ exam, onAction }) => {
             return;
         }
 
+        // Không cho phép click nếu có version_at (bài thi cũ)
+        if (exam.version_at) {
+            console.log('Exam has version_at, ignoring click');
+            return;
+        }
+
         // Kiểm tra attempts cho cả bài thi đã xuất bản và chưa xuất bản
         console.log('Checking attempts before edit');
         setIsChecking(true);
@@ -348,7 +354,9 @@ const ExamCard: React.FC<ExamCardProps> = ({ exam, onAction }) => {
             <div 
                 onClick={handleCardClick}
                 className={`relative group flex-shrink-0 w-[260px] h-[160px] bg-white rounded-xl border-2 transition-all duration-300 flex flex-col overflow-hidden
-                    ${isDeleted ? 'opacity-70 cursor-not-allowed' : isChecking ? 'cursor-wait' : 'cursor-pointer hover:shadow-lg hover:border-primary-300'}
+                    ${isDeleted ? 'opacity-70 cursor-not-allowed' : 
+                      exam.version_at ? 'opacity-50 cursor-not-allowed' : 
+                      isChecking ? 'cursor-wait' : 'cursor-pointer hover:shadow-lg hover:border-primary-300'}
                 `}
             >
             {/* Watermark */}
