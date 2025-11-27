@@ -3,7 +3,7 @@ import { Notification } from '../../../../../types';
 import { Pagination } from '../../../../../components/ui/pagination';
 import SentNotificationsToolbar from '../../toolbars/SentNotificationsToolbar';
 import FloatingBulkActionsBar from '../../../../../components/FloatingBulkActionsBar';
-import { TrashIcon, SendIcon } from '../../../../../constants';
+import { TrashIcon, SendIcon, RotateCcwIcon } from '../../../../../constants';
 import NotificationCardList from '../../cards/NotificationCardList';
 import { useCardPagination } from '../../../hooks/useDynamicPagination';
 import { DateRange } from '../../shared/DateRangePicker';
@@ -13,6 +13,7 @@ interface SentNotificationsViewProps {
     onViewDetails: (notification: Notification) => void;
     onCreate: () => void;
     onPublish: (ids: string[]) => void;
+    onRevoke: (ids: string[]) => void;
     onDelete: (ids: string[]) => void;
     loading?: boolean;
     onPageChange?: (page: number, filters?: any) => void;
@@ -24,7 +25,8 @@ const SentNotificationsView: React.FC<SentNotificationsViewProps> = ({
     notifications, 
     onViewDetails, 
     onCreate, 
-    onPublish, 
+    onPublish,
+    onRevoke, 
     onDelete, 
     loading = false,
     onPageChange,
@@ -141,8 +143,8 @@ const SentNotificationsView: React.FC<SentNotificationsViewProps> = ({
         Array.from(selectedIds).map(id => notifications.find(n => n.id === id)).filter(Boolean) as Notification[], 
     [selectedIds, notifications]);
 
-    const canDelete = selectedItems.length > 0 && selectedItems.every(n => !n.is_push_sent);
     const canPublish = selectedItems.length > 0 && selectedItems.some(n => !n.is_push_sent);
+    const canRevoke = selectedItems.length > 0 && selectedItems.some(n => n.is_push_sent);
 
     return (
         <div className="space-y-4">
@@ -169,8 +171,8 @@ const SentNotificationsView: React.FC<SentNotificationsViewProps> = ({
             </div>
             <FloatingBulkActionsBar isVisible={selectedIds.size > 0} selectedCount={selectedIds.size} onClearSelection={() => setSelectedIds(new Set())}>
                 {canPublish && <button onClick={() => onPublish(Array.from(selectedIds))} className="flex items-center text-xs font-medium text-green-600 hover:text-black"><SendIcon className="w-4 h-4 mr-1.5"/> Phát hành</button>}
-                {canDelete && <button onClick={() => onDelete(Array.from(selectedIds))} className="flex items-center text-xs font-medium text-red-600 hover:text-black"><TrashIcon className="w-4 h-4 mr-1.5"/> Xóa</button>}
-                {!canDelete && selectedIds.size > 0 && <span className="text-xs text-gray-400 italic">Chỉ có thể xóa thông báo nháp.</span>}
+                {canRevoke && <button onClick={() => onRevoke(Array.from(selectedIds))} className="flex items-center text-xs font-medium text-orange-600 hover:text-black"><RotateCcwIcon className="w-4 h-4 mr-1.5"/> Thu hồi</button>}
+                <button onClick={() => onDelete(Array.from(selectedIds))} className="flex items-center text-xs font-medium text-red-600 hover:text-black"><TrashIcon className="w-4 h-4 mr-1.5"/> Xóa</button>
             </FloatingBulkActionsBar>
         </div>
     );

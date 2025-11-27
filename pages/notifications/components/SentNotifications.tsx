@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../../services/apiClient';
-import { Search, Users, User, Globe } from 'lucide-react';
+import { Search, Users, User, Globe, Trash2, Send, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface SentNotification {
@@ -30,6 +30,10 @@ const SentNotifications: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterAudience, setFilterAudience] = useState<string>('all');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isRevoking, setIsRevoking] = useState(false);
 
   useEffect(() => {
     fetchNotifications();
@@ -45,6 +49,97 @@ const SentNotifications: React.FC = () => {
       console.error('Error fetching sent notifications:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteNotifications = async (ids: string[]) => {
+    if (!confirm(`Bạn có chắc muốn xóa ${ids.length} thông báo?`)) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      const response = await apiClient.post<{ success: boolean }>('/admin/notifications/delete', { ids });
+      
+      if (response.success) {
+        // Xóa khỏi danh sách local
+        setNotifications(prev => prev.filter(n => !ids.includes(n.id)));
+        setSelectedIds([]);
+        alert('Xóa thành công!');
+        
+        // Nếu trang hiện tại không còn thông báo nào, load lại
+        if (notifications.length === ids.length && page > 1) {
+          setPage(page - 1);
+        } else {
+          fetchNotifications();
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting notifications:', error);
+      alert('Có lỗi xảy ra khi xóa thông báo');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.length === filteredNotifications.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredNotifications.map(n => n.id));
+    }
+  };
+
+  const handleSelectOne = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) 
+        ? prev.filter(i => i !== id)
+        : [...prev, id]
+    );
+  };
+
+  const handlePublishNotifications = async (ids: string[]) => {
+    if (!confirm(`Bạn có chắc muốn xuất bản ${ids.length} thông báo?`)) {
+      return;
+    }
+
+    try {
+      setIsPublishing(true);
+      const response = await apiClient.post<{ success: boolean }>('/notifications/publish', { ids });
+      
+      if (response.success) {
+        alert('Xuất bản thành công!');
+        fetchNotifications();
+        setSelectedIds([]);
+      }
+    } catch (error) {
+      console.error('Error publishing notifications:', error);
+      alert('Có lỗi xảy ra khi xuất bản thông báo');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleRevokeNotifications = async (ids: string[]) => {
+    if (!confirm(`Bạn có chắc muốn thu hồi ${ids.length} thông báo?`)) {
+      return;
+    }
+
+    try {
+      setIsRevoking(true);
+      const response = await apiClient.post<{ success: boolean; message?: string; data?: { revokedCount: number } }>('/notifications/revoke', { ids });
+      
+      if (response.success) {
+        const count = response.data?.revokedCount || ids.length;
+        alert(`Thu hồi thành công ${count} thông báo!`);
+        fetchNotifications();
+        setSelectedIds([]);
+      }
+    } catch (error) {
+      console.error('Error revoking notifications:', error);
+      alert('Có lỗi xảy ra khi thu hồi thông báo');
+    } finally {
+      setIsRevoking(false);
     }
   };
 
@@ -164,6 +259,49 @@ const SentNotifications: React.FC = () => {
 
   return (
     <div>
+      {/* Bulk Actions Bar */}
+      {selectedIds.length > 0 && (
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <span className="font-medium text-blue-900">
+              Đã chọn {selectedIds.length} thông báo
+            </span>
+            <button
+              onClick={() => setSelectedIds([])}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Bỏ chọn
+            </button>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => handlePublishNotifications(selectedIds)}
+              disabled={isPublishing || isDeleting || isRevoking}
+              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Send className="w-4 h-4" />
+              <span>{isPublishing ? 'Đang xuất bản...' : 'Xuất bản'}</span>
+            </button>
+            <button
+              onClick={() => handleRevokeNotifications(selectedIds)}
+              disabled={isRevoking || isDeleting || isPublishing}
+              className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>{isRevoking ? 'Đang thu hồi...' : 'Thu hồi'}</span>
+            </button>
+            <button
+              onClick={() => handleDeleteNotifications(selectedIds)}
+              disabled={isDeleting || isPublishing || isRevoking}
+              className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>{isDeleting ? 'Đang xóa...' : 'Xóa'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="mb-6 flex items-center space-x-4">
         <div className="flex-1 relative">
@@ -187,6 +325,15 @@ const SentNotifications: React.FC = () => {
           <option value="admin">Admin</option>
           <option value="all">Broadcast</option>
         </select>
+
+        {filteredNotifications.length > 0 && (
+          <button
+            onClick={handleSelectAll}
+            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            {selectedIds.length === filteredNotifications.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+          </button>
+        )}
       </div>
 
       {/* Notifications List */}
@@ -205,17 +352,36 @@ const SentNotifications: React.FC = () => {
           {filteredNotifications.map((notification) => (
             <div
               key={notification.id}
-              className="p-4 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
-              onClick={() => handleNotificationClick(notification)}
+              className={`p-4 bg-white rounded-lg border transition-colors ${
+                selectedIds.includes(notification.id)
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-200 hover:bg-gray-50'
+              }`}
             >
               <div className="flex items-start space-x-3">
-                <div className="p-2 bg-gray-100 rounded-lg">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(notification.id)}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleSelectOne(notification.id);
+                  }}
+                  className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                />
+
+                <div 
+                  className="p-2 bg-gray-100 rounded-lg cursor-pointer"
+                  onClick={() => handleNotificationClick(notification)}
+                >
                   {getAudienceIcon(notification.audience)}
                 </div>
 
-                <div className="flex-1 min-w-0">
+                <div 
+                  className="flex-1 min-w-0 cursor-pointer"
+                  onClick={() => handleNotificationClick(notification)}
+                >
                   <div className="flex items-start justify-between mb-2">
-                    <div>
+                    <div className="flex-1">
                       <h3 className="font-semibold text-gray-900 mb-1">
                         {notification.title}
                       </h3>
@@ -229,6 +395,45 @@ const SentNotifications: React.FC = () => {
                           </span>
                         )}
                       </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-1 ml-2">
+                      {!notification.is_push_sent ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePublishNotifications([notification.id]);
+                          }}
+                          disabled={isPublishing || isDeleting || isRevoking}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                          title="Xuất bản thông báo"
+                        >
+                          <Send className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRevokeNotifications([notification.id]);
+                          }}
+                          disabled={isRevoking || isDeleting || isPublishing}
+                          className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors disabled:opacity-50"
+                          title="Thu hồi thông báo"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteNotifications([notification.id]);
+                        }}
+                        disabled={isDeleting || isPublishing || isRevoking}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                        title="Xóa thông báo"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
 

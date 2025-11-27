@@ -3,13 +3,15 @@ import { Notification } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { fetchReceivedNotifications, markNotificationsAsRead } from '../pages/moderation/api/notifications';
 import { useNotification } from '../contexts/NotificationContext';
-import { CheckCheck } from 'lucide-react';
+import { CheckDoubleIcon, BellIcon, GemIcon, ExclamationTriangleIcon, TrophyIcon, CheckCircleIcon } from './icons';
+import { ChatAltIcon, PostIcon, ReplyIcon, HeartIcon } from './icons/community';
 
 interface NotificationDropdownProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+// Dropdown hiển thị danh sách thông báo chưa đọc
 const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onClose }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
@@ -17,19 +19,20 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
   const navigate = useNavigate();
   const { refreshUnreadCount } = useNotification();
 
+  // Fetch thông báo khi dropdown mở
   useEffect(() => {
     if (isOpen) {
       fetchRecentNotifications();
     }
   }, [isOpen]);
 
+  // Lấy danh sách thông báo chưa đọc
   const fetchRecentNotifications = async () => {
     setLoading(true);
     try {
-      // Lấy TẤT CẢ thông báo chưa đọc (không giới hạn)
       const response = await fetchReceivedNotifications({ 
         read_status: 'unread',
-        limit: 999 // Lấy tất cả
+        limit: 999 // Lấy tất cả thông báo chưa đọc
       });
       
       if (response.success && response.data) {
@@ -47,6 +50,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
     }
   };
 
+  // Đánh dấu tất cả đã đọc
   const handleMarkAllAsRead = async () => {
     if (notifications.length === 0) return;
     
@@ -70,44 +74,113 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
     }
   };
 
+  // Xử lý khi click vào thông báo
   const handleNotificationClick = async (notification: Notification) => {
-    // Đánh dấu thông báo này đã đọc
     try {
       await markNotificationsAsRead([notification.id], true);
-      // Cập nhật số lượng thông báo chưa đọc
       await refreshUnreadCount();
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
     
     onClose();
-    // Chuyển đến trang Kiểm duyệt & Thông báo, tab Thông báo, và truyền ID thông báo
+    // Chuyển đến trang Kiểm duyệt & Thông báo, tab Thông báo
     navigate(`/reports?tab=notifications&notificationId=${notification.id}`);
   };
 
+  // Xem tất cả thông báo
   const handleViewAll = () => {
     onClose();
-    // Chuyển đến trang Kiểm duyệt & Thông báo, tab Thông báo
     navigate('/reports?tab=notifications');
   };
 
+  // Lấy icon theo loại thông báo
   const getNotificationIcon = (type: string) => {
+    const iconClass = "w-8 h-8";
+    
+    // Icon wrapper với nền tròn
+    const IconWrapper: React.FC<{ bgColor: string; children: React.ReactNode }> = ({ bgColor, children }) => (
+      <div className={`flex items-center justify-center w-10 h-10 rounded-full ${bgColor}`}>
+        {children}
+      </div>
+    );
+
     switch (type) {
+      // Bài viết có lượt thích/bình luận
+      case 'post_like':
+      case 'post_comment':
+      case 'post':
+        return (
+          <IconWrapper bgColor="bg-indigo-100">
+            <PostIcon className={`${iconClass} text-indigo-600`} />
+          </IconWrapper>
+        );
+      // Trả lời bình luận
+      case 'comment_reply':
+      case 'reply':
+        return (
+          <IconWrapper bgColor="bg-cyan-100">
+            <ReplyIcon className={`${iconClass} text-cyan-600`} />
+          </IconWrapper>
+        );
+      // Like/yêu thích
+      case 'like':
+      case 'reaction':
+        return (
+          <IconWrapper bgColor="bg-pink-100">
+            <HeartIcon className={`${iconClass} text-pink-500`} />
+          </IconWrapper>
+        );
+      // Bình luận chung
+      case 'comment':
       case 'community':
-        return '💬';
+        return <ChatAltIcon className={`${iconClass} text-gray-900`} />;
+      // Thành tích
       case 'achievement':
-        return '🏆';
+        return (
+          <IconWrapper bgColor="bg-yellow-100">
+            <TrophyIcon className={`${iconClass} text-yellow-600`} />
+          </IconWrapper>
+        );
+      // Đăng ký/Premium
       case 'subscription':
-        return '💎';
+        return (
+          <IconWrapper bgColor="bg-purple-100">
+            <GemIcon className={`${iconClass} text-purple-600`} />
+          </IconWrapper>
+        );
+      // Hệ thống
       case 'system':
-        return '🔔';
+        return (
+          <IconWrapper bgColor="bg-gray-100">
+            <BellIcon className={`${iconClass} text-gray-600`} />
+          </IconWrapper>
+        );
+      // Vi phạm/cảnh báo
       case 'violation':
-        return '⚠️';
+      case 'warning':
+        return (
+          <IconWrapper bgColor="bg-red-100">
+            <ExclamationTriangleIcon className={`${iconClass} text-red-600`} />
+          </IconWrapper>
+        );
+      // Thành công
+      case 'success':
+        return (
+          <IconWrapper bgColor="bg-green-100">
+            <CheckCircleIcon className={`${iconClass} text-green-600`} />
+          </IconWrapper>
+        );
       default:
-        return '🔔';
+        return (
+          <IconWrapper bgColor="bg-gray-100">
+            <BellIcon className={`${iconClass} text-gray-600`} />
+          </IconWrapper>
+        );
     }
   };
 
+  // Format thời gian hiển thị
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -127,13 +200,13 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
 
   return (
     <>
-      {/* Overlay */}
+      {/* Overlay để đóng dropdown khi click ra ngoài */}
       <div 
         className="fixed inset-0 z-40" 
         onClick={onClose}
       />
       
-      {/* Dropdown - Giới hạn chiều cao và cải thiện thanh cuộn */}
+      {/* Dropdown */}
       <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 flex flex-col max-h-[600px]">
         {/* Header */}
         <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
@@ -155,14 +228,14 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
               {markingAllRead ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
               ) : (
-                <CheckCheck className="w-4 h-4" />
+                <CheckDoubleIcon className="w-4 h-4" />
               )}
               <span className="whitespace-nowrap">Đọc hết</span>
             </button>
           )}
         </div>
 
-        {/* Notifications List với thanh cuộn đẹp hơn */}
+        {/* Danh sách thông báo */}
         <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400">
           {loading ? (
             <div className="flex items-center justify-center py-8">
@@ -181,8 +254,8 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
                   onClick={() => handleNotificationClick(notification)}
                   className="px-4 py-3 hover:bg-blue-100 cursor-pointer transition-colors bg-blue-50"
                 >
-                  <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0 text-2xl">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-shrink-0 self-center">
                       {getNotificationIcon(notification.type)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -193,8 +266,8 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
                         {formatTime(notification.created_at)}
                       </p>
                     </div>
-                    <div className="flex-shrink-0 mt-1">
-                      <span className="inline-block w-2 h-2 bg-blue-600 rounded-full"></span>
+                    <div className="flex-shrink-0 self-center">
+                      <span className="inline-block w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse"></span>
                     </div>
                   </div>
                 </div>

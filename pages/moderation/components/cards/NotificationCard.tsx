@@ -66,15 +66,18 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
                 <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center space-x-2 flex-1 min-w-0">
                         {showCheckbox && onSelect && (
-                            <input
-                                type="checkbox"
-                                checked={selected}
-                                onChange={(e) => {
-                                    e.stopPropagation();
-                                    onSelect(notification.id);
-                                }}
-                                className="h-3 w-3 text-primary-600 border-gray-300 rounded"
-                            />
+                            <div 
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex items-center"
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={selected}
+                                    onChange={() => onSelect(notification.id)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="h-3 w-3 text-primary-600 border-gray-300 rounded cursor-pointer"
+                                />
+                            </div>
                         )}
                         <BellIcon className={`w-3 h-3 flex-shrink-0 ${notification.read_at ? 'text-gray-400' : 'text-primary-500'}`} />
                         <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getTypeColor()}`}>
@@ -112,7 +115,10 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
 
                 {/* Actions */}
                 {onMarkAsRead && !notification.read_at && (
-                    <div className="flex items-center justify-start">
+                    <div 
+                        className="flex items-center justify-start"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();

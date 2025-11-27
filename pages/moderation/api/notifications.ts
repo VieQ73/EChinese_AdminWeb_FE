@@ -146,6 +146,8 @@ export const createNotification = (payload: Omit<Notification, 'id' | 'created_a
             }, 300);
         });
     }
+    console.log(payload);
+    
     return apiClient.post<CreateNotificationEnvelope>('/notifications', payload);
 };
 
@@ -167,6 +169,26 @@ export const publishNotifications = (ids: string[]): Promise<BasicSuccessEnvelop
         });
     }
     return apiClient.post<BasicSuccessEnvelope>('/notifications/publish', { ids });
+};
+
+export const revokeNotifications = (ids: string[]): Promise<{ success: boolean; message?: string; data?: { revokedCount: number } }> => {
+    if (USE_MOCK_API) {
+        return new Promise(resolve => {
+            setTimeout(() => {
+                const idsToRevoke = new Set(ids);
+                let revokedCount = 0;
+                mockNotifications.forEach(n => {
+                    if(idsToRevoke.has(n.id)) {
+                        n.is_push_sent = false;
+                        revokedCount++;
+                    }
+                });
+                console.log("revokeNotifications "+JSON.stringify(ids));
+                resolve({ success: true, message: `Đã thu hồi ${revokedCount} thông báo`, data: { revokedCount } });
+            }, 400);
+        });
+    }
+    return apiClient.post<{ success: boolean; message?: string; data?: { revokedCount: number } }>('/notifications/revoke', { ids });
 };
 
 export const deleteNotifications = (ids: string[]): Promise<BasicSuccessEnvelope> => {

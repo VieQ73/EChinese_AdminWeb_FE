@@ -62,6 +62,25 @@ export const fetchReports = (params: FetchReportsParams): Promise<ReportsEnvelop
     }
 };
 
+export const fetchReportById = (reportId: string): Promise<{ success: boolean; data: Report }> => {
+    if (!USE_MOCK_API) {
+        return apiClient.get<{ success: boolean; data: Report }>(`/moderation/reports/${reportId}`);
+    }
+
+    if (USE_MOCK_API) {
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                const report = mockReports.find(r => r.id === reportId);
+                if (!report) {
+                    return reject(new Error('Report not found'));
+                }
+                const enriched = enrichReport(report);
+                resolve({ success: true, data: enriched });
+            }, 200);
+        });
+    }
+};
+
 interface UpdateReportStatusPayload {
     status: 'in_progress' | 'resolved' | 'dismissed';
     adminId: string;
@@ -72,9 +91,11 @@ interface UpdateReportStatusPayload {
 type UpdateReportEnvelope = { success: boolean; data: Report };
 
 export const updateReportStatus = (reportId: string, payload: UpdateReportStatusPayload): Promise<UpdateReportEnvelope> => {
-    
+    if (!USE_MOCK_API) {
         return apiClient.put<UpdateReportEnvelope>(`/moderation/reports/${reportId}/status`, payload);
-if (USE_MOCK_API) {
+    }
+    
+    if (USE_MOCK_API) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
                 const reportIndex = mockReports.findIndex(r => r.id === reportId);
@@ -117,6 +138,41 @@ if (USE_MOCK_API) {
                 console.log({ report: enriched });
                 resolve({ success: true, data: enriched });
             }, 400);
+        });
+    }
+};
+
+// =============================
+// GET PENDING REPORTS COUNT
+// =============================
+
+interface PendingReportsCountResponse {
+    success: boolean;
+    message: string;
+    data: {
+        status: string;
+        count: number;
+    };
+}
+
+export const fetchPendingReportsCount = (): Promise<PendingReportsCountResponse> => {
+    if (!USE_MOCK_API) {
+        return apiClient.get<PendingReportsCountResponse>('/moderation/reports/count/pending');
+    }
+
+    if (USE_MOCK_API) {
+        return new Promise(resolve => {
+            setTimeout(() => {
+                const pendingCount = mockReports.filter(r => r.status === 'pending').length;
+                resolve({
+                    success: true,
+                    message: 'Lấy số lượng báo cáo chờ xử lý thành công',
+                    data: {
+                        status: 'pending',
+                        count: pendingCount
+                    }
+                });
+            }, 200);
         });
     }
 };

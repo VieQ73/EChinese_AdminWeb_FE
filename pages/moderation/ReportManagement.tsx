@@ -60,7 +60,21 @@ const ModerationCenter: React.FC = () => {
     const searchParams = new URLSearchParams(location.search);
     const tabFromUrl = searchParams.get('tab') as ActiveTab;
     const notificationIdFromUrl = searchParams.get('notificationId'); // Lấy ID thông báo từ URL
+    const reportIdFromUrl = searchParams.get('report'); // Lấy ID báo cáo từ URL
     const [activeTab, setActiveTab] = useState<ActiveTab>(tabFromUrl || 'reports');
+    
+    // State cục bộ cho dữ liệu của module
+    const [reports, setReports] = useState<PaginatedResponse<Report> | null>(null);
+    const [appeals, setAppeals] = useState<PaginatedResponse<Appeal> | null>(null);
+    const [violations, setViolations] = useState<PaginatedResponse<Violation> | null>(null);
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [pendingReportsCount, setPendingReportsCount] = useState<number>(0);
+    const [loadingStates, setLoadingStates] = useState({
+        reports: false,
+        appeals: false,
+        violations: false,
+        notifications: false,
+    });
     
     // Cập nhật activeTab khi URL thay đổi
     useEffect(() => {
@@ -69,22 +83,52 @@ const ModerationCenter: React.FC = () => {
         }
     }, [tabFromUrl]);
     
+    // Tự động mở modal báo cáo khi có reportId trong URL
+    useEffect(() => {
+        const fetchAndOpenReport = async () => {
+            if (!reportIdFromUrl) return;
+            
+            // Tìm trong danh sách hiện tại trước
+            const existingReport = reports?.data.find(r => r.id === reportIdFromUrl);
+            if (existingReport) {
+                handleOpenReport(existingReport);
+                return;
+            }
+            
+            // Nếu không tìm thấy, fetch từ API
+            try {
+                const response = await api.fetchReportById(reportIdFromUrl);
+                if (response.success && response.data) {
+                    handleOpenReport(response.data);
+                }
+            } catch (error) {
+                console.error('Failed to fetch report:', error);
+            }
+        };
+        
+        fetchAndOpenReport();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [reportIdFromUrl, reports]);
+    
     // Refresh unread count khi vào trang Kiểm duyệt
     useEffect(() => {
         refreshUnreadCount();
     }, [refreshUnreadCount]);
-    
-    // State cục bộ cho dữ liệu của module
-    const [reports, setReports] = useState<PaginatedResponse<Report> | null>(null);
-    const [appeals, setAppeals] = useState<PaginatedResponse<Appeal> | null>(null);
-    const [violations, setViolations] = useState<PaginatedResponse<Violation> | null>(null);
-    const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [loadingStates, setLoadingStates] = useState({
-        reports: false,
-        appeals: false,
-        violations: false,
-        notifications: false,
-    });
+
+    // Load số lượng báo cáo pending khi component mount
+    useEffect(() => {
+        const loadPendingCount = async () => {
+            try {
+                const response = await api.fetchPendingReportsCount();
+                if (response.success) {
+                    setPendingReportsCount(response.data.count);
+                }
+            } catch (error) {
+                console.error('Failed to load pending reports count:', error);
+            }
+        };
+        loadPendingCount();
+    }, []);
 
     // State quản lý tập trung cho các modal
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
@@ -227,6 +271,11 @@ const ModerationCenter: React.FC = () => {
             });
             // Tải lại dữ liệu của tab hiện tại
             await loadReportsData();
+            // Cập nhật lại số lượng báo cáo pending
+            const response = await api.fetchPendingReportsCount();
+            if (response.success) {
+                setPendingReportsCount(response.data.count);
+            }
             if (action !== 'start_processing') {
                 setSelectedReport(null); // Đóng modal sau khi xử lý
             }
@@ -311,7 +360,6 @@ const ModerationCenter: React.FC = () => {
     };
 
     const unreadAdminNotifs = notifications.filter(n => (n.audience === 'admin' || n.from_system) && !n.read_at).length;
-    const pendingReportsCount = reports?.meta?.total || 0;
     const pendingAppealsCount = appeals?.meta?.total || 0;
 
     return (

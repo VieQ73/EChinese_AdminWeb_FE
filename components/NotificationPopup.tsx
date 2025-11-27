@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { X, Bell } from 'lucide-react';
+import { XIcon, BellIcon, GemIcon, ExclamationTriangleIcon, TrophyIcon, CheckCircleIcon } from './icons';
+import { ChatAltIcon, PostIcon, ReplyIcon, HeartIcon } from './icons/community';
 
+// Interface cho payload thông báo realtime
 interface NotificationPayload {
   notification?: {
     title?: string;
@@ -10,6 +12,11 @@ interface NotificationPayload {
     redirect_url?: string;
     type?: string;
     post_id?: string;
+    notification_id?: string;
+    id?: string;
+    content?: string;
+    message?: string;
+    body?: string;
     [key: string]: any;
   };
 }
@@ -20,94 +27,22 @@ interface NotificationPopupProps {
   onNavigate?: (url: string) => void;
 }
 
+// Popup thông báo realtime khi có notification mới
 const NotificationPopup: React.FC<NotificationPopupProps> = ({ payload, onClose, onNavigate }) => {
   const [isVisible, setIsVisible] = useState(false);
 
-  // Hàm decode HTML entities và loại bỏ thẻ HTML
-  const decodeHtmlEntities = (text: string): string => {
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = text;
-    return textarea.value;
-  };
-
-  // Hàm convert HTML thành văn bản thuần và cắt ngắn
-  const htmlToPlainText = (html: string, maxLength: number = 150): string => {
-    // Decode HTML entities trước
-    const decoded = decodeHtmlEntities(html);
-    
-    // Tạo element tạm để parse HTML
-    const temp = document.createElement('div');
-    temp.innerHTML = decoded;
-    
-    // Lấy text content (loại bỏ tất cả thẻ HTML)
-    let text = temp.textContent || temp.innerText || '';
-    
-    // Loại bỏ khoảng trắng thừa và xuống dòng
-    text = text.replace(/\s+/g, ' ').trim();
-    
-    // Cắt ngắn nếu quá dài
-    if (text.length > maxLength) {
-      text = text.substring(0, maxLength) + '...';
-    }
-    
-    return text;
-  };
-
-  // Lấy content từ payload
-  const getContent = (): string => {
-    // Thử nhiều nguồn khác nhau
-    const sources = [
-      payload?.data?.content,
-      payload?.data?.message,
-      payload?.data?.body,
-      payload?.notification?.body,
-      ''
-    ];
-    
-    // Lấy nguồn đầu tiên có giá trị
-    for (const source of sources) {
-      if (!source) continue;
-      
-      // Nếu source là object có thuộc tính html
-      if (typeof source === 'object' && (source as any).html) {
-        return (source as any).html;
-      }
-      
-      // Nếu source là string
-      if (typeof source === 'string' && source.trim()) {
-        return source;
-      }
-    }
-    
-    return 'Bạn có một thông báo mới';
-  };
-
   useEffect(() => {
-    console.log('🎨 [NotificationPopup] useEffect triggered, payload:', payload);
-    
     if (payload) {
-      console.log('✅ [NotificationPopup] Payload exists, showing popup');
-      console.log('📋 [NotificationPopup] Title:', payload.notification?.title);
-      console.log('📋 [NotificationPopup] Body:', payload.notification?.body);
-      console.log('📋 [NotificationPopup] Data:', payload.data);
-      console.log('📋 [NotificationPopup] Content from getContent():', getContent());
-      console.log('📋 [NotificationPopup] Plain text:', htmlToPlainText(getContent()));
-      
       setIsVisible(true);
-      console.log('✅ [NotificationPopup] isVisible set to true');
       
       // Tự động đóng sau 10 giây
       const timer = setTimeout(() => {
-        console.log('⏰ [NotificationPopup] Auto-closing after 10 seconds');
         handleClose();
       }, 10000);
 
       return () => {
-        console.log('🧹 [NotificationPopup] Cleaning up timer');
         clearTimeout(timer);
       };
-    } else {
-      console.log('⚠️ [NotificationPopup] No payload, hiding popup');
     }
   }, [payload]);
 
@@ -118,45 +53,112 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({ payload, onClose,
     }, 300); // Đợi animation kết thúc
   };
 
+  // Xử lý khi click vào popup
   const handleClick = async () => {
     if (onNavigate) {
-      // Lấy notification ID từ payload
       const notificationId = payload?.data?.notification_id || payload?.data?.id;
       
-      // Nếu có notification ID, chuyển đến trang Trung tâm Kiểm duyệt & Thông báo, tab Thông báo
       if (notificationId) {
         onNavigate(`/reports?tab=notifications&notificationId=${notificationId}`);
         handleClose();
         return;
       }
 
-      // Fallback: chuyển đến trang Trung tâm Kiểm duyệt & Thông báo, tab Thông báo
+      // Fallback: chuyển đến trang thông báo
       onNavigate('/reports?tab=notifications');
     }
     handleClose();
   };
 
+  // Lấy icon theo loại thông báo
   const getNotificationIcon = (type?: string) => {
+    const iconClass = "w-8 h-8";
+    
+    // Icon wrapper với nền tròn
+    const IconWrapper: React.FC<{ bgColor: string; children: React.ReactNode }> = ({ bgColor, children }) => (
+      <div className={`flex items-center justify-center w-12 h-12 rounded-full ${bgColor}`}>
+        {children}
+      </div>
+    );
+
     switch (type) {
+      // Bài viết có lượt thích/bình luận
+      case 'post_like':
+      case 'post_comment':
+      case 'post':
+        return (
+          <IconWrapper bgColor="bg-indigo-100">
+            <PostIcon className={`${iconClass} text-indigo-600`} />
+          </IconWrapper>
+        );
+      // Trả lời bình luận
+      case 'comment_reply':
+      case 'reply':
+        return (
+          <IconWrapper bgColor="bg-cyan-100">
+            <ReplyIcon className={`${iconClass} text-cyan-600`} />
+          </IconWrapper>
+        );
+      // Like/yêu thích
+      case 'like':
+      case 'reaction':
+        return (
+          <IconWrapper bgColor="bg-pink-100">
+            <HeartIcon className={`${iconClass} text-pink-500`} />
+          </IconWrapper>
+        );
+      // Bình luận chung
+      case 'comment':
       case 'community':
-        return '💬';
+        return <ChatAltIcon className={`${iconClass} text-gray-900`} />;
+      // Thành tích
       case 'achievement':
-        return '🏆';
+        return (
+          <IconWrapper bgColor="bg-yellow-100">
+            <TrophyIcon className={`${iconClass} text-yellow-600`} />
+          </IconWrapper>
+        );
+      // Đăng ký/Premium
       case 'subscription':
-        return '💎';
+        return (
+          <IconWrapper bgColor="bg-purple-100">
+            <GemIcon className={`${iconClass} text-purple-600`} />
+          </IconWrapper>
+        );
+      // Hệ thống
       case 'system':
-        return '🔔';
+        return (
+          <IconWrapper bgColor="bg-gray-100">
+            <BellIcon className={`${iconClass} text-gray-600`} />
+          </IconWrapper>
+        );
+      // Vi phạm/cảnh báo
+      case 'violation':
+      case 'warning':
+        return (
+          <IconWrapper bgColor="bg-red-100">
+            <ExclamationTriangleIcon className={`${iconClass} text-red-600`} />
+          </IconWrapper>
+        );
+      // Thành công
+      case 'success':
+        return (
+          <IconWrapper bgColor="bg-green-100">
+            <CheckCircleIcon className={`${iconClass} text-green-600`} />
+          </IconWrapper>
+        );
       default:
-        return '🔔';
+        return (
+          <IconWrapper bgColor="bg-gray-100">
+            <BellIcon className={`${iconClass} text-gray-600`} />
+          </IconWrapper>
+        );
     }
   };
 
   if (!payload) {
-    console.log('🚫 [NotificationPopup] Render: No payload, returning null');
     return null;
   }
-
-  console.log('🎨 [NotificationPopup] Rendering popup with isVisible:', isVisible);
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-end p-4 pointer-events-none">
@@ -169,14 +171,14 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({ payload, onClose,
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Bell className="w-5 h-5 text-white" />
+              <BellIcon className="w-5 h-5 text-white" />
               <span className="text-white font-semibold">Thông báo mới</span>
             </div>
             <button
               onClick={handleClose}
               className="text-white hover:bg-white/20 rounded-full p-1 transition-colors"
             >
-              <X className="w-5 h-5" />
+              <XIcon className="w-5 h-5" />
             </button>
           </div>
 
@@ -185,19 +187,17 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({ payload, onClose,
             className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
             onClick={handleClick}
           >
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0 text-3xl">
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0">
                 {getNotificationIcon(payload.data?.type)}
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-base font-semibold text-gray-900 mb-2">
+                <h3 className="text-base font-semibold text-gray-900 mb-1">
                   {payload.notification?.title || 'Thông báo'}
                 </h3>
-                <div className="mt-2">
-                  <span className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                    Nhấn để xem chi tiết →
-                  </span>
-                </div>
+                <span className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                  Nhấn để xem chi tiết →
+                </span>
               </div>
             </div>
           </div>

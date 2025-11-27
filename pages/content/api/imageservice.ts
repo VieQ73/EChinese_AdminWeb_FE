@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { GoogleGenAI } from "@google/genai";
 import { WordTypeEnum } from '../../../types';
+import { uploadImageFromUrl } from '../../../services/cloudinary';
 
 // === CẤU HÌNH PIXABAY ===
 const PIXABAY_API_KEY = '53272830-016c9e20b013f864280d61b7c'; 
@@ -118,7 +119,8 @@ Output: ONLY return the number (1-${images.length}). NO explanations.`;
  * 1. Hỏi Gemini từ khóa tiếng Anh tối ưu
  * 2. Tìm nhiều ảnh trên Pixabay
  * 3. Cho Gemini đánh giá và chọn ảnh phù hợp nhất
- * 4. Fallback nếu không tìm được
+ * 4. Upload ảnh lên Cloudinary
+ * 5. Fallback nếu không tìm được
  */
 export const fetchImageForVocab = async (
   hanzi: string,
@@ -126,7 +128,7 @@ export const fetchImageForVocab = async (
   wordTypes: WordTypeEnum[]
 ): Promise<string | undefined> => {
   try {
-    let imageUrl: string | undefined;
+    let pixabayImageUrl: string | undefined;
     let source: 'ai-selected' | 'gemini-optimized' | 'direct-zh' | 'fallback-meaning' = 'direct-zh';
 
     // Chiến lược 1: AI tối ưu từ khóa + AI chọn ảnh tốt nhất
@@ -140,57 +142,69 @@ export const fetchImageForVocab = async (
         if (images.length > 1) {
           // Cho AI chọn ảnh tốt nhất
           const bestIndex = await selectBestImageWithAI(hanzi, meaning, images);
-          imageUrl = images[bestIndex].url;
+          pixabayImageUrl = images[bestIndex].url;
           source = 'ai-selected';
         } else {
-          imageUrl = images[0].url;
+          pixabayImageUrl = images[0].url;
           source = 'gemini-optimized';
         }
       }
     }
 
     // Chiến lược 2: Tìm bằng Hán tự
-    if (!imageUrl) {
+    if (!pixabayImageUrl) {
       console.log(`[Strategy 2] Searching with Hanzi: "${hanzi}"`);
       const images = await searchPixabayMultiple(hanzi, 'zh', hanzi, meaning);
       if (images && images.length > 0) {
         if (images.length > 1) {
           const bestIndex = await selectBestImageWithAI(hanzi, meaning, images);
-          imageUrl = images[bestIndex].url;
+          pixabayImageUrl = images[bestIndex].url;
           source = 'ai-selected';
         } else {
-          imageUrl = images[0].url;
+          pixabayImageUrl = images[0].url;
           source = 'direct-zh';
         }
       }
     }
 
     // Chiến lược 3: Fallback với nghĩa tiếng Việt
-    if (!imageUrl) {
+    if (!pixabayImageUrl) {
       const firstMeaning = meaning.split(',')[0].trim().split(';')[0].trim();
       console.log(`[Strategy 3] Fallback with meaning: "${firstMeaning}"`);
       const images = await searchPixabayMultiple(firstMeaning, 'vi', hanzi, meaning);
       if (images && images.length > 0) {
-        imageUrl = images[0].url;
+        pixabayImageUrl = images[0].url;
         source = 'fallback-meaning';
       }
     }
 
-    if (imageUrl) {
+    if (pixabayImageUrl) {
+      // Upload ảnh từ Pixabay lên Cloudinary
+      console.log(`[Cloudinary] Uploading image for ${hanzi} to Cloudinary...`);
+      let cloudinaryUrl: string;
+      
+      try {
+        cloudinaryUrl = await uploadImageFromUrl(pixabayImageUrl, 'vocabulary');
+        console.log(`✓ Uploaded to Cloudinary: ${cloudinaryUrl}`);
+      } catch (uploadError) {
+        console.error(`[Cloudinary] Upload failed for ${hanzi}, using Pixabay URL as fallback:`, uploadError);
+        cloudinaryUrl = pixabayImageUrl; // Fallback về URL Pixabay nếu upload thất bại
+      }
+
       // Lưu vào Cache
       const cacheKey = `${hanzi}_${wordTypes.join('_')}`;
-      IMAGE_CACHE.set(cacheKey, imageUrl);
+      IMAGE_CACHE.set(cacheKey, cloudinaryUrl);
 
       // Lưu vào database tạm
       TEMP_JSON_DB.push({
         hanzi,
-        image_url: imageUrl,
+        image_url: cloudinaryUrl,
         source,
         created_at: new Date().toISOString()
       });
 
       console.log(`✓ Found image for ${hanzi} using ${source}`);
-      return imageUrl;
+      return cloudinaryUrl;
     }
 
     console.warn(`✗ No image found for ${hanzi} after all strategies`);

@@ -43,6 +43,9 @@ const NotificationDetailModal: React.FC<NotificationDetailModalProps> = ({ isOpe
     );
     const showNavigateButton = hasNavigationData && shouldShowNavigationButton(dataType);
     
+    // Kiểm tra xem có phải là thông báo báo cáo không
+    const isReportNotification = dataType === 'report' && dataId;
+    
     const handleNavigate = () => {
         if (redirectType && redirectId) {
             onNavigateToAction(redirectType, redirectId);
@@ -104,6 +107,14 @@ const NotificationDetailModal: React.FC<NotificationDetailModalProps> = ({ isOpe
             onClose();
         } finally {
             setIsNavigating(false);
+        }
+    };
+    
+    const handleNavigateToReport = () => {
+        if (dataId) {
+            onClose();
+            // Navigate đến trang reports với tab reports và mở chi tiết báo cáo
+            navigate(`/reports?tab=reports&report=${dataId}`);
         }
     };
     
@@ -237,6 +248,16 @@ const NotificationDetailModal: React.FC<NotificationDetailModalProps> = ({ isOpe
                                 <LinkIcon size={16} />
                             )}
                             {dataType?.includes('post') ? 'Xem bài viết' : 'Xem bình luận'}
+                        </button>
+                    )}
+                    
+                    {isReportNotification && (
+                        <button 
+                            onClick={handleNavigateToReport}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-orange-600 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
+                        >
+                            <LinkIcon size={16} />
+                            Xem báo cáo
                         </button>
                     )}
                 </div>

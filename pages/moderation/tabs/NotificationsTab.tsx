@@ -46,6 +46,7 @@ const NotificationsTab: React.FC<NotificationsTabProps> = ({ notifications, onNa
     const [viewingNotification, setViewingNotification] = useState<Notification | null>(null);
     const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
     const [isPublishModalOpen, setPublishModalOpen] = useState(false);
+    const [isRevokeModalOpen, setRevokeModalOpen] = useState(false);
     const [idsForBulkAction, setIdsForBulkAction] = useState<string[]>([]);
     
     // Handler cho page change
@@ -116,6 +117,11 @@ const NotificationsTab: React.FC<NotificationsTabProps> = ({ notifications, onNa
         setPublishModalOpen(true);
     };
 
+    const confirmRevoke = (ids: string[]) => {
+        setIdsForBulkAction(ids);
+        setRevokeModalOpen(true);
+    };
+
     const handleDelete = async () => {
         await api.deleteNotifications(idsForBulkAction);
         refreshData(currentPage, limit);
@@ -128,6 +134,13 @@ const NotificationsTab: React.FC<NotificationsTabProps> = ({ notifications, onNa
         refreshData(currentPage, limit);
         setIdsForBulkAction([]);
         setPublishModalOpen(false);
+    };
+
+    const handleRevoke = async () => {
+        await api.revokeNotifications(idsForBulkAction);
+        refreshData(currentPage, limit);
+        setIdsForBulkAction([]);
+        setRevokeModalOpen(false);
     };
 
     const handleMarkAsRead = async (ids: string[], asRead: boolean) => {
@@ -162,6 +175,7 @@ const NotificationsTab: React.FC<NotificationsTabProps> = ({ notifications, onNa
                     onViewDetails={handleViewDetails}
                     onCreate={() => setCreateModalOpen(true)}
                     onPublish={confirmPublish}
+                    onRevoke={confirmRevoke}
                     onDelete={confirmDelete}
                     loading={loading}
                     onPageChange={handlePageChange}
@@ -188,6 +202,10 @@ const NotificationsTab: React.FC<NotificationsTabProps> = ({ notifications, onNa
             
             <Modal isOpen={isPublishModalOpen} onClose={() => setPublishModalOpen(false)} title="Xác nhận phát hành" footer={<><button onClick={() => setPublishModalOpen(false)} className="px-4 py-2 rounded-lg border">Hủy</button><button onClick={handlePublish} className="px-4 py-2 rounded-lg bg-green-600 text-white">Phát hành</button></>}>
                 <p>Bạn có chắc muốn phát hành {idsForBulkAction.length} thông báo đã chọn không? Thông báo sẽ được gửi tới đối tượng đã chọn.</p>
+            </Modal>
+            
+            <Modal isOpen={isRevokeModalOpen} onClose={() => setRevokeModalOpen(false)} title="Xác nhận thu hồi" footer={<><button onClick={() => setRevokeModalOpen(false)} className="px-4 py-2 rounded-lg border">Hủy</button><button onClick={handleRevoke} className="px-4 py-2 rounded-lg bg-orange-600 text-white">Thu hồi</button></>}>
+                <p>Bạn có chắc muốn thu hồi {idsForBulkAction.length} thông báo đã chọn không? Thông báo sẽ được đưa về trạng thái nháp.</p>
             </Modal>
         </div>
     );
