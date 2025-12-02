@@ -52,7 +52,7 @@ const CreateEditNotificationModal: React.FC<CreateEditNotificationModalProps> = 
         }
 
         // Thêm disclaimer tự động vào cuối nội dung
-        const disclaimer = `<div style="margin-top: 16px; padding: 12px; background-color: #f3f4f6; border-left: 3px solid #9ca3af; font-size: 0.875rem; color: #6b7280; border-radius: 4px;">
+        const disclaimer = `<div style="margin-top: 16px; padding: 12px; background-color: #f3f4f6; border-left: 3px solid #9ca3af; font-size: 0.875rem; color: #000000; border-radius: 4px;">
             <strong>Lưu ý:</strong> Thông báo này sẽ tự động được đánh dấu đã đọc sau 1 ngày và tự động xóa sau 30 ngày.
         </div>`;
         
@@ -77,7 +77,7 @@ const CreateEditNotificationModal: React.FC<CreateEditNotificationModalProps> = 
     const footer = (
         <div className="space-x-2">
             <button onClick={onClose} className="px-4 py-2 rounded-lg border">Hủy</button>
-            <button onClick={handleSave} className="bg-primary-600 text-white px-4 py-2 rounded-lg">Lưu vào Nháp</button>
+            <button onClick={handleSave} className="bg-primary-600 text-white px-4 py-2 rounded-lg">Tạo thông báo</button>
         </div>
     );
 
