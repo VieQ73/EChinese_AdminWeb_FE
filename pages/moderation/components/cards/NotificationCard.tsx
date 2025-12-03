@@ -113,8 +113,8 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
                     )}
                 </div>
 
-                {/* Actions */}
-                {onMarkAsRead && !notification.read_at && (
+                {/* Actions - Chỉ hiện nút đánh dấu đã đọc khi đối tượng là người dùng cụ thể */}
+                {onMarkAsRead && !notification.read_at && notification.audience === 'user' && (
                     <div 
                         className="flex items-center justify-start"
                         onClick={(e) => e.stopPropagation()}
