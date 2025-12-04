@@ -135,3 +135,12 @@ export const moderatePost = async (postId: string, payload: {
     const response = await apiClient.post(`/community/posts/${postId}/moderation`, payload);
     return (response as any).data; // API trả về { success, message, data: Post }
 };
+
+
+/**
+ * Ghim hoặc bỏ ghim bài viết
+ */
+export const togglePinPost = async (postId: string, isPinned: boolean): Promise<Post> => {
+    const response = await apiClient.put(`/community/posts/${postId}/pin`, { is_pinned: isPinned });
+    return (response as any).data; // API trả về { success, message, data: Post }
+};

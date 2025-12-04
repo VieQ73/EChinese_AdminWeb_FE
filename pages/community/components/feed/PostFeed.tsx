@@ -17,6 +17,7 @@ interface PostFeedProps {
     isLiked: (postId: string) => boolean;
     onToggleView: (postId: string, isViewed: boolean) => void;
     isViewed: (postId: string) => boolean;
+    onTogglePin?: (post: Post) => void;
 }
 
 const PostFeed: React.FC<PostFeedProps> = (props) => {
@@ -50,6 +51,7 @@ const PostFeed: React.FC<PostFeedProps> = (props) => {
                         isLiked={cardProps.isLiked(post.id)}
                         onToggleView={cardProps.onToggleView}
                         isViewed={cardProps.isViewed(post.id)}
+                        onTogglePin={cardProps.onTogglePin}
                     />
                 );
 

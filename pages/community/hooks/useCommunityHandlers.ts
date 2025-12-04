@@ -17,9 +17,10 @@ interface UseCommunityHandlersProps {
     context: any; // from useAppData
     refreshData: () => void; // Hàm để tải lại dữ liệu
     updatePostInList?: (postId: string, updates: Partial<Post>) => void; // Hàm để update post trong list
+    movePostToTop?: (postId: string) => void; // Hàm để đưa post lên đầu danh sách
 }
 
-export const useCommunityHandlers = ({ currentUser, state, setters, context, refreshData, updatePostInList }: UseCommunityHandlersProps) => {
+export const useCommunityHandlers = ({ currentUser, state, setters, context, refreshData, updatePostInList, movePostToTop }: UseCommunityHandlersProps) => {
 
     const handleOpenCreateModal = useCallback(() => {
         setters.setEditingPost(null);
@@ -282,6 +283,41 @@ export const useCommunityHandlers = ({ currentUser, state, setters, context, ref
         setTimeout(() => { handleOpenDetailModal(post); }, 100);
     }, [setters, handleOpenDetailModal]);
 
+    const handleTogglePin = useCallback(async (post: Post) => {
+        if (!currentUser) return;
+        
+        // Chỉ admin và super admin mới có quyền ghim
+        if (currentUser.role !== 'admin' && currentUser.role !== 'super admin') {
+            alert('Bạn không có quyền thực hiện thao tác này.');
+            return;
+        }
+        
+        const newPinnedState = !post.is_pinned;
+        
+        // Optimistic update
+        if (updatePostInList) {
+            updatePostInList(post.id, { is_pinned: newPinnedState });
+        }
+        
+        // Nếu ghim bài thì đưa lên đầu danh sách
+        if (newPinnedState && movePostToTop) {
+            movePostToTop(post.id);
+        }
+        
+        try {
+            await api.togglePinPost(post.id, newPinnedState);
+        } catch (error) {
+            // Revert nếu lỗi
+            if (updatePostInList) {
+                updatePostInList(post.id, { is_pinned: post.is_pinned });
+            }
+            // Reload lại danh sách để khôi phục thứ tự
+            refreshData();
+            console.error('Failed to toggle pin:', error);
+            alert('Thao tác ghim bài viết thất bại, vui lòng thử lại.');
+        }
+    }, [currentUser, updatePostInList, movePostToTop, refreshData]);
+
     return {
         handleOpenCreateModal,
         handleOpenEditModal,
@@ -293,5 +329,6 @@ export const useCommunityHandlers = ({ currentUser, state, setters, context, ref
         handleToggleLike,
         handleToggleView,
         handlePostSelectFromActivity,
+        handleTogglePin,
     };
 };

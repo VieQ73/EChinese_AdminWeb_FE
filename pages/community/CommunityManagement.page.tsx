@@ -142,6 +142,18 @@ const CommunityManagementPage: React.FC = () => {
                 return p;
             }));
         },
+        movePostToTop: (postId: string) => {
+            setPosts(prev => {
+                const postIndex = prev.findIndex(p => p.id === postId);
+                if (postIndex <= 0) return prev; // Đã ở đầu hoặc không tìm thấy
+                
+                const post = prev[postIndex];
+                const newPosts = [...prev];
+                newPosts.splice(postIndex, 1); // Xóa khỏi vị trí cũ
+                newPosts.unshift(post); // Thêm vào đầu
+                return newPosts;
+            });
+        },
     });
     
     useCommunityEffects({
@@ -338,6 +350,7 @@ const CommunityManagementPage: React.FC = () => {
                         isLiked={postId => likedPosts.has(postId)}
                         onToggleView={(postId, isViewed) => handlers.handleToggleView(postId, isViewed)}
                         isViewed={postId => viewedPosts.has(postId)}
+                        onTogglePin={handlers.handleTogglePin}
                     />
                 </div>
 

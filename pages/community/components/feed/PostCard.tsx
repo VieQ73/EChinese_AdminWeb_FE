@@ -18,6 +18,7 @@ interface PostFeedCardProps {
     isViewed: boolean;
     isRemoved?: boolean;
     onRestore?: (post: Post) => void;
+    onTogglePin?: (post: Post) => void;
 }
 
 const MAX_HEIGHT_PX = 120; // Chiều cao tối đa trước khi hiển thị "Xem thêm"
@@ -34,7 +35,8 @@ const PostFeedCard: React.FC<PostFeedCardProps> = ({
     onToggleView,
     isViewed,
     isRemoved = false,
-    onRestore
+    onRestore,
+    onTogglePin
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isOverflowing, setIsOverflowing] = useState(false);
@@ -99,6 +101,10 @@ const PostFeedCard: React.FC<PostFeedCardProps> = ({
     // Bất kỳ ai có quyền đều có thể phục hồi bài trong thùng rác
     const canRestore = isActuallyRemoved && onRestore;
 
+    // Admin và Super Admin có thể ghim/bỏ ghim bài viết
+    const canPin = !isActuallyRemoved && currentUser && onTogglePin && 
+        (currentUser.role === 'admin' || currentUser.role === 'super admin');
+
     const fullContentHtml = post.content?.html || 
                            (post.content?.text ? `<p>${post.content.text.replace(/\n/g, '<br>')}</p>` : '');
                            
@@ -137,7 +143,16 @@ const PostFeedCard: React.FC<PostFeedCardProps> = ({
                         </div>
                     </div>
                      <div className="flex items-center space-x-2">
-                         {post.is_pinned && !isActuallyRemoved && <span title="Đã ghim"><PinIcon className="w-5 h-5 text-yellow-500" /></span>}
+                         {post.is_pinned && !isActuallyRemoved && !canPin && <span title="Đã ghim"><PinIcon className="w-5 h-5 text-yellow-500" /></span>}
+                         {canPin && (
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onTogglePin && onTogglePin(post); }} 
+                                className={`p-1.5 rounded-md transition-colors ${post.is_pinned ? 'text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50' : 'text-gray-400 hover:text-yellow-500 hover:bg-gray-100'}`} 
+                                title={post.is_pinned ? 'Bỏ ghim' : 'Ghim bài viết'}
+                            >
+                                <PinIcon className="w-5 h-5" />
+                            </button>
+                         )}
                          {canRestore && (
                             <button onClick={() => onRestore && onRestore(post)} className="p-1.5 text-green-500 hover:text-green-700 rounded-md hover:bg-green-100" title="Phục hồi bài viết">
                                 <RestoreIcon className="w-5 h-5" />
