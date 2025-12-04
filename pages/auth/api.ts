@@ -24,7 +24,11 @@ export interface ForgotPasswordPayload {
 
 // Cấu trúc dữ liệu trả về khi yêu cầu quên mật khẩu
 export interface ForgotPasswordResponse {
-    message: string;
+  success: boolean;
+  message: string;
+  data?: {
+    newPassword: string;
+  };
 }
 
 // Biến môi trường để bật/tắt chế độ giả lập
@@ -170,16 +174,25 @@ export const login = (payload: LoginPayload): Promise<LoginResponse> => {
 /**
  * [POST] Gửi yêu cầu đặt lại mật khẩu.
  * @param payload - Thông tin email.
- * @returns - Promise chứa thông báo từ server.
+ * @returns - Promise chứa thông báo từ server và mật khẩu mới.
  */
-export const forgotPassword = (payload: ForgotPasswordPayload): Promise<ForgotPasswordResponse> => {
+export const forgotPassword = async (payload: ForgotPasswordPayload): Promise<ForgotPasswordResponse> => {
     // Chế độ giả lập
     if (USE_MOCK_API) {
         console.warn('[MOCK] Đang gọi API quên mật khẩu...');
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             setTimeout(() => {
-                resolve({ message: `Nếu tồn tại tài khoản với email ${payload.email}, một liên kết đặt lại mật khẩu đã được gửi.` });
-            }, 500); // Giả lập độ trễ mạng
+                // Giả lập: email test@example.com tồn tại
+                if (payload.email === 'test@example.com') {
+                    resolve({
+                        success: true,
+                        message: 'Mật khẩu mới đã được đặt thành công.',
+                        data: { newPassword: '12345' }
+                    });
+                } else {
+                    reject(new Error('Email không tồn tại trong hệ thống.'));
+                }
+            }, 500);
         });
     }
 
