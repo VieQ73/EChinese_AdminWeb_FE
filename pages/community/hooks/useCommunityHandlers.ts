@@ -17,10 +17,11 @@ interface UseCommunityHandlersProps {
     context: any; // from useAppData
     refreshData: () => void; // Hàm để tải lại dữ liệu
     updatePostInList?: (postId: string, updates: Partial<Post>) => void; // Hàm để update post trong list
-    movePostToTop?: (postId: string) => void; // Hàm để đưa post lên đầu danh sách
+    movePostToTop?: (postId: string) => void; // Hàm để đưa post lên đầu danh sách khi ghim
+    movePostBelowPinned?: (postId: string) => void; // Hàm để đưa post xuống dưới các bài ghim khi bỏ ghim
 }
 
-export const useCommunityHandlers = ({ currentUser, state, setters, context, refreshData, updatePostInList, movePostToTop }: UseCommunityHandlersProps) => {
+export const useCommunityHandlers = ({ currentUser, state, setters, context, refreshData, updatePostInList, movePostToTop, movePostBelowPinned }: UseCommunityHandlersProps) => {
 
     const handleOpenCreateModal = useCallback(() => {
         setters.setEditingPost(null);
@@ -299,9 +300,11 @@ export const useCommunityHandlers = ({ currentUser, state, setters, context, ref
             updatePostInList(post.id, { is_pinned: newPinnedState });
         }
         
-        // Nếu ghim bài thì đưa lên đầu danh sách
+        // Nếu ghim bài thì đưa lên đầu danh sách, nếu bỏ ghim thì đưa xuống dưới các bài ghim
         if (newPinnedState && movePostToTop) {
             movePostToTop(post.id);
+        } else if (!newPinnedState && movePostBelowPinned) {
+            movePostBelowPinned(post.id);
         }
         
         try {
@@ -316,7 +319,7 @@ export const useCommunityHandlers = ({ currentUser, state, setters, context, ref
             console.error('Failed to toggle pin:', error);
             alert('Thao tác ghim bài viết thất bại, vui lòng thử lại.');
         }
-    }, [currentUser, updatePostInList, movePostToTop, refreshData]);
+    }, [currentUser, updatePostInList, movePostToTop, movePostBelowPinned, refreshData]);
 
     return {
         handleOpenCreateModal,

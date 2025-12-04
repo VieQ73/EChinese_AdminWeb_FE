@@ -154,6 +154,23 @@ const CommunityManagementPage: React.FC = () => {
                 return newPosts;
             });
         },
+        movePostBelowPinned: (postId: string) => {
+            setPosts(prev => {
+                const postIndex = prev.findIndex(p => p.id === postId);
+                if (postIndex < 0) return prev; // Không tìm thấy
+                
+                const post = prev[postIndex];
+                const newPosts = [...prev];
+                newPosts.splice(postIndex, 1); // Xóa khỏi vị trí cũ
+                
+                // Tìm vị trí sau bài ghim cuối cùng (không tính bài hiện tại vì đã bỏ ghim)
+                const lastPinnedIndex = newPosts.findIndex(p => !p.is_pinned);
+                const insertIndex = lastPinnedIndex === -1 ? newPosts.length : lastPinnedIndex;
+                
+                newPosts.splice(insertIndex, 0, post); // Chèn vào sau các bài ghim
+                return newPosts;
+            });
+        },
     });
     
     useCommunityEffects({
