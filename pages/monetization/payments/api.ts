@@ -157,3 +157,31 @@ export const bulkUpdatePaymentStatus = async (paymentIds: string[], status: 'man
 
 };
 
+
+
+// ===================================
+// API CHO CHẾ ĐỘ TỰ ĐỘNG XÁC NHẬN
+// ===================================
+
+export interface AutoConfirmResponse {
+    success: boolean;
+    data: {
+        autoConfirm: boolean;
+    };
+}
+
+/**
+ * Lấy trạng thái chế độ tự động xác nhận thanh toán
+ */
+export const getAutoConfirmStatus = async (): Promise<AutoConfirmResponse> => {
+    const response = await apiClient.get<AutoConfirmResponse>('/monetization/payments/auto-confirm');
+    return response as AutoConfirmResponse;
+};
+
+/**
+ * Bật/tắt chế độ tự động xác nhận thanh toán
+ */
+export const setAutoConfirmStatus = async (enabled: boolean): Promise<AutoConfirmResponse> => {
+    const response = await apiClient.put<AutoConfirmResponse>('/monetization/payments/auto-confirm', { enabled });
+    return response as AutoConfirmResponse;
+};

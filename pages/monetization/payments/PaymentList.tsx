@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useContext, useMemo } from 'react';
 import { Payment } from '../../../types';
 import { AuthContext } from '../../../contexts/AuthContext';
-import { fetchPayments, updatePaymentStatus, bulkUpdatePaymentStatus } from '../api';
+import { fetchPayments, updatePaymentStatus, bulkUpdatePaymentStatus, getAutoConfirmStatus, setAutoConfirmStatus } from '../api';
 import { Pagination } from '../../../components/ui/pagination';
 import FloatingBulkActionsBar from '../../../components/FloatingBulkActionsBar';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -34,6 +34,10 @@ const PaymentList: React.FC = () => {
     const [confirmAction, setConfirmAction] = useState<{ type: 'confirm' | 'fail'; payment: Payment } | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
 
+    // State cho Auto Confirm
+    const [autoConfirm, setAutoConfirm] = useState(false);
+    const [autoConfirmLoading, setAutoConfirmLoading] = useState(false);
+
     // Hàm tải dữ liệu
     const loadPayments = useCallback(async () => {
         setLoading(true);
@@ -52,6 +56,33 @@ const PaymentList: React.FC = () => {
     useEffect(() => {
         loadPayments();
     }, [loadPayments]);
+
+    // Load trạng thái auto confirm khi mount
+    useEffect(() => {
+        const loadAutoConfirmStatus = async () => {
+            try {
+                const response = await getAutoConfirmStatus();
+                setAutoConfirm(response.data.autoConfirm);
+            } catch (err) {
+                console.error('Không thể tải trạng thái tự động xác nhận:', err);
+            }
+        };
+        loadAutoConfirmStatus();
+    }, []);
+
+    // Handler bật/tắt auto confirm
+    const handleAutoConfirmChange = async (enabled: boolean) => {
+        setAutoConfirmLoading(true);
+        try {
+            const response = await setAutoConfirmStatus(enabled);
+            setAutoConfirm(response.data.autoConfirm);
+        } catch (err) {
+            console.error('Không thể cập nhật trạng thái tự động xác nhận:', err);
+            alert('Không thể cập nhật trạng thái tự động xác nhận.');
+        } finally {
+            setAutoConfirmLoading(false);
+        }
+    };
 
     useEffect(() => { setPage(1); }, [filters, dates]);
     
@@ -180,6 +211,9 @@ const PaymentList: React.FC = () => {
                 dates={dates}
                 onDatesChange={setDates}
                 onExportCSV={handleExportCSV}
+                autoConfirm={autoConfirm}
+                onAutoConfirmChange={handleAutoConfirmChange}
+                autoConfirmLoading={autoConfirmLoading}
             />
             {error ? (
                 <div className="p-4 text-red-600">{error}</div>

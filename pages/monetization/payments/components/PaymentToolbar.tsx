@@ -14,9 +14,12 @@ interface PaymentToolbarProps {
     dates: DateRange;
     onDatesChange: (dates: DateRange) => void;
     onExportCSV: () => void;
+    autoConfirm?: boolean;
+    onAutoConfirmChange?: (enabled: boolean) => void;
+    autoConfirmLoading?: boolean;
 }
 
-const PaymentToolbar: React.FC<PaymentToolbarProps> = ({ filters, onFilterChange, dates, onDatesChange, onExportCSV }) => {
+const PaymentToolbar: React.FC<PaymentToolbarProps> = ({ filters, onFilterChange, dates, onDatesChange, onExportCSV, autoConfirm, onAutoConfirmChange, autoConfirmLoading }) => {
     return (
         <div className="p-4 bg-gray-50 border-b border-gray-200 text-sm">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 flex-wrap">
@@ -40,8 +43,29 @@ const PaymentToolbar: React.FC<PaymentToolbarProps> = ({ filters, onFilterChange
                         {Object.entries(PAYMENT_CHANNELS).map(([key, value]) => <option key={key} value={key}>{value}</option>)}
                     </select>
                 </div>
-                {/* Export Button */}
-                <div className="flex-shrink-0">
+                {/* Actions */}
+                <div className="flex items-center gap-4 flex-shrink-0">
+                    {/* Auto Confirm Toggle */}
+                    {onAutoConfirmChange && (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg">
+                            <span className="text-sm text-gray-700 whitespace-nowrap">Tự động xác nhận</span>
+                            <button
+                                onClick={() => onAutoConfirmChange(!autoConfirm)}
+                                disabled={autoConfirmLoading}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 ${
+                                    autoConfirm ? 'bg-green-500' : 'bg-gray-300'
+                                }`}
+                                title={autoConfirm ? 'Tắt tự động xác nhận' : 'Bật tự động xác nhận'}
+                            >
+                                <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                        autoConfirm ? 'translate-x-6' : 'translate-x-1'
+                                    }`}
+                                />
+                            </button>
+                        </div>
+                    )}
+                    {/* Export Button */}
                     <button 
                         onClick={onExportCSV}
                         className="flex items-center w-full sm:w-auto justify-center px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-sm transition-colors"
