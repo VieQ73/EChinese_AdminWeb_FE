@@ -93,7 +93,7 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({
         }
 
         // Validate enum values
-        const validTopics = ['Văn hóa', 'Ngữ pháp', 'Từ vựng', 'Phát âm', 'Khẩu ngữ', 'Kỹ năng nghe', 'Kỹ năng đọc', 'Kỹ năng viết', 'Câu đố', 'HSK', 'Câu nói hay', 'Giao tiếp', 'HSKK', 'Ngôn ngữ mạng', 'Du học', 'Hướng dẫn sử dụng', 'Truyện cười'];
+        const validTopics = ['Văn hóa', 'Ngữ pháp', 'Từ vựng', 'Phát âm', 'Khẩu ngữ', 'Kỹ năng nghe', 'Kỹ năng đọc', 'Kỹ năng viết', 'Câu đố', 'HSK', 'Câu nói hay', 'Giao tiếp', 'HSKK', 'Ngôn ngữ mạng', 'Du học', 'Hướng dẫn sử dụng', 'Truyện cười', 'Mỗi ngày một đoạn văn'];
         const validLevels = ['Sơ cấp', 'Trung cấp', 'Cao cấp'];
 
         if (tip.topic && !validTopics.includes(tip.topic)) {

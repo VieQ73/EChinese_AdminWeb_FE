@@ -141,7 +141,8 @@ export const TIP_TOPICS = [
   'Ngôn ngữ mạng',
   'Du học',
   'Hướng dẫn sử dụng',
-  'Truyện cười'
+  'Truyện cười',
+  'Mỗi ngày một đoạn văn'
 ] as const;
 
 export const TIP_LEVELS = [
