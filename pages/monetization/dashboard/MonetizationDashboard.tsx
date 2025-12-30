@@ -70,7 +70,7 @@ const MonetizationDashboard: React.FC = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-xl font-semibold text-gray-900">Tổng quan Gói đăng ký & Thanh toán</h2>
+                    <h2 className="text-xl font-semibold text-gray-900">Tổng quan Gói hội viên & Thanh toán</h2>
                     {lastUpdated && !loading && (
                         <p className="text-sm text-gray-500">
                             Cập nhật lần cuối: {lastUpdated.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} (GMT+7)

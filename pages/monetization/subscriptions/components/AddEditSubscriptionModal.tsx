@@ -92,7 +92,7 @@ const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> = ({ isO
     );
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={subscription ? "Chỉnh sửa gói" : "Tạo gói đăng ký mới"} footer={footer} className="max-w-4xl">
+        <Modal isOpen={isOpen} onClose={onClose} title={subscription ? "Chỉnh sửa gói" : "Tạo gói hội viên mới"} footer={footer} className="max-w-4xl">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[70vh] overflow-y-auto p-1">
                 {/* Cột trái: Form inputs */}
                 <div className="space-y-4">

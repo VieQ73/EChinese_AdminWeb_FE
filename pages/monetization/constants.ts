@@ -2,7 +2,7 @@ import { DashboardIcon, SubscriptionIcon, CurrencyDollarIcon, RestoreIcon, Users
 
 export const MONETIZATION_TABS = [
     { id: 'dashboard', label: 'Tổng quan', icon: DashboardIcon },
-    { id: 'subscriptions', label: 'Gói đăng ký', icon: SubscriptionIcon },
+    { id: 'subscriptions', label: 'Gói hội viên', icon: SubscriptionIcon },
     { id: 'payments', label: 'Giao dịch', icon: CurrencyDollarIcon },
     { id: 'refunds', label: 'Hoàn tiền', icon: RestoreIcon },
     { id: 'user-subscriptions', label: 'Gói của người dùng', icon: UsersIcon },

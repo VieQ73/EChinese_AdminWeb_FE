@@ -33,7 +33,7 @@ const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ isOpen, onClose
                         <p className="font-semibold">{payment.userName}</p>
                         <p className="text-gray-600">{payment.userEmail}</p>
                     </InfoRow>
-                    <InfoRow label="Gói đăng ký & Số tiền">
+                    <InfoRow label="Gói hội viên & Số tiền">
                         <p className="font-semibold">{payment.subscriptionName}</p>
                         <p className="font-bold text-primary-700">{formatCurrency(payment.amount)}</p>
                     </InfoRow>

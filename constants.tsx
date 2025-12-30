@@ -59,10 +59,10 @@ export const NAVIGATION_LINKS: { name: string; path: string; icon: React.FC<Icon
     { name: 'Sổ tay & Từ vựng', path: '/notebooks', icon: NotebookIcon },
     { name: 'Kiểm duyệt & Thông báo', path: '/reports', icon: ReportIcon },
     { name: 'Quản lý Quy tắc', path: '/rules', icon: RuleIcon },
-    { name: 'Gói đăng ký và thanh toán', path: '/subscriptions', icon: SubscriptionIcon },
+    { name: 'Gói hội viên và thanh toán', path: '/subscriptions', icon: SubscriptionIcon },
     { name: 'Thành tích và Huy hiệu', path: '/achievements', icon: AchievementIcon },
     { name: 'Quản lý Bài thi', path: '/mock-tests', icon: MockTestIcon },
-    { name: 'Quản lý Mẹo', path: '/tips', icon: TipIcon },
+    { name: 'Câu đố, Bài đọc và Mẹo', path: '/tips', icon: TipIcon },
     { name: 'Quản lý Hệ thống', path: '/system', icon: SystemIcon },
 ];
 

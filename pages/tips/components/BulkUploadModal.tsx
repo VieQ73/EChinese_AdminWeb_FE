@@ -185,7 +185,7 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({
       <div className="relative w-full max-w-4xl bg-white text-gray-800 rounded-xl shadow-2xl border border-gray-100 max-h-[90vh] flex flex-col">
         
         <div className="flex flex-row items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold">Tải lên hàng loạt mẹo học tập</h2>
+          <h2 className="text-xl font-bold">Tải lên hàng loạt câu đố, bài đọc và mẹo</h2>
           <button onClick={onClose} className="p-1 rounded-full text-gray-500 hover:bg-gray-100" disabled={uploading}><X size={20} /></button>
         </div>
 

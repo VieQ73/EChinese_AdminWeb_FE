@@ -28,7 +28,7 @@ const SubscriptionCardList: React.FC<SubscriptionCardListProps> = ({
     if (subscriptions.length === 0) {
         return (
             <div className="p-10 text-center text-gray-500">
-                Chưa có gói đăng ký nào.
+                Chưa có gói hội viên nào.
             </div>
         );
     }

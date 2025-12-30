@@ -74,7 +74,7 @@ const RefundDetailModal: React.FC<RefundDetailModalProps> = ({
                         <h4 className="text-sm font-semibold text-gray-800 mb-2">Thông tin giao dịch gốc</h4>
                         <div className="p-3 rounded-md border border-gray-200 space-y-2">
                             <InfoRow label="Mã giao dịch">{refund.payment?.id}</InfoRow>
-                            <InfoRow label="Gói đăng ký">{refund.payment?.subscriptionName}</InfoRow>
+                            <InfoRow label="Gói hội viên">{refund.payment?.subscriptionName}</InfoRow>
                             <InfoRow label="Số tiền gốc">{formatCurrency(refund.payment?.amount || 0)}</InfoRow>
                             <InfoRow label="Ngày thanh toán">{formatDateTime(refund.payment?.transaction_date)}</InfoRow>
                         </div>

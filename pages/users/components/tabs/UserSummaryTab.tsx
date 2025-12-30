@@ -42,7 +42,7 @@ const UserSummaryTab: React.FC<UserSummaryTabProps> = ({ user, subscription, onO
                 <InfoItem label="Vai trò" value={<span className="capitalize font-medium">{user.role}</span>} />
                 <InfoItem label="Trình độ HSK" value={`Cấp ${user.level}`} />
                 <InfoItem label="Điểm cộng đồng" value={user.community_points.toLocaleString()} />
-                <InfoItem label="Gói đăng ký" value={subscription?.name || 'Chưa có'} />
+                <InfoItem label="Gói hội viên" value={subscription?.name || 'Chưa có'} />
                 <InfoItem label="Ngày tham gia" value={new Date(user.created_at).toLocaleDateString()} />
                 <InfoItem label="Đăng nhập lần cuối" value={user.last_login ? new Date(user.last_login).toLocaleString() : 'Chưa từng'} />
             </div>

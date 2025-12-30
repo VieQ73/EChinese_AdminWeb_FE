@@ -129,7 +129,7 @@ const ManageUserSubscriptionModal: React.FC<ManageUserSubscriptionModalProps> = 
         
         return (
             <div className="space-y-4">
-                <h4 className="font-semibold">Thay đổi gói đăng ký</h4>
+                <h4 className="font-semibold">Thay đổi gói hội viên</h4>
                 
                 {/* Thông tin gói hiện tại */}
                 <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">

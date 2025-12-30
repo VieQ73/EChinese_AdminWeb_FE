@@ -46,7 +46,7 @@ const SubscriptionManagement: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-gray-900">Gói đăng ký và Thanh toán</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Gói hội viên và Thanh toán</h1>
             
             <div className="border-b border-gray-200">
                 <nav className="-mb-px flex space-x-6 overflow-x-auto" aria-label="Tabs">

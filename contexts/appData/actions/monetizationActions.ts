@@ -26,13 +26,13 @@ export const useMonetizationActions = ({
   const createSubscription = useCallback(async (payload: api.SubscriptionPayload) => {
     const newSub = await api.createSubscription(payload);
     setSubscriptions(prev => [newSub, ...prev]);
-    addAdminLog({ action_type: 'CREATE_SUBSCRIPTION', target_id: newSub.id, description: `Tạo gói đăng ký mới: ${newSub.name}` });
+    addAdminLog({ action_type: 'CREATE_SUBSCRIPTION', target_id: newSub.id, description: `Tạo gói hội viên mới: ${newSub.name}` });
   }, [setSubscriptions, addAdminLog]);
 
   const updateSubscription = useCallback(async (id: string, payload: Partial<api.SubscriptionPayload>) => {
     const updated = await api.updateSubscription(id, payload);
     setSubscriptions(prev => prev.map(s => s.id === id ? updated : s));
-    addAdminLog({ action_type: 'UPDATE_SUBSCRIPTION', target_id: id, description: `Cập nhật gói đăng ký: ${updated.name}` });
+    addAdminLog({ action_type: 'UPDATE_SUBSCRIPTION', target_id: id, description: `Cập nhật gói hội viên: ${updated.name}` });
   }, [setSubscriptions, addAdminLog]);
   
   const deleteSubscription = useCallback(async (id: string) => {
@@ -40,7 +40,7 @@ export const useMonetizationActions = ({
     await api.deleteSubscription(id);
     setSubscriptions(prev => prev.filter(s => s.id !== id));
     if (subToDelete) {
-        addAdminLog({ action_type: 'DELETE_SUBSCRIPTION', target_id: id, description: `Xóa gói đăng ký: ${subToDelete.name}` });
+        addAdminLog({ action_type: 'DELETE_SUBSCRIPTION', target_id: id, description: `Xóa gói hội viên: ${subToDelete.name}` });
     }
   }, [setSubscriptions, addAdminLog]);
   

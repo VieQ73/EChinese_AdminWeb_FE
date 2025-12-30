@@ -179,7 +179,7 @@ const PaymentList: React.FC = () => {
             id: 'Mã giao dịch',
             user_email: 'Email người dùng',
             user_name: 'Tên người dùng',
-            subscription_name: 'Gói đăng ký',
+            subscription_name: 'Gói hội viên',
             amount: 'Số tiền',
             currency: 'Đơn vị tiền tệ',
             status: 'Trạng thái',
